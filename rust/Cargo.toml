@@ -1,0 +1,10 @@
+[package]
+name = "topo"
+version = "0.1.0"
+authors = ["Jared Forsyth <jared@jaredforsyth.com>"]
+edition = "2018"
+
+[dependencies]
+kiss3d = "*"
+three = "*"
+stl = "*"
