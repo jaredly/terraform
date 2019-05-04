@@ -3,7 +3,7 @@
 use camera::Camera;
 use light::Light;
 use na::{Isometry3, Point2, Point3, Vector3};
-use resource::{Material, Mesh, Texture, TextureManager};
+use resource::{Material, Mesh, Texture, TextureManager, IndexNum};
 use std::any::Any;
 use std::cell::RefCell;
 use std::path::Path;
@@ -266,7 +266,7 @@ impl Object {
 
     /// Mutably access the object's faces.
     #[inline(always)]
-    pub fn modify_faces<F: FnMut(&mut Vec<Point3<u16>>)>(&mut self, f: &mut F) {
+    pub fn modify_faces<F: FnMut(&mut Vec<Point3<IndexNum>>)>(&mut self, f: &mut F) {
         let bmesh = self.mesh.borrow_mut();
         let _ = bmesh
             .faces()
@@ -279,7 +279,7 @@ impl Object {
 
     /// Access the object's faces.
     #[inline(always)]
-    pub fn read_faces<F: FnMut(&[Point3<u16>])>(&self, f: &mut F) {
+    pub fn read_faces<F: FnMut(&[Point3<IndexNum>])>(&self, f: &mut F) {
         let bmesh = self.mesh.borrow();
         let _ = bmesh
             .faces()

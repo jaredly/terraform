@@ -9,7 +9,7 @@ extern crate nalgebra as na;
 use na::{Vector3, UnitQuaternion, Point3};
 use kiss3d::window::Window;
 use kiss3d::light::Light;
-use kiss3d::resource::Mesh;
+use kiss3d::resource::{Mesh, IndexNum};
 use std::time::SystemTime;
 
 fn since(t: SystemTime) -> u128 {
@@ -46,7 +46,7 @@ fn to_points(dataset: &Dataset, sample: usize) -> Vec<Point3<f32>> {
     let mut min = std::f32::INFINITY;
     for x in (0..ww - 0) {
         for y in (0..hh - 0) {
-            let p = raster.data[x * sample * width + y * sample];
+            let p = raster.data[(ww - x) * sample * width + y * sample];
 
             if p > max {
                 max = p
@@ -55,13 +55,16 @@ fn to_points(dataset: &Dataset, sample: usize) -> Vec<Point3<f32>> {
                 min = p
             }
 
-            coords.push(Point3::new(x as f32 / ww as f32 - 0.5, y as f32 / hh as f32 - 0.5, p));
+            coords.push(Point3::new(
+                x as f32 / ww as f32 - 0.5,
+                y as f32 / hh as f32 - 0.5,
+                p));
         }
     }
     println!("Max {} min {}", max, min);
     let scale = max - min;
     for point in coords.iter_mut() {
-        point.z = - (point.z - min) / scale / 6.0;
+        point.z = - (point.z - min) / scale / 20.0;
     }
     coords
 }
@@ -76,7 +79,7 @@ fn to_points2(dataset: &Dataset, sample: usize) -> Vec<Point3<f32>> {
     .map(|(x, y)| Point3::new(x as f32, y as f32, raster.data[x * width + y])).collect()
 }
 
-fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<u16>> {
+fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<IndexNum>> {
     let ww = width / sample;
     let hh = height / sample;
     let total = ww * hh;
@@ -86,14 +89,14 @@ fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<u16>> {
         for y in 0..hh-1 {
             let i = x * ww + y;
             faces.push(Point3::new(
-                (i + ww + 1) as u16,
-                (i + ww) as u16,
-                (i) as u16,
+                (i + ww + 1) as IndexNum,
+                (i + ww) as IndexNum,
+                (i) as IndexNum,
             ));
             faces.push(Point3::new(
-                (i + ww + 1) as u16,
-                (i) as u16,
-                (i + 1) as u16,
+                (i + ww + 1) as IndexNum,
+                (i) as IndexNum,
+                (i + 1) as IndexNum,
             ));
         }
     }
@@ -104,30 +107,10 @@ fn load_file(sample: usize) -> Mesh {
     let dataset = Dataset::open(Path::new("../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13")).unwrap();
     let (width, height) = dataset.size();
     println!("Size: {} by {}", width, height);
-    // let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
-
-    // let p = SystemTime::now();
-
-    // let coords: Vec<Point3<f32>> = (0..width)
-    // .step_by(sample)
-    // .flat_map(|x: usize| (0..height).step_by(sample).map(move |y: usize| (x, y)))
-    // .map(|(x, y)| Point3::new(x as f32, y as f32, raster.data[x * width + y])).collect();
-
-    // println!("Took {}", since(p));
-    // let p = SystemTime::now();
 
     let coords = profile!("First", to_points(&dataset, sample));
     let faces = gen_faces(width, height, sample);
-    // let coords2 = profile!("FP", to_points2(&dataset, sample));
-    // let coords = profile!("First", to_points(&dataset, sample));
-    // let coords2 = profile!("FP", to_points2(&dataset, sample));
-    // let coords = profile!("First", to_points(&dataset, sample));
-    // let coords2 = profile!("FP", to_points2(&dataset, sample));
 
-
-    // println!("Took {}", since(p));
-
-    println!("Hello, world!");
     Mesh::new(coords, faces, None, None, false)
 }
 
@@ -158,7 +141,7 @@ fn main() {
     // );
     // let exc = std::rc::Rc::new(std::cell::RefCell::new(example));
 
-    let stuff = profile!("Load file", load_file(50));
+    let stuff = profile!("Load file", load_file(10));
     let rc = std::rc::Rc::new(std::cell::RefCell::new(stuff));
 
     let mut mesh_node = window.add_mesh(rc, Vector3::new(1.0, 1.0, 1.0));

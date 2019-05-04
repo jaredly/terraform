@@ -3,7 +3,7 @@
 pub use context::Texture;
 pub use resource::effect::{Effect, ShaderAttribute, ShaderUniform};
 pub use resource::framebuffer_manager::{FramebufferManager, OffscreenBuffers, RenderTarget};
-pub use resource::gl_primitive::{GLPrimitive, PrimitiveArray};
+pub use resource::gl_primitive::{GLPrimitive, PrimitiveArray, IndexNum, INDEX_TYPE};
 pub use resource::gpu_vector::{AllocationType, BufferType, GPUVec};
 pub use resource::material::{Material, PlanarMaterial};
 pub use resource::material_manager::MaterialManager;

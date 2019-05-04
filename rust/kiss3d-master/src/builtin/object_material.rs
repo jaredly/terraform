@@ -3,7 +3,7 @@ use context::Context;
 use light::Light;
 use na::{Isometry3, Matrix3, Matrix4, Point2, Point3, Vector3};
 use resource::Material;
-use resource::{Effect, Mesh, ShaderAttribute, ShaderUniform};
+use resource::{Effect, Mesh, ShaderAttribute, ShaderUniform, INDEX_TYPE};
 use scene::ObjectData;
 
 #[path = "../error.rs"]
@@ -121,7 +121,7 @@ impl Material for ObjectMaterial {
                 verify!(ctxt.draw_elements(
                     Context::TRIANGLES,
                     mesh.num_pts() as i32,
-                    Context::UNSIGNED_SHORT,
+                    INDEX_TYPE,
                     0
                 ));
             }
@@ -134,7 +134,7 @@ impl Material for ObjectMaterial {
                     verify!(ctxt.draw_elements(
                         Context::TRIANGLES,
                         mesh.num_pts() as i32,
-                        Context::UNSIGNED_SHORT,
+                        INDEX_TYPE,
                         0
                     ));
                 } else {
@@ -142,7 +142,7 @@ impl Material for ObjectMaterial {
                     verify!(ctxt.draw_elements(
                         Context::LINES,
                         mesh.num_pts() as i32 * 2,
-                        Context::UNSIGNED_SHORT,
+                        INDEX_TYPE,
                         0
                     ));
                 }
@@ -156,14 +156,14 @@ impl Material for ObjectMaterial {
                     verify!(ctxt.draw_elements(
                         Context::TRIANGLES,
                         mesh.num_pts() as i32,
-                        Context::UNSIGNED_SHORT,
+                        INDEX_TYPE,
                         0
                     ));
                 } else {
                     verify!(ctxt.draw_elements(
                         Context::POINTS,
                         mesh.num_pts() as i32,
-                        Context::UNSIGNED_SHORT,
+                        INDEX_TYPE,
                         0
                     ));
                 }

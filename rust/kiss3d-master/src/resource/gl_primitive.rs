@@ -8,6 +8,11 @@ use na::{Matrix2, Matrix3, Matrix4, Point2, Point3, Point4, Rotation2, Rotation3
 #[path = "../error.rs"]
 mod error;
 
+/// The type we'll use for indexing vertices. Switch to u16 for perf if you don't have a ton of vertices.
+pub type IndexNum = u32;
+/// The opengl constant for the indexing type
+pub const INDEX_TYPE: u32 = Context::UNSIGNED_INT;
+
 /// An array of primitive types.
 pub enum PrimitiveArray<'a> {
     /// A array of f32.
@@ -16,6 +21,8 @@ pub enum PrimitiveArray<'a> {
     Int32(&'a [i32]),
     /// A array of u16.
     UInt16(&'a [u16]),
+    /// A array of u32.
+    UInt32(&'a [u32]),
 }
 
 /// Trait implemented by structures that can be uploaded to a uniform or contained by a gpu array.
@@ -549,6 +556,33 @@ unsafe impl GLPrimitive for Point2<u16> {
     }
 }
 
+unsafe impl GLPrimitive for Point2<u32> {
+    #[inline]
+    fn gl_type() -> u32 {
+        Context::UNSIGNED_INT
+    }
+
+    #[inline]
+    fn flatten(array: &[Self]) -> PrimitiveArray {
+        unsafe {
+            let len = array.len() * Self::size() as usize;
+            let ptr = array.as_ptr();
+
+            PrimitiveArray::UInt32(slice::from_raw_parts(ptr as *const u32, len))
+        }
+    }
+
+    #[inline]
+    fn size() -> u32 {
+        2
+    }
+
+    #[inline]
+    fn upload(&self, _: &UniformLocation) {
+        unimplemented!()
+    }
+}
+
 unsafe impl GLPrimitive for Point3<u16> {
     #[inline]
     fn gl_type() -> u32 {
@@ -562,6 +596,33 @@ unsafe impl GLPrimitive for Point3<u16> {
             let ptr = array.as_ptr();
 
             PrimitiveArray::UInt16(slice::from_raw_parts(ptr as *const u16, len))
+        }
+    }
+
+    #[inline]
+    fn size() -> u32 {
+        3
+    }
+
+    #[inline]
+    fn upload(&self, _: &UniformLocation) {
+        unimplemented!()
+    }
+}
+
+unsafe impl GLPrimitive for Point3<u32> {
+    #[inline]
+    fn gl_type() -> u32 {
+        Context::UNSIGNED_INT
+    }
+
+    #[inline]
+    fn flatten(array: &[Self]) -> PrimitiveArray {
+        unsafe {
+            let len = array.len() * Self::size() as usize;
+            let ptr = array.as_ptr();
+
+            PrimitiveArray::UInt32(slice::from_raw_parts(ptr as *const u32, len))
         }
     }
 
