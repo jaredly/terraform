@@ -5,7 +5,8 @@ authors = ["Jared Forsyth <jared@jaredforsyth.com>"]
 edition = "2018"
 
 [dependencies]
-kiss3d = "*"
-three = "*"
+kiss3d = { path = "./kiss3d-master" }
+# three = "*"
 stl = "*"
 gdal = "*"
+nalgebra = "*"
