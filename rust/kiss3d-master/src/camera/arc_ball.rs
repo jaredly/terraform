@@ -61,6 +61,10 @@ impl ArcBall {
         ArcBall::new_with_frustrum(f32::consts::PI / 4.0, 0.1, 1024.0, eye, at)
     }
 
+    pub fn set_dist_step(&mut self, dist_step: f32) {
+        self.dist_step = dist_step;
+    }
+
     /// Creates a new arc ball camera with default sensitivity values.
     pub fn new_with_frustrum(
         fov: f32,

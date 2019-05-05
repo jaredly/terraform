@@ -517,6 +517,10 @@ impl Window {
         usr_window
     }
 
+    pub fn set_camera(&mut self, camera: ArcBall) {
+        self.camera = Rc::new(RefCell::new(camera));
+    }
+
     /// Reference to the scene associated with this window.
     #[inline]
     pub fn scene(&self) -> &SceneNode {
