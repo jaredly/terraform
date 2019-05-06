@@ -1416,6 +1416,7 @@ dependencies = [
  "gdal 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kiss3d 0.20.1",
  "nalgebra 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ncollide3d 0.19.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "stl 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

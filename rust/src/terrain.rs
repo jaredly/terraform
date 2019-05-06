@@ -1,57 +1,69 @@
-use std::path::Path;
-use gdal::raster::Dataset;
 use gdal::raster::dataset::Buffer;
+use gdal::raster::Dataset;
+use std::path::Path;
 
 extern crate nalgebra as na;
 
-use na::{Vector3, UnitQuaternion, Point3};
-use kiss3d::window::Window;
 use kiss3d::light::Light;
-use kiss3d::resource::{Mesh, IndexNum};
+use kiss3d::resource::{IndexNum, Mesh};
+use kiss3d::window::Window;
+use na::{Point3, UnitQuaternion, Vector3};
 use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct Terrain {
-  pub points: Vec<Point3<f32>>,
-  pub faces: Vec<Point3<IndexNum>>
+    pub points: Vec<Point3<f32>>,
+    pub faces: Vec<Point3<IndexNum>>,
 }
 
 #[derive(Clone, Copy)]
 pub struct Coords {
-  pub x: usize,
-  pub y: usize,
-  pub w: usize,
-  pub h: usize
+    pub x: usize,
+    pub y: usize,
+    pub w: usize,
+    pub h: usize,
 }
 
 impl Coords {
-  pub fn from_dataset(dataset: &Dataset) -> Coords {
-    let (w, h) = dataset.size();
-    Coords {x: 0, y: 0, w, h}
-  }
+    pub fn from_dataset(dataset: &Dataset) -> Coords {
+        let (w, h) = dataset.size();
+        Coords { x: 0, y: 0, w, h }
+    }
 
-  pub fn validate(&self, dataset: &Dataset) -> bool {
-    let (w, h) = dataset.size();
-    self.x + self.w <= w && self.y + self.h <= h
-  }
+    pub fn validate(&self, dataset: &Dataset) -> bool {
+        let (w, h) = dataset.size();
+        self.x + self.w <= w && self.y + self.h <= h
+    }
 }
 
-  use std::rc::Rc;
-  use std::cell::RefCell;
+use std::cell::RefCell;
+use std::rc::Rc;
 impl Terrain {
-  /// Create a terrain with points and faces
-  pub fn from_raster(raster: &Buffer<f32>, coords: Coords, sample: usize, full_height: usize) -> Self {
-    Terrain { points: to_points(raster, coords, sample, full_height), faces: gen_faces(coords.w, coords.h, sample) }
-  }
+    /// Create a terrain with points and faces
+    pub fn from_raster(
+        raster: &Buffer<f32>,
+        coords: Coords,
+        sample: usize,
+        full_height: usize,
+    ) -> Self {
+        Terrain {
+            points: to_points(raster, coords, sample, full_height),
+            faces: gen_faces(coords.w, coords.h, sample),
+        }
+    }
 
-  pub fn to_mesh(self) -> Rc<RefCell<Mesh>> {
-    let mesh = Mesh::new(self.points, self.faces, None, None, false);
-    std::rc::Rc::new(std::cell::RefCell::new(mesh))
-  }
+    pub fn to_mesh(self) -> Rc<RefCell<Mesh>> {
+        let mesh = Mesh::new(self.points, self.faces, None, None, false);
+        std::rc::Rc::new(std::cell::RefCell::new(mesh))
+    }
 }
 
-fn to_points(raster: &Buffer<f32>, Coords {x: x0, y: y0, w, h}: Coords, sample: usize, full_height: usize) -> Vec<Point3<f32>> {
-
+fn to_points(
+    raster: &Buffer<f32>,
+    Coords { x: x0, y: y0, w, h }: Coords,
+    sample: usize,
+    full_height: usize,
+) -> Vec<Point3<f32>> {
     let ww = w / sample;
     let hh = h / sample;
     let total = ww * hh;
@@ -73,7 +85,8 @@ fn to_points(raster: &Buffer<f32>, Coords {x: x0, y: y0, w, h}: Coords, sample: 
             coords.push(Point3::new(
                 x as f32 / ww as f32 - 0.5,
                 -(y as f32 / hh as f32 - 0.5),
-                p));
+                p,
+            ));
         }
     }
     println!("Max {} min {}", max, min);
@@ -91,9 +104,10 @@ fn to_points2(dataset: &Dataset, sample: usize) -> Vec<Point3<f32>> {
     let (width, height) = dataset.size();
 
     (0..width)
-    .step_by(sample)
-    .flat_map(|x: usize| (0..height).step_by(sample).map(move |y: usize| (x, y)))
-    .map(|(x, y)| Point3::new(x as f32, y as f32, raster.data[x * width + y])).collect()
+        .step_by(sample)
+        .flat_map(|x: usize| (0..height).step_by(sample).map(move |y: usize| (x, y)))
+        .map(|(x, y)| Point3::new(x as f32, y as f32, raster.data[x * width + y]))
+        .collect()
 }
 
 fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<IndexNum>> {
@@ -102,8 +116,8 @@ fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<IndexNum>
     let total = ww * hh;
 
     let mut faces = Vec::with_capacity(total);
-    for x in 0..ww-1 {
-        for y in 0..hh-1 {
+    for x in 0..ww - 1 {
+        for y in 0..hh - 1 {
             let i = x * ww + y;
             faces.push(Point3::new(
                 (i + ww + 1) as IndexNum,
@@ -127,7 +141,10 @@ pub fn load_file(dataset: &Dataset, sample: usize) -> Rc<RefCell<Mesh>> {
     let (width, height) = dataset.size();
     println!("Size: {} by {}", width, height);
 
-    let coords = profile!("First", to_points(&raster, Coords::from_dataset(dataset), sample, height));
+    let coords = profile!(
+        "First",
+        to_points(&raster, Coords::from_dataset(dataset), sample, height)
+    );
     let faces = gen_faces(width, height, sample);
 
     let mesh = Mesh::new(coords, faces, None, None, false);
