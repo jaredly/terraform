@@ -7,8 +7,49 @@ extern crate nalgebra as na;
 use kiss3d::light::Light;
 use kiss3d::resource::{IndexNum, Mesh};
 use kiss3d::window::Window;
-use na::{Point3, UnitQuaternion, Vector3};
+use na::{Point3, UnitQuaternion, Vector2, Vector3};
 use std::time::SystemTime;
+
+type MeshCell = Rc<RefCell<Mesh>>;
+
+pub struct File {
+    raster: Buffer<f32>,
+    size: Vector2<usize>,
+}
+
+impl From<&Dataset> for File {
+    fn from(dataset: &Dataset) -> File {
+        let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
+        let (width, height) = dataset.size();
+        File {
+            raster,
+            size: Vector2::new(width, height),
+        }
+    }
+}
+
+impl File {
+    fn get_terrain(&self, coords: &Coords, sample: usize) -> Option<Terrain> {
+        if coords.validate(self) {
+            Some(Terrain::from_raster(
+                &self.raster,
+                &coords,
+                sample,
+                self.size.y,
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mesh(&self, coords: &Coords, sample: usize) -> Option<MeshCell> {
+        self.get_terrain(coords, sample).map(|t| t.to_mesh())
+    }
+
+    pub fn full_mesh(&self, sample: usize) -> MeshCell {
+        self.get_mesh(&Coords { x: 0, y: 0, w: self.size.x, h: self.size.y }, sample).unwrap()
+    }
+}
 
 #[derive(Clone)]
 pub struct Terrain {
@@ -30,9 +71,14 @@ impl Coords {
         Coords { x: 0, y: 0, w, h }
     }
 
-    pub fn validate(&self, dataset: &Dataset) -> bool {
-        let (w, h) = dataset.size();
-        self.x + self.w <= w && self.y + self.h <= h
+    // pub fn validate(&self, dataset: &Dataset) -> bool {
+    //     let (w, h) = dataset.size();
+    //     self.x + self.w <= w && self.y + self.h <= h
+    // }
+
+    pub fn validate(&self, file: &File) -> bool {
+        let size = file.size;
+        self.x + self.w <= size.x && self.y + self.h <= size.y
     }
 }
 
@@ -42,7 +88,7 @@ impl Terrain {
     /// Create a terrain with points and faces
     pub fn from_raster(
         raster: &Buffer<f32>,
-        coords: Coords,
+        coords: &Coords,
         sample: usize,
         full_height: usize,
     ) -> Self {
@@ -52,7 +98,7 @@ impl Terrain {
         }
     }
 
-    pub fn to_mesh(self) -> Rc<RefCell<Mesh>> {
+    pub fn to_mesh(self) -> MeshCell {
         let mesh = Mesh::new(self.points, self.faces, None, None, false);
         std::rc::Rc::new(std::cell::RefCell::new(mesh))
     }
@@ -60,7 +106,7 @@ impl Terrain {
 
 fn to_points(
     raster: &Buffer<f32>,
-    Coords { x: x0, y: y0, w, h }: Coords,
+    Coords { x: x0, y: y0, w, h }: &Coords,
     sample: usize,
     full_height: usize,
 ) -> Vec<Point3<f32>> {
@@ -134,19 +180,17 @@ fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<IndexNum>
     faces
 }
 
-// use std::rc::Rc;
-// use std::cell::RefCell;
-pub fn load_file(dataset: &Dataset, sample: usize) -> Rc<RefCell<Mesh>> {
-    let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
-    let (width, height) = dataset.size();
-    println!("Size: {} by {}", width, height);
+// pub fn load_file(dataset: &Dataset, sample: usize) -> MeshCell {
+//     let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
+//     let (width, height) = dataset.size();
+//     println!("Size: {} by {}", width, height);
 
-    let coords = profile!(
-        "First",
-        to_points(&raster, Coords::from_dataset(dataset), sample, height)
-    );
-    let faces = gen_faces(width, height, sample);
+//     let coords = profile!(
+//         "First",
+//         to_points(&raster, &Coords::from_dataset(dataset), sample, height)
+//     );
+//     let faces = gen_faces(width, height, sample);
 
-    let mesh = Mesh::new(coords, faces, None, None, false);
-    std::rc::Rc::new(std::cell::RefCell::new(mesh))
-}
+//     let mesh = Mesh::new(coords, faces, None, None, false);
+//     std::rc::Rc::new(std::cell::RefCell::new(mesh))
+// }

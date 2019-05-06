@@ -62,7 +62,10 @@ fn noui() {
         "../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13",
     ))
     .unwrap();
-    let mesh = profile!("Load file", terrain::load_file(&dataset, 20));
+    let file = profile!("Load file", terrain::File::from(&dataset));
+    let mesh = profile!("Make mesh", file.full_mesh(10));
+
+    // let mesh = profile!("Load file", terrain::load_file(&dataset, 10));
     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
     mesh_node.set_color(0.0, 1.0, 0.0);
     mesh_node.enable_backface_culling(false);
