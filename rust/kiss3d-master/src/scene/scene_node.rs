@@ -310,6 +310,14 @@ impl SceneNodeData {
         self.apply_to_objects_mut(&mut |o| o.set_color(r, g, b))
     }
 
+    /// Sets the alpha of the objects contained by this node and its children.
+    ///
+    /// Alpha value must be on the range `[0.0, 1.0]`.
+    #[inline]
+    pub fn set_alpha(&mut self, a: f32) {
+        self.apply_to_objects_mut(&mut |o| o.set_alpha(a))
+    }
+
     /// Sets the texture of the objects contained by this node and its children.
     ///
     /// The texture is loaded from a file and registered by the global `TextureManager`.
@@ -1019,6 +1027,14 @@ impl SceneNode {
     #[inline]
     pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
         self.data_mut().set_color(r, g, b)
+    }
+
+    /// Sets the alpha of the objects contained by this node and its children.
+    ///
+    /// Alpha value must be on the range `[0.0, 1.0]`.
+    #[inline]
+    pub fn set_alpha(&mut self, a: f32) {
+        self.data_mut().set_alpha(a)
     }
 
     /// Sets the texture of the objects contained by this node and its children.

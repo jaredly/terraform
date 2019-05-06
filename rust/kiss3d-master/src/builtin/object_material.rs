@@ -1,7 +1,7 @@
 use camera::Camera;
 use context::Context;
 use light::Light;
-use na::{Isometry3, Matrix3, Matrix4, Point2, Point3, Vector3};
+use na::{Isometry3, Matrix3, Matrix4, Point2, Point3, Point4, Vector3};
 use resource::Material;
 use resource::{Effect, Mesh, ShaderAttribute, ShaderUniform, INDEX_TYPE};
 use scene::ObjectData;
@@ -16,7 +16,7 @@ pub struct ObjectMaterial {
     normal: ShaderAttribute<Vector3<f32>>,
     tex_coord: ShaderAttribute<Point2<f32>>,
     light: ShaderUniform<Point3<f32>>,
-    color: ShaderUniform<Point3<f32>>,
+    color: ShaderUniform<Point4<f32>>,
     transform: ShaderUniform<Matrix4<f32>>,
     scale: ShaderUniform<Matrix3<f32>>,
     ntransform: ShaderUniform<Matrix3<f32>>,
@@ -104,6 +104,12 @@ impl Material for ObjectMaterial {
             self.ntransform.upload(&formated_ntransform);
             self.scale.upload(&formated_scale);
             self.color.upload(data.color());
+
+            if data.color().w != 1.0 {
+                verify!(ctxt.enable(Context::BLEND));
+                verify!(ctxt.blend_func(Context::SRC_ALPHA, Context::ONE_MINUS_SRC_ALPHA));
+                // verify!(ctxt.disable(Context::DEPTH_TEST));
+            }
 
             mesh.bind(&mut self.pos, &mut self.normal, &mut self.tex_coord);
 
@@ -218,7 +224,7 @@ varying vec2 tex_coord_v;
 varying vec3 normalInterp;
 varying vec3 vertPos;
 
-uniform vec3 color;
+uniform vec4 color;
 uniform sampler2D tex;
 const vec3 specColor = vec3(0.4, 0.4, 0.4);
 
@@ -237,7 +243,7 @@ void main() {
   }
 
   vec4 tex_color = texture2D(tex, tex_coord_v);
-  gl_FragColor = tex_color * vec4(color / 3.0 +
-                                  lambertian * color / 3.0 +
-                                  specular * specColor / 3.0, 1.0);
+  gl_FragColor = tex_color * vec4(color.xyz / 3.0 +
+                                  lambertian * color.xyz / 3.0 +
+                                  specular * specColor / 3.0, color.w);
 }";

@@ -2,7 +2,7 @@
 
 use camera::Camera;
 use light::Light;
-use na::{Isometry3, Point2, Point3, Vector3};
+use na::{Isometry3, Point2, Point3, Point4, Vector3};
 use resource::{Material, Mesh, Texture, TextureManager, IndexNum};
 use std::any::Any;
 use std::cell::RefCell;
@@ -16,7 +16,7 @@ mod error;
 pub struct ObjectData {
     material: Rc<RefCell<Box<Material + 'static>>>,
     texture: Rc<Texture>,
-    color: Point3<f32>,
+    color: Point4<f32>,
     wlines: f32,
     wpoints: f32,
     draw_surface: bool,
@@ -33,7 +33,7 @@ impl ObjectData {
 
     /// The color of this object.
     #[inline]
-    pub fn color(&self) -> &Point3<f32> {
+    pub fn color(&self) -> &Point4<f32> {
         &self.color
     }
 
@@ -92,7 +92,7 @@ impl Object {
     ) -> Object {
         let user_data = ();
         let data = ObjectData {
-            color: Point3::new(r, g, b),
+            color: Point4::new(r, g, b, 1.0),
             texture: texture,
             wlines: 0.0,
             wpoints: 0.0,
@@ -324,6 +324,11 @@ impl Object {
         self.data.color.x = r;
         self.data.color.y = g;
         self.data.color.z = b;
+    }
+
+    #[inline]
+    pub fn set_alpha(&mut self, a: f32) {
+        self.data.color.w = a;
     }
 
     /// Sets the texture of the object.

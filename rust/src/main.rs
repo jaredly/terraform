@@ -36,9 +36,16 @@ fn noui() {
     // )
     window.set_camera(camera);
 
+    let dataset = Dataset::open(Path::new("../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13")).unwrap();
+    let mesh = profile!("Load file", terrain::load_file(&dataset, 20));
+    let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+    // mesh_node.set_color(0.5, 0.3, 0.0);
+    mesh_node.set_color(0.0, 1.0, 0.0);
+    // mesh_node.enable_backface_culling(false);
+
     // let mut c      = window.add_cube(0.1, 0.1, 0.1);
     // c.set_color(1.0, 0.0, 1.0);
-    let mut pointer = window.add_cube(0.01, 0.01, 1.0);
+    let mut pointer = window.add_cube(0.01, 0.01, 0.5);
     pointer.set_color(1.0, 0.0, 0.0);
 
     let mut c = window.add_quad(0.5, 0.5, 1, 1);
@@ -49,18 +56,10 @@ fn noui() {
             3.14159 / 2.0
         )
     ));
+    c.set_alpha(0.5);
     c.set_local_translation(Translation3::from_vector(Vector3::new(
         0.25, 0.0, 0.0
     )));
-
-    let dataset = Dataset::open(Path::new("../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13")).unwrap();
-    // let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
-
-    let mesh = profile!("Load file", terrain::load_file(&dataset, 20));
-
-    let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-    mesh_node.set_color(0.5, 0.3, 0.0);
-    mesh_node.enable_backface_culling(false);
 
     let rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.0014);
 
