@@ -11,7 +11,7 @@ use kiss3d::event::{Action, Key, Modifiers, MouseButton, WindowEvent};
 use kiss3d::light::Light;
 use kiss3d::resource::{IndexNum, Mesh};
 use kiss3d::window::Window;
-use na::{Point3, Rotation3, Translation3, UnitQuaternion, Vector3};
+use na::{Point2, Point3, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3};
 use ncollide3d::procedural::{IndexBuffer, TriMesh};
 use std::time::SystemTime;
 
@@ -50,19 +50,12 @@ fn make_selection() -> TriMesh<f32> {
     )
 }
 
+use ncollide3d::query::ray_internal::ray::RayCast;
 fn noui() {
     let mut window = Window::new("Topo");
     window.set_light(Light::StickToCamera);
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
     camera.set_dist_step(1.0);
-    // camera.set_local_rotation(
-    // UnitQuaternion::from_rotation_matrix(
-    //     &Rotation3::from_axis_angle(
-    //         &Vector3::z_axis(),
-    //         3.14159 / 2.0
-    //     )
-    // )
-    // )
     window.set_camera(camera);
 
     let dataset = Dataset::open(Path::new(
@@ -71,13 +64,10 @@ fn noui() {
     .unwrap();
     let mesh = profile!("Load file", terrain::load_file(&dataset, 20));
     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-    // mesh_node.set_color(0.5, 0.3, 0.0);
     mesh_node.set_color(0.0, 1.0, 0.0);
-    // mesh_node.enable_backface_culling(false);
+    mesh_node.enable_backface_culling(false);
 
-    // let mut c      = window.add_cube(0.1, 0.1, 0.1);
-    // c.set_color(1.0, 0.0, 1.0);
-    let mut pointer = window.add_cube(0.01, 0.01, 0.5);
+    let mut pointer = window.add_cube(0.002, 0.002, 0.5);
     pointer.set_color(1.0, 0.0, 0.0);
 
     let mut selection = window.add_trimesh(make_selection(), Vector3::from_element(1.0));
@@ -131,23 +121,44 @@ fn noui() {
                 }
                 WindowEvent::CursorPos(x, y, modifiers) => {
                     if modifiers.contains(Modifiers::Super) {
-                        let ax = x as f32 * 1.0 / size.0 - 0.5;
-                        let ay = y as f32 * 1.0 / size.1 - 0.5;
-                        let ay = -ay;
-                        cursor = (ax, ay);
-                        pointer.set_local_translation(Translation3::from(Vector3::new(
-                            ax as f32, ay as f32, 0.0,
-                        )));
-                        event.inhibited = true;
-                        if pressing {
-                            selpos.2 = cursor.0 - selpos.0;
-                            selpos.3 = cursor.1 - selpos.1;
-                            selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
-                            selection.set_local_translation(Translation3::from(Vector3::new(
-                                selpos.0 + selpos.2 / 2.0,
-                                selpos.1 + selpos.3 / 2.0,
-                                0.0,
-                            )));
+                        let (point, dir) = window.unproject(
+                            &Point2::new(x as f32, y as f32),
+                            &Vector2::new(size.0, size.1),
+                        );
+                        let ray = ncollide3d::query::Ray::new(point, dir);
+                        let v: na::Unit<Vector3<f32>> =
+                            na::Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0));
+                        let plane = ncollide3d::shape::Plane::new(v);
+                        let toi = plane.toi_with_ray(
+                            &nalgebra::geometry::Isometry::identity(),
+                            &ray,
+                            true,
+                        );
+
+                        match toi {
+                            Some(t) => {
+                                let point = ray.point_at(t);
+                                cursor = (point.x, point.y);
+                                pointer.set_local_translation(Translation3::from(Vector3::new(
+                                    point.x as f32,
+                                    point.y as f32,
+                                    0.0,
+                                )));
+                                event.inhibited = true;
+                                if pressing {
+                                    selpos.2 = cursor.0 - selpos.0;
+                                    selpos.3 = cursor.1 - selpos.1;
+                                    selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
+                                    selection.set_local_translation(Translation3::from(
+                                        Vector3::new(
+                                            selpos.0 + selpos.2 / 2.0,
+                                            selpos.1 + selpos.3 / 2.0,
+                                            0.0,
+                                        ),
+                                    ));
+                                }
+                            }
+                            None => (),
                         }
                     }
                 }

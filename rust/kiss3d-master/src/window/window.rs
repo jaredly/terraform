@@ -122,6 +122,10 @@ impl Window {
         self.canvas.set_title(title)
     }
 
+    pub fn unproject(&self, window_coord: &Point2<f32>, size: &Vector2<f32>) -> (Point3<f32>, Vector3<f32>) {
+        self.camera.borrow().unproject(window_coord, size)
+    }
+
     /// Set the window icon. On wasm this does nothing.
     ///
     /// ```rust,should_panic
