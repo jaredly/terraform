@@ -81,31 +81,18 @@ fn noui() {
     pointer.set_color(1.0, 0.0, 0.0);
 
     let mut selection = window.add_trimesh(make_selection(), Vector3::from_element(1.0));
-    selection.set_local_scale(0.25, 0.25, 0.25);
+    selection.set_local_scale(0.5, 0.5, 0.15);
     selection.enable_backface_culling(false);
-
-    // let mut right = selection.add_quad(0.5, 0.5, 1, 1);
-    // right.set_local_rotation(UnitQuaternion::from_rotation_matrix(
-    //     &Rotation3::from_axis_angle(&Vector3::y_axis(), 3.14159 / 2.0)
-    // ));
-    // right.set_local_translation(Translation3::from_vector(Vector3::new(
-    //     0.25, 0.0, 0.0
-    // )));
-
-    // let mut left = selection.add_quad(0.5, 0.5, 1, 1);
-    // left.set_local_rotation(UnitQuaternion::from_rotation_matrix(
-    //     &Rotation3::from_axis_angle(&Vector3::y_axis(), 3.14159 / 2.0)
-    // ));
-    // left.set_local_translation(Translation3::from_vector(Vector3::new(
-    //     -0.25, 0.0, 0.0
-    // )));
-
     selection.set_color(0.0, 0.0, 1.0);
     selection.set_alpha(0.5);
+    // selection.set_visible(false);
 
     let rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.0014);
 
     let mut size = (500.0, 500.0);
+    let mut selpos = (-0.5, -0.5, 1.0, 1.0);
+    let mut cursor = (0.0, 0.0);
+    let mut pressing = false;
 
     while window.render() {
         let mut manager = window.events();
@@ -117,9 +104,28 @@ fn noui() {
                 WindowEvent::MouseButton(MouseButton::Button1, action, modifiers) => {
                     if modifiers.contains(Modifiers::Super) {
                         match action {
-                            Action::Release => println!("Super up"),
-                            Action::Press => println!("Super down"),
+                            Action::Release => {
+                                pressing = false;
+                                selpos.2 = cursor.0 - selpos.0;
+                                selpos.3 = cursor.1 - selpos.1;
+                                selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
+                                selection.set_local_translation(Translation3::from(Vector3::new(
+                                    selpos.0 + selpos.2 / 2.0,
+                                    selpos.1 + selpos.3 / 2.0,
+                                    0.0,
+                                )));
+                                println!("Translate {}, {}", selpos.0, selpos.1);
+                            }
+                            Action::Press => {
+                                pressing = true;
+                                println!("Super down {}, {}", cursor.0, cursor.1);
+                                selpos.0 = cursor.0;
+                                selpos.1 = cursor.1;
+                                selpos.2 = 0.0;
+                                selpos.3 = 0.0;
+                            }
                         }
+                        event.inhibited = true;
                     }
                     // println!("Super!")
                 }
@@ -127,10 +133,22 @@ fn noui() {
                     if modifiers.contains(Modifiers::Super) {
                         let ax = x as f32 * 1.0 / size.0 - 0.5;
                         let ay = y as f32 * 1.0 / size.1 - 0.5;
+                        let ay = -ay;
+                        cursor = (ax, ay);
                         pointer.set_local_translation(Translation3::from(Vector3::new(
-                            ax as f32, -ay as f32, 0.0,
+                            ax as f32, ay as f32, 0.0,
                         )));
                         event.inhibited = true;
+                        if pressing {
+                            selpos.2 = cursor.0 - selpos.0;
+                            selpos.3 = cursor.1 - selpos.1;
+                            selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
+                            selection.set_local_translation(Translation3::from(Vector3::new(
+                                selpos.0 + selpos.2 / 2.0,
+                                selpos.1 + selpos.3 / 2.0,
+                                0.0,
+                            )));
+                        }
                     }
                 }
                 _ => (),
