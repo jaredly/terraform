@@ -81,13 +81,20 @@ fn noui() {
 
     let dataset = Dataset::open(Path::new(file_name)).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
+    if cfg!(target_endian = "little") {
+        println!("Ok")
+    } else {
+        panic!("At the disco")
+    }
     if let Some((x, y, w, h)) = preselect {
         let coords = terrain::Coords { x, y, w, h };
         match file.to_stl(&coords, 1, 1.0) {
             None => println!("Failed to get stl"),
             Some(stl) => {
                 let mut outfile = std::fs::File::create("./out.stl").unwrap();
-                profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
+                profile!("Writing file", stl::write_stl3(&mut outfile, &stl).unwrap());
+                let mut outfile = std::fs::File::create("./out2.stl").unwrap();
+                profile!("Writing file", stl::write_stl2(&mut outfile, &stl).unwrap());
             }
         }
         return;
