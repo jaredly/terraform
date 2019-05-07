@@ -1,9 +1,9 @@
+#![ allow( dead_code, unused_imports ) ]
 use gdal::raster::Dataset;
 use std::path::Path;
 // use gdal::raster::types::GdalType;
 use gdal::raster::dataset::Buffer;
 
-#![ allow( dead_code, unused_imports ) ]
 
 #[macro_use]
 extern crate kiss3d;
@@ -80,9 +80,6 @@ fn noui() {
     selection.enable_backface_culling(false);
     selection.set_color(0.0, 0.0, 1.0);
     selection.set_alpha(0.5);
-    // selection.set_visible(false);
-
-    let rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 0.0014);
 
     let mut size = (500.0, 500.0);
     let mut selpos = (-0.5, -0.5, 1.0, 1.0);
@@ -92,7 +89,7 @@ fn noui() {
     while window.render() {
         let mut manager = window.events();
         for mut event in manager.iter() {
-            match (event.value) {
+            match event.value {
                 WindowEvent::FramebufferSize(x, y) => {
                     size = (x as f32, y as f32);
                 }
