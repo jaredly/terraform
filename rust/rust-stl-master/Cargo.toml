@@ -1,0 +1,16 @@
+[package]
+
+name = "stl"
+version = "0.2.0"
+authors = ["Eric Holk <eric.holk@gmail.com>"]
+
+description = "Stereo Lithography file input and output."
+repository = "https://github.com/eholk/rust-stl"
+readme = "README.md"
+
+keywords = ["stl", "3d", "file", "format"]
+
+license = "BSD-3-Clause"
+
+[dependencies]
+byteorder = "^0.4.2"

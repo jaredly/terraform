@@ -1396,7 +1396,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "stl"
 version = "0.2.0"
-source = "git+https://github.com/eholk/rust-stl#f0e1a1ce9d9c68fe38789fb993ccf1aa10ae05a2"
 dependencies = [
  "byteorder 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1462,7 +1461,7 @@ dependencies = [
  "nalgebra 0.18.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ncollide3d 0.19.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "stl 0.2.0 (git+https://github.com/eholk/rust-stl)",
+ "stl 0.2.0",
 ]
 
 [[package]]
@@ -1831,7 +1830,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum stdweb-derive 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0e21ebd9179de08f2300a65454268a17ea3de204627458588c84319c4def3930"
 "checksum stdweb-internal-macros 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)" = "e68f7d08b76979a43e93fe043b66d2626e35d41d68b0b85519202c6dd8ac59fa"
 "checksum stdweb-internal-runtime 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "d52317523542cc0af5b7e31017ad0f7d1e78da50455e38d5657cd17754f617da"
-"checksum stl 0.2.0 (git+https://github.com/eholk/rust-stl)" = "<none>"
 "checksum syn 0.13.11 (registry+https://github.com/rust-lang/crates.io-index)" = "14f9bf6292f3a61d2c716723fdb789a41bbe104168e6f496dc6497e531ea1b9b"
 "checksum syn 0.15.33 (registry+https://github.com/rust-lang/crates.io-index)" = "ec52cd796e5f01d0067225a5392e70084acc4c0013fa71d55166d38a8b307836"
 "checksum synstructure 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "73687139bf99285483c96ac0add482c3776528beac1d97d444f6e91f203a2015"
