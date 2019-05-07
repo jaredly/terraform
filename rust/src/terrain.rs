@@ -53,7 +53,7 @@ impl File {
                 y: 0,
                 // w: 30,
                 // h: 40,
-                w: self.size.x / 2,
+                w: self.size.x,
                 h: self.size.y,
             },
             sample,
@@ -120,7 +120,12 @@ fn to_points(
     let hh = h / sample;
     let total = ww * hh;
 
+    let scaler = if ww > hh { ww as f32 } else { hh as f32 };
+    let scalew = ww as f32 / scaler;
+    let scaleh = hh as f32 / scaler;
+
     let mut coords = Vec::with_capacity(total);
+    println!("Total points: {}", total);
     let mut max = 0.0;
     let mut min = std::f32::INFINITY;
     // coords will look like
@@ -140,19 +145,20 @@ fn to_points(
             }
 
             coords.push(Point3::new(
-                x as f32 / ww as f32 - 0.5,
-                -(y as f32 / hh as f32 - 0.5),
+                x as f32 / scaler - scalew / 2.0,
+                -(y as f32 / scaler - scaleh / 2.0),
                 p,
             ));
         }
     }
     println!("Max {} min {}", max, min);
+    let scale = max - min;
+    let m = if w > h {w.to_owned() } else {h.to_owned()};
+    let scale = scale * 20.0 / (full_width as f32 / (m) as f32);
+    // let scale = zscale / (full_width / scaler)
     profile!("Rescale things", {
-        let scale = max - min;
         for point in coords.iter_mut() {
-            point.z = (point.z - min) / scale /
-            5.0;
-            // 20.0;
+            point.z = (point.z - min) / scale;
         }
     });
     coords

@@ -64,7 +64,7 @@ fn noui() {
     ))
     .unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
-    let mesh = profile!("Make mesh", file.full_mesh(10));
+    let mesh = profile!("Make mesh", file.full_mesh(5));
 
     let mut mesh_parent = window.add_group();
 
@@ -133,11 +133,31 @@ fn noui() {
                     let h = (selpos.1.y) * file.size.y as f32;
                     let (x, w) = if w < 0.0 { (x - (-w) as usize, (-w) as usize) } else { (x, w as usize) };
                     let (y, h) = if h < 0.0 { (y - (-h) as usize, (-h) as usize) } else { (y, h as usize) };
-                    match select(&file, &mut mesh_parent, terrain::Coords { x, y, w, h }, 5) {
+                    let y = file.size.y - (y + h);
+                    let total = w * h;
+                    let max_points = 10_000_000;
+                    let sample = if (total < max_points) {
+                        1
+                    } else {
+                        (total as f32 / max_points as f32).sqrt().ceil() as usize
+                    };
+                    println!("Selected sample size: {}", sample);
+                    // let min_sample = (w / s) * (h / s) = 5_000_000
+                    // (w * h) / (s * s) = 5m
+                    // (w * h) / 5m = s * s
+                    match select(&file, &mut mesh_parent, terrain::Coords { x, y, w, h }, sample) {
                         None => (),
                         Some(new_node) => {
                             mesh_node.unlink();
                             mesh_node = new_node;
+                            selection.set_local_scale(
+                                0.0,
+                                0.0,
+                                0.15,
+                            );
+                            let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
+                            camera.set_dist_step(1.0);
+                            window.set_camera(camera);
                         }
                     }
                 }
