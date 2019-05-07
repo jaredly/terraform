@@ -69,35 +69,10 @@ impl From<&Dataset> for File {
             width,
             height
         );
-        // let d = dataset.driver();
-        // println!(
-        //     "More data: 
-        // Count: {}
-        // Projection: {}
-        // Driver (short): {}
-        // Driver (long): {}",
-        //     dataset.count(),
-        //     dataset.projection(),
-        //     d.short_name(),
-        //     d.long_name()
-        // );
-        // match dataset.geo_transform() {
-        //     Err(_) => println!("No transform"),
-        //     Ok(geo) => println!(
-        //         "Yes transform
-        //     {}
-        //     {}
-        //     {}
-        //     {}
-        //     {}
-        //     {}",
-        //         geo[0], geo[1], geo[2], geo[3], geo[4], geo[5]
-        //     ),
-        // }
         File {
             raster,
             size: Vector2::new(width, height),
-            longest_dim_in_meters: dataset_size_in_meters(dataset) as f32
+            longest_dim_in_meters: dataset_size_in_meters(dataset) as f32,
         }
     }
 }
@@ -110,23 +85,36 @@ impl File {
             } else {
                 self.size.y as f32 / coords.h as f32 * 1.0 / self.longest_dim_in_meters
             };
-            // let scale = if coords.w >= coords.h {
-
-            // }
             Some(Terrain::from_raster(
                 &self.raster,
                 &coords,
                 sample,
                 self.size.x,
-                elevation_scale * elevation_boost
+                elevation_scale * elevation_boost,
             ))
         } else {
             None
         }
     }
 
-    pub fn get_mesh(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<MeshCell> {
-        self.get_terrain(coords, sample, elevation_boost).map(|t| t.to_mesh())
+    pub fn to_stl(
+        &self,
+        coords: &Coords,
+        sample: usize,
+        elevation_boost: f32,
+    ) -> Option<stl::BinaryStlFile> {
+        self.get_terrain(coords, sample, elevation_boost)
+            .map(|m| m.to_stl())
+    }
+
+    pub fn get_mesh(
+        &self,
+        coords: &Coords,
+        sample: usize,
+        elevation_boost: f32,
+    ) -> Option<MeshCell> {
+        self.get_terrain(coords, sample, elevation_boost)
+            .map(|t| t.to_mesh())
     }
 
     pub fn full_mesh(&self, sample: usize, elevation_boost: f32) -> MeshCell {
@@ -140,7 +128,7 @@ impl File {
                 h: self.size.y,
             },
             sample,
-            elevation_boost
+            elevation_boost,
         )
         .unwrap()
     }
@@ -189,9 +177,49 @@ impl Terrain {
         }
     }
 
+    pub fn to_stl(self) -> stl::BinaryStlFile {
+        let mut header_80 = [0u8; 80];
+        header_80[0] = 'r' as u8;
+        header_80[0] = 'u' as u8;
+        header_80[0] = 's' as u8;
+        header_80[0] = 't' as u8;
+        let header = stl::BinaryStlHeader {
+            header: header_80,
+            num_triangles: self.faces.len() as u32,
+        };
+
+        fn to_arr(p: Point3<f32>) -> [f32; 3] {
+            [p.x, p.y, p.z]
+        };
+
+        fn v_to_arr(p: Vector3<f32>) -> [f32; 3] {
+            [p.x, p.y, p.z]
+        };
+
+        let mut triangles = Vec::new();
+        for indices in self.faces {
+            let p1 = self.points[indices.x as usize];
+            let p2 = self.points[indices.y as usize];
+            let p3 = self.points[indices.z as usize];
+            let normal = (p1 - p2).cross(&(p2 - p3));
+            triangles.push(stl::Triangle {
+                normal: v_to_arr(normal),
+                v1: to_arr(p1),
+                v2: to_arr(p2),
+                v3: to_arr(p3),
+                attr_byte_count: 0u16,
+            });
+        }
+        let file = stl::BinaryStlFile { header, triangles };
+        file
+    }
+
+    fn _to_mesh(self) -> Mesh {
+        Mesh::new(self.points, self.faces, None, None, false)
+    }
+
     pub fn to_mesh(self) -> MeshCell {
-        let mesh = Mesh::new(self.points, self.faces, None, None, false);
-        std::rc::Rc::new(std::cell::RefCell::new(mesh))
+        std::rc::Rc::new(std::cell::RefCell::new(self._to_mesh()))
     }
 }
 

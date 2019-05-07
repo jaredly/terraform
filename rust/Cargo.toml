@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 kiss3d = { path = "./kiss3d-master", features = [ "conrod" ]  }
 # three = "*"
-stl = "*"
+stl = { git = "https://github.com/eholk/rust-stl" }
 gdal = "*"
 geo = "*"
 nalgebra = "*"

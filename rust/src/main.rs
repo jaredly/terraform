@@ -62,14 +62,37 @@ fn noui() {
     window.set_camera(camera);
 
     let args: Vec<String> = env::args().collect();
-    let file_name = match args.len() {
-        2 => args[1].as_str(),
-        _ => "../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13",
+    let (file_name, preselect) = match args.len() {
+        2 => (args[1].as_str(), None),
+        6 => (
+            args[1].as_str(),
+            Some((
+                args[2].parse().unwrap(),
+                args[3].parse().unwrap(),
+                args[4].parse().unwrap(),
+                args[5].parse().unwrap(),
+            )),
+        ),
+        _ => (
+            "../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13",
+            None,
+        ),
     };
 
     let dataset = Dataset::open(Path::new(file_name)).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
-    let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+    if let Some((x, y, w, h)) = preselect {
+        let coords = terrain::Coords { x, y, w, h };
+        match file.to_stl(&coords, 1, 1.0) {
+            None => println!("Failed to get stl"),
+            Some(stl) => {
+                let mut outfile = std::fs::File::create("./out.stl").unwrap();
+                profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
+            }
+        }
+        return;
+    }
+    let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
 
     let mut mesh_parent = window.add_group();
 
@@ -110,6 +133,7 @@ fn noui() {
     let mut selpos = (Point2::new(-0.5, -0.5), Vector2::new(1.0, 1.0));
     let mut cursor = Point2::new(0.0, 0.0);
     let mut pressing = false;
+    let mut selected_info = None;
 
     while window.render() {
         let mut manager = window.events();
@@ -133,11 +157,24 @@ fn noui() {
                         }
                         event.inhibited = true;
                     }
-                    // println!("Super!")
                 }
                 WindowEvent::Key(Key::LWin, Action::Release, _)
                 | WindowEvent::Key(Key::RWin, Action::Release, _) => {
                     pointer.set_visible(false);
+                }
+                WindowEvent::Key(Key::Return, Action::Press, _) => {
+                    match selected_info {
+                        None => println!("No selection yet"),
+                        Some((coords, sample)) => match file.to_stl(&coords, sample, 1.0) {
+                            None => println!("Failed to get stl"),
+                            Some(stl) => {
+                                let mut outfile = std::fs::File::create("./out.stl").unwrap();
+                                stl::write_stl(&mut outfile, &stl);
+                            }
+                        },
+                    }
+                    // Export maybe?
+                    // mesh_node
                 }
                 WindowEvent::Key(Key::LWin, Action::Press, _)
                 | WindowEvent::Key(Key::RWin, Action::Press, _) => {
@@ -162,15 +199,12 @@ fn noui() {
                     let y = file.size.y - (y + h);
                     let total = w * h;
                     let max_points = 10_000_000;
-                    let sample = if total < max_points {
+                    let sample = if total <= max_points {
                         1
                     } else {
                         (total as f32 / max_points as f32).sqrt().ceil() as usize
                     };
                     println!("Selected sample size: {}", sample);
-                    // let min_sample = (w / s) * (h / s) = 5_000_000
-                    // (w * h) / (s * s) = 5m
-                    // (w * h) / 5m = s * s
                     match select(
                         &file,
                         &mut mesh_parent,
@@ -179,6 +213,9 @@ fn noui() {
                     ) {
                         None => (),
                         Some(new_node) => {
+                            selected_info = Some((terrain::Coords { x, y, w, h }, sample));
+                            println!("To run the extraction from the cli: 
+                            cargo run --release {} {} {} {} {}", file_name, x, y, w, h);
                             mesh_node.unlink();
                             mesh_node = new_node;
                             selection.set_local_scale(0.0, 0.0, 0.15);
