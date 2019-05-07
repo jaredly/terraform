@@ -129,8 +129,8 @@ fn noui() {
                     println!("ok");
                     let x = ((selpos.0.x + 0.5) * file.size.x as f32) as usize;
                     let y = ((selpos.0.y + 0.5) * file.size.y as f32) as usize;
-                    let w = ((selpos.1.x) * file.size.x as f32);
-                    let h = ((selpos.1.y) * file.size.y as f32);
+                    let w = (selpos.1.x) * file.size.x as f32;
+                    let h = (selpos.1.y) * file.size.y as f32;
                     let (x, w) = if w < 0.0 { (x - (-w) as usize, (-w) as usize) } else { (x, w as usize) };
                     let (y, h) = if h < 0.0 { (y - (-h) as usize, (-h) as usize) } else { (y, h as usize) };
                     match select(&file, &mut mesh_parent, terrain::Coords { x, y, w, h }, 5) {
