@@ -10,7 +10,7 @@ macro_rules! profile {
         let start = std::time::SystemTime::now();
         let result = $x;
         println!(
-            "{} took {}",
+            "[ {} ] took {}",
             $message,
             std::time::SystemTime::now()
                 .duration_since(start)

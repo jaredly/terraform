@@ -66,10 +66,27 @@ fn noui() {
     let file = profile!("Load file", terrain::File::from(&dataset));
     let mesh = profile!("Make mesh", file.full_mesh(10));
 
-    // let mesh = profile!("Load file", terrain::load_file(&dataset, 10));
-    let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+    let mut mesh_parent = window.add_group();
+
+    let mut mesh_node = mesh_parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
     mesh_node.set_color(0.0, 1.0, 0.0);
     mesh_node.enable_backface_culling(false);
+
+    fn select(
+        file: &terrain::File,
+        parent: &mut kiss3d::scene::SceneNode,
+        coords: terrain::Coords,
+        sample: usize,
+    ) -> Option<kiss3d::scene::SceneNode> {
+        println!("Coords: {},{} - {} x {}", coords.x, coords.y, coords.w, coords.h);
+        // None
+        file.get_mesh(&coords, sample).map(|mesh| {
+            let mut mesh_node = parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+            mesh_node.set_color(0.0, 1.0, 0.0);
+            mesh_node.enable_backface_culling(false);
+            mesh_node
+        })
+    }
 
     let mut pointer = window.add_cube(0.002, 0.002, 0.5);
     pointer.set_color(1.0, 0.0, 0.0);
@@ -107,6 +124,22 @@ fn noui() {
                         event.inhibited = true;
                     }
                     // println!("Super!")
+                }
+                WindowEvent::Key(Key::Space, Action::Press, _) => {
+                    println!("ok");
+                    let x = ((selpos.0.x + 0.5) * file.size.x as f32) as usize;
+                    let y = ((selpos.0.y + 0.5) * file.size.y as f32) as usize;
+                    let w = ((selpos.1.x) * file.size.x as f32);
+                    let h = ((selpos.1.y) * file.size.y as f32);
+                    let (x, w) = if w < 0.0 { (x - (-w) as usize, (-w) as usize) } else { (x, w as usize) };
+                    let (y, h) = if h < 0.0 { (y - (-h) as usize, (-h) as usize) } else { (y, h as usize) };
+                    match select(&file, &mut mesh_parent, terrain::Coords { x, y, w, h }, 5) {
+                        None => (),
+                        Some(new_node) => {
+                            mesh_node.unlink();
+                            mesh_node = new_node;
+                        }
+                    }
                 }
                 WindowEvent::CursorPos(x, y, modifiers) => {
                     if modifiers.contains(Modifiers::Super) {
