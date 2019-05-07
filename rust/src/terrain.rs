@@ -51,8 +51,10 @@ impl File {
             &Coords {
                 x: 0,
                 y: 0,
-                w: self.size.x,
-                h: self.size.y / 2,
+                // w: 30,
+                // h: 40,
+                w: self.size.x / 2,
+                h: self.size.y,
             },
             sample,
         )
@@ -148,7 +150,9 @@ fn to_points(
     profile!("Rescale things", {
         let scale = max - min;
         for point in coords.iter_mut() {
-            point.z = (point.z - min) / scale / 20.0;
+            point.z = (point.z - min) / scale /
+            5.0;
+            // 20.0;
         }
     });
     coords
@@ -175,12 +179,12 @@ fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<IndexNum>
         for y in 0..hh - 2 {
             let i = x * hh + y;
             faces.push(Point3::new(
-                (i + ww + 1) as IndexNum,
-                (i + ww) as IndexNum,
+                (i + hh + 1) as IndexNum,
+                (i + hh) as IndexNum,
                 (i) as IndexNum,
             ));
             faces.push(Point3::new(
-                (i + ww + 1) as IndexNum,
+                (i + hh + 1) as IndexNum,
                 (i) as IndexNum,
                 (i + 1) as IndexNum,
             ));
