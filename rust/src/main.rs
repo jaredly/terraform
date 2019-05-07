@@ -3,6 +3,8 @@ use std::path::Path;
 // use gdal::raster::types::GdalType;
 use gdal::raster::dataset::Buffer;
 
+#![ allow( dead_code, unused_imports ) ]
+
 #[macro_use]
 extern crate kiss3d;
 extern crate nalgebra as na;
@@ -84,7 +86,7 @@ fn noui() {
 
     let mut size = (500.0, 500.0);
     let mut selpos = (-0.5, -0.5, 1.0, 1.0);
-    let mut cursor = (0.0, 0.0);
+    let mut cursor = Point2::new(0.0, 0.0);
     let mut pressing = false;
 
     while window.render() {
@@ -99,21 +101,13 @@ fn noui() {
                         match action {
                             Action::Release => {
                                 pressing = false;
-                                selpos.2 = cursor.0 - selpos.0;
-                                selpos.3 = cursor.1 - selpos.1;
-                                selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
-                                selection.set_local_translation(Translation3::from(Vector3::new(
-                                    selpos.0 + selpos.2 / 2.0,
-                                    selpos.1 + selpos.3 / 2.0,
-                                    0.0,
-                                )));
-                                println!("Translate {}, {}", selpos.0, selpos.1);
+                                println!("Finished");
                             }
                             Action::Press => {
                                 pressing = true;
-                                println!("Super down {}, {}", cursor.0, cursor.1);
-                                selpos.0 = cursor.0;
-                                selpos.1 = cursor.1;
+                                println!("Super down {}, {}", cursor.x, cursor.y);
+                                selpos.0 = cursor.x;
+                                selpos.1 = cursor.y;
                                 selpos.2 = 0.0;
                                 selpos.3 = 0.0;
                             }
@@ -124,54 +118,55 @@ fn noui() {
                 }
                 WindowEvent::CursorPos(x, y, modifiers) => {
                     if modifiers.contains(Modifiers::Super) {
-                        let (point, dir) = window.unproject(
+                        get_unprojected_coords(
                             &Point2::new(x as f32, y as f32),
                             &Vector2::new(size.0, size.1),
-                        );
-                        let ray = ncollide3d::query::Ray::new(point, dir);
-                        let v: na::Unit<Vector3<f32>> =
-                            na::Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0));
-                        let plane = ncollide3d::shape::Plane::new(v);
-                        let toi = plane.toi_with_ray(
-                            &nalgebra::geometry::Isometry::identity(),
-                            &ray,
-                            true,
-                        );
-
-                        match toi {
-                            Some(t) => {
-                                let point = ray.point_at(t);
-                                cursor = (point.x, point.y);
-                                pointer.set_local_translation(Translation3::from(Vector3::new(
-                                    point.x as f32,
-                                    point.y as f32,
+                            &window,
+                        )
+                        .map(|point| {
+                            cursor = point;
+                            pointer.set_local_translation(Translation3::from(Vector3::new(
+                                point.x as f32,
+                                point.y as f32,
+                                0.0,
+                            )));
+                            event.inhibited = true;
+                            if pressing {
+                                selpos.2 = cursor.x - selpos.0;
+                                selpos.3 = cursor.y - selpos.1;
+                                selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
+                                selection.set_local_translation(Translation3::from(Vector3::new(
+                                    selpos.0 + selpos.2 / 2.0,
+                                    selpos.1 + selpos.3 / 2.0,
                                     0.0,
                                 )));
-                                event.inhibited = true;
-                                if pressing {
-                                    selpos.2 = cursor.0 - selpos.0;
-                                    selpos.3 = cursor.1 - selpos.1;
-                                    selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
-                                    selection.set_local_translation(Translation3::from(
-                                        Vector3::new(
-                                            selpos.0 + selpos.2 / 2.0,
-                                            selpos.1 + selpos.3 / 2.0,
-                                            0.0,
-                                        ),
-                                    ));
-                                }
                             }
-                            None => (),
-                        }
+                        });
                     }
                 }
                 _ => (),
             }
         }
-        // for event in window.events() {
-        //   do something?
-        // }
-        // c.prepend_to_local_rotation(&rot);
+    }
+}
+
+fn get_unprojected_coords(
+    point: &Point2<f32>,
+    size: &Vector2<f32>,
+    window: &Window,
+) -> Option<Point2<f32>> {
+    let (point, dir) = window.unproject(point, size);
+    let ray = ncollide3d::query::Ray::new(point, dir);
+    let v: na::Unit<Vector3<f32>> = na::Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0));
+    let plane = ncollide3d::shape::Plane::new(v);
+    let toi = plane.toi_with_ray(&nalgebra::geometry::Isometry::identity(), &ray, true);
+
+    match toi {
+        Some(t) => {
+            let point = ray.point_at(t);
+            Some(Point2::new(point.x, point.y))
+        }
+        None => None,
     }
 }
 

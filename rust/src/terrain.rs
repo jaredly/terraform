@@ -47,7 +47,16 @@ impl File {
     }
 
     pub fn full_mesh(&self, sample: usize) -> MeshCell {
-        self.get_mesh(&Coords { x: 0, y: 0, w: self.size.x, h: self.size.y }, sample).unwrap()
+        self.get_mesh(
+            &Coords {
+                x: 0,
+                y: 0,
+                w: self.size.x,
+                h: self.size.y,
+            },
+            sample,
+        )
+        .unwrap()
     }
 }
 
@@ -70,11 +79,6 @@ impl Coords {
         let (w, h) = dataset.size();
         Coords { x: 0, y: 0, w, h }
     }
-
-    // pub fn validate(&self, dataset: &Dataset) -> bool {
-    //     let (w, h) = dataset.size();
-    //     self.x + self.w <= w && self.y + self.h <= h
-    // }
 
     pub fn validate(&self, file: &File) -> bool {
         let size = file.size;
