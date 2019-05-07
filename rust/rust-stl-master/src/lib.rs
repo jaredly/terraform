@@ -163,22 +163,24 @@ pub fn write_stl2<T: Write>(out: &mut T, stl: &BinaryStlFile) -> Result<()> {
     try!(out.write_all(&stl.header.header));
     try!(out.write_all(&stl.header.num_triangles.to_le_bytes()));
 
-    // let tri_bytes = (3 * 4 * 4 + 2);
-    // let buffer = Vec::<u8>::with_capacity(stl.triangles.len() * tri_bytes);
+    let tri_bytes = (3 * 4 * 4 + 2);
+    let mut buffer = Vec::<u8>::with_capacity(stl.triangles.len() * tri_bytes);
 
     for t in stl.triangles.iter() {
-        // let offset = i * tri_bytes;
-        try!(out.write_all(&as_u8(t.normal)));
-        try!(out.write_all(&as_u8(t.v1)));
-        try!(out.write_all(&as_u8(t.v2)));
-        try!(out.write_all(&as_u8(t.v3)));
 
-        // try!(write_point2(out, t.normal));
-        // try!(write_point2(out, t.v1));
-        // try!(write_point2(out, t.v2));
-        // try!(write_point2(out, t.v3));
-        try!(out.write_all(&t.attr_byte_count.to_le_bytes()));
+        buffer.extend_from_slice(&as_u8(t.normal));
+        buffer.extend_from_slice(&as_u8(t.v1));
+        buffer.extend_from_slice(&as_u8(t.v2));
+        buffer.extend_from_slice(&as_u8(t.v3));
+
+        // buffer.extend_from_slice(&as_u8(t.normal));
+        // buffer.extend_from_slice(&as_u8(t.v1));
+        // buffer.extend_from_slice(&as_u8(t.v2));
+        // buffer.extend_from_slice(&as_u8(t.v3));
+
+        buffer.extend_from_slice(&t.attr_byte_count.to_le_bytes());
     }
+    try!(out.write_all(&buffer));
 
     Ok(())
 }
