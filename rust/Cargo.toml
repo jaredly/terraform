@@ -9,6 +9,7 @@ kiss3d = { path = "./kiss3d-master", features = [ "conrod" ]  }
 # three = "*"
 stl = "*"
 gdal = "*"
+geo = "*"
 nalgebra = "*"
 conrod = "*"
 rand = "*"

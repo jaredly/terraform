@@ -4,6 +4,8 @@ use std::path::Path;
 
 extern crate nalgebra as na;
 
+extern crate geo;
+
 use kiss3d::light::Light;
 use kiss3d::resource::{IndexNum, Mesh};
 use kiss3d::window::Window;
@@ -17,14 +19,81 @@ pub struct File {
     pub size: Vector2<usize>,
 }
 
+/// Thinking about lat/long & scaling the height of things appropriately....
+/// We get elevation in Meters
+/// We get x/y in usize, which can be converted to lat/long with some effort.
+/// lat/long can then be turned into Meters, and then I can figure out how heigh
+/// the mountains should be
+///
+/// I guess I don't need to do *too* much work ---
+/// It's enough to get a basic: Here's the [maxdim] of the original in Meters
+/// And so the height should be [elevation]/[maxdim] to be scaled correctly
+/// And then with a subset it's the same
+///
+/// Xgeo = GT(0) + Xpixel*GT(1) + Yline*GT(2)
+/// Ygeo = GT(3) + Xpixel*GT(4) + Yline*GT(5)
+
+fn dataset_size_in_meters(dataset: &Dataset) -> f64 {
+    use geo::prelude::HaversineDistance;
+    let geot = dataset.geo_transform().unwrap();
+    let (w, h) = dataset.size();
+    let x0 = geot[0];
+    let xdx = geot[1];
+    let _xdy = geot[2];
+    let y0 = geot[3];
+    let _ydx = geot[4];
+    let ydy = geot[5];
+
+    // Top left to Top right
+    // Top left to Bottom left
+
+    let tl = geo::Point::from((x0, y0));
+    let tr = geo::Point::from((x0 + xdx * w as f64, y0));
+    let bl = geo::Point::from((x0, y0 + ydy * h as f64));
+
+    tl.haversine_distance(&tr).max(tl.haversine_distance(&bl))
+}
+
 impl From<&Dataset> for File {
     fn from(dataset: &Dataset) -> File {
         let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
+        let d = dataset.driver();
         let (width, height) = dataset.size();
-        File {
-            raster,
-            size: Vector2::new(width, height),
+        println!(
+            "File loaded: {} points, {} x {}",
+            raster.data.len(),
+            width,
+            height
+        );
+        println!(
+            "More data: 
+        Count: {}
+        Projection: {}
+        Driver (short): {}
+        Driver (long): {}",
+            dataset.count(),
+            dataset.projection(),
+            d.short_name(),
+            d.long_name()
+        );
+        match dataset.geo_transform() {
+            Err(_) => println!("No transform"),
+            Ok(geo) => println!(
+                "Yes transform
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}",
+                geo[0], geo[1], geo[2], geo[3], geo[4], geo[5]
+            ),
         }
+        panic!("Yeah");
+        // File {
+        //     raster,
+        //     size: Vector2::new(width, height),
+        // }
     }
 }
 
@@ -132,7 +201,7 @@ fn to_points(
     // (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2),
     // to turn [x, y] into an index, you do (x * h + y)
     // raster data looks like
-    // 
+    //
     for x in 0..ww {
         for y in 0..hh {
             let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
@@ -153,7 +222,7 @@ fn to_points(
     }
     println!("Max {} min {}", max, min);
     let scale = max - min;
-    let m = if w > h {w.to_owned() } else {h.to_owned()};
+    let m = if w > h { w.to_owned() } else { h.to_owned() };
     let scale = scale * 20.0 / (full_width as f32 / (m) as f32);
     // let scale = zscale / (full_width / scaler)
     profile!("Rescale things", {

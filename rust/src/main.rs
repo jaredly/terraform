@@ -6,6 +6,7 @@ use gdal::raster::dataset::Buffer;
 
 #[macro_use]
 extern crate kiss3d;
+extern crate geo;
 extern crate nalgebra as na;
 
 use kiss3d::event::{Action, Key, Modifiers, MouseButton, WindowEvent};
@@ -52,6 +53,7 @@ fn make_selection() -> TriMesh<f32> {
 }
 
 use ncollide3d::query::ray_internal::ray::RayCast;
+use std::env;
 fn noui() {
     let mut window = Window::new("Topo");
     window.set_light(Light::StickToCamera);
@@ -59,10 +61,13 @@ fn noui() {
     camera.set_dist_step(1.0);
     window.set_camera(camera);
 
-    let dataset = Dataset::open(Path::new(
-        "../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13",
-    ))
-    .unwrap();
+    let args: Vec<String> = env::args().collect();
+    let file_name = match args.len() {
+        2 => args[1].as_str(),
+        _ => "../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13",
+    };
+
+    let dataset = Dataset::open(Path::new(file_name)).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
     let mesh = profile!("Make mesh", file.full_mesh(5));
 
@@ -78,7 +83,10 @@ fn noui() {
         coords: terrain::Coords,
         sample: usize,
     ) -> Option<kiss3d::scene::SceneNode> {
-        println!("Coords: {},{} - {} x {}", coords.x, coords.y, coords.w, coords.h);
+        println!(
+            "Coords: {},{} - {} x {}",
+            coords.x, coords.y, coords.w, coords.h
+        );
         // None
         file.get_mesh(&coords, sample).map(|mesh| {
             let mut mesh_node = parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
@@ -90,6 +98,7 @@ fn noui() {
 
     let mut pointer = window.add_cube(0.002, 0.002, 0.5);
     pointer.set_color(1.0, 0.0, 0.0);
+    pointer.set_visible(false);
 
     let mut selection = window.add_trimesh(make_selection(), Vector3::from_element(1.0));
     selection.set_local_scale(0.5, 0.5, 0.15);
@@ -113,6 +122,7 @@ fn noui() {
                             Action::Release => {
                                 pressing = false;
                                 println!("Finished");
+                                pointer.set_visible(false);
                             }
                             Action::Press => {
                                 pressing = true;
@@ -125,18 +135,34 @@ fn noui() {
                     }
                     // println!("Super!")
                 }
+                WindowEvent::Key(Key::LWin, Action::Release, _)
+                | WindowEvent::Key(Key::RWin, Action::Release, _) => {
+                    pointer.set_visible(false);
+                }
+                WindowEvent::Key(Key::LWin, Action::Press, _)
+                | WindowEvent::Key(Key::RWin, Action::Press, _) => {
+                    pointer.set_visible(true);
+                }
                 WindowEvent::Key(Key::Space, Action::Press, _) => {
                     println!("ok");
                     let x = ((selpos.0.x + 0.5) * file.size.x as f32) as usize;
                     let y = ((selpos.0.y + 0.5) * file.size.y as f32) as usize;
                     let w = (selpos.1.x) * file.size.x as f32;
                     let h = (selpos.1.y) * file.size.y as f32;
-                    let (x, w) = if w < 0.0 { (x - (-w) as usize, (-w) as usize) } else { (x, w as usize) };
-                    let (y, h) = if h < 0.0 { (y - (-h) as usize, (-h) as usize) } else { (y, h as usize) };
+                    let (x, w) = if w < 0.0 {
+                        (x - (-w) as usize, (-w) as usize)
+                    } else {
+                        (x, w as usize)
+                    };
+                    let (y, h) = if h < 0.0 {
+                        (y - (-h) as usize, (-h) as usize)
+                    } else {
+                        (y, h as usize)
+                    };
                     let y = file.size.y - (y + h);
                     let total = w * h;
                     let max_points = 10_000_000;
-                    let sample = if (total < max_points) {
+                    let sample = if total < max_points {
                         1
                     } else {
                         (total as f32 / max_points as f32).sqrt().ceil() as usize
@@ -145,17 +171,21 @@ fn noui() {
                     // let min_sample = (w / s) * (h / s) = 5_000_000
                     // (w * h) / (s * s) = 5m
                     // (w * h) / 5m = s * s
-                    match select(&file, &mut mesh_parent, terrain::Coords { x, y, w, h }, sample) {
+                    match select(
+                        &file,
+                        &mut mesh_parent,
+                        terrain::Coords { x, y, w, h },
+                        sample,
+                    ) {
                         None => (),
                         Some(new_node) => {
                             mesh_node.unlink();
                             mesh_node = new_node;
-                            selection.set_local_scale(
-                                0.0,
-                                0.0,
-                                0.15,
+                            selection.set_local_scale(0.0, 0.0, 0.15);
+                            let mut camera = kiss3d::camera::ArcBall::new(
+                                Point3::new(0.0, 0.0, 1.0),
+                                Point3::origin(),
                             );
-                            let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
                             camera.set_dist_step(1.0);
                             window.set_camera(camera);
                         }
