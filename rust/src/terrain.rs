@@ -17,6 +17,7 @@ type MeshCell = Rc<RefCell<Mesh>>;
 pub struct File {
     raster: Buffer<f32>,
     pub size: Vector2<usize>,
+    pub longest_dim_in_meters: f32,
 }
 
 /// Thinking about lat/long & scaling the height of things appropriately....
@@ -51,13 +52,16 @@ fn dataset_size_in_meters(dataset: &Dataset) -> f64 {
     let tr = geo::Point::from((x0 + xdx * w as f64, y0));
     let bl = geo::Point::from((x0, y0 + ydy * h as f64));
 
-    tl.haversine_distance(&tr).max(tl.haversine_distance(&bl))
+    if w >= h {
+        tl.haversine_distance(&tr)
+    } else {
+        tl.haversine_distance(&bl)
+    }
 }
 
 impl From<&Dataset> for File {
     fn from(dataset: &Dataset) -> File {
         let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
-        let d = dataset.driver();
         let (width, height) = dataset.size();
         println!(
             "File loaded: {} points, {} x {}",
@@ -65,57 +69,67 @@ impl From<&Dataset> for File {
             width,
             height
         );
-        println!(
-            "More data: 
-        Count: {}
-        Projection: {}
-        Driver (short): {}
-        Driver (long): {}",
-            dataset.count(),
-            dataset.projection(),
-            d.short_name(),
-            d.long_name()
-        );
-        match dataset.geo_transform() {
-            Err(_) => println!("No transform"),
-            Ok(geo) => println!(
-                "Yes transform
-            {}
-            {}
-            {}
-            {}
-            {}
-            {}",
-                geo[0], geo[1], geo[2], geo[3], geo[4], geo[5]
-            ),
-        }
-        panic!("Yeah");
-        // File {
-        //     raster,
-        //     size: Vector2::new(width, height),
+        // let d = dataset.driver();
+        // println!(
+        //     "More data: 
+        // Count: {}
+        // Projection: {}
+        // Driver (short): {}
+        // Driver (long): {}",
+        //     dataset.count(),
+        //     dataset.projection(),
+        //     d.short_name(),
+        //     d.long_name()
+        // );
+        // match dataset.geo_transform() {
+        //     Err(_) => println!("No transform"),
+        //     Ok(geo) => println!(
+        //         "Yes transform
+        //     {}
+        //     {}
+        //     {}
+        //     {}
+        //     {}
+        //     {}",
+        //         geo[0], geo[1], geo[2], geo[3], geo[4], geo[5]
+        //     ),
         // }
+        File {
+            raster,
+            size: Vector2::new(width, height),
+            longest_dim_in_meters: dataset_size_in_meters(dataset) as f32
+        }
     }
 }
 
 impl File {
-    fn get_terrain(&self, coords: &Coords, sample: usize) -> Option<Terrain> {
+    fn get_terrain(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Terrain> {
         if coords.validate(self) {
+            let elevation_scale = if self.size.x >= self.size.y {
+                self.size.x as f32 / coords.w as f32 * 1.0 / self.longest_dim_in_meters
+            } else {
+                self.size.y as f32 / coords.h as f32 * 1.0 / self.longest_dim_in_meters
+            };
+            // let scale = if coords.w >= coords.h {
+
+            // }
             Some(Terrain::from_raster(
                 &self.raster,
                 &coords,
                 sample,
                 self.size.x,
+                elevation_scale * elevation_boost
             ))
         } else {
             None
         }
     }
 
-    pub fn get_mesh(&self, coords: &Coords, sample: usize) -> Option<MeshCell> {
-        self.get_terrain(coords, sample).map(|t| t.to_mesh())
+    pub fn get_mesh(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<MeshCell> {
+        self.get_terrain(coords, sample, elevation_boost).map(|t| t.to_mesh())
     }
 
-    pub fn full_mesh(&self, sample: usize) -> MeshCell {
+    pub fn full_mesh(&self, sample: usize, elevation_boost: f32) -> MeshCell {
         self.get_mesh(
             &Coords {
                 x: 0,
@@ -126,6 +140,7 @@ impl File {
                 h: self.size.y,
             },
             sample,
+            elevation_boost
         )
         .unwrap()
     }
@@ -166,9 +181,10 @@ impl Terrain {
         coords: &Coords,
         sample: usize,
         full_width: usize,
+        elevation_scale: f32,
     ) -> Self {
         Terrain {
-            points: to_points(raster, coords, sample, full_width),
+            points: to_points(raster, coords, sample, full_width, elevation_scale),
             faces: gen_faces(coords.w, coords.h, sample),
         }
     }
@@ -184,6 +200,7 @@ fn to_points(
     Coords { x: x0, y: y0, w, h }: &Coords,
     sample: usize,
     full_width: usize,
+    elevation_scale: f32,
 ) -> Vec<Point3<f32>> {
     let ww = w / sample;
     let hh = h / sample;
@@ -221,13 +238,13 @@ fn to_points(
         }
     }
     println!("Max {} min {}", max, min);
-    let scale = max - min;
-    let m = if w > h { w.to_owned() } else { h.to_owned() };
-    let scale = scale * 20.0 / (full_width as f32 / (m) as f32);
+    // let scale = max - min;
+    // let m = if w > h { w.to_owned() } else { h.to_owned() };
+    // let scale = scale * 20.0 / (full_width as f32 / (m) as f32);
     // let scale = zscale / (full_width / scaler)
     profile!("Rescale things", {
         for point in coords.iter_mut() {
-            point.z = (point.z - min) / scale;
+            point.z = (point.z - min) * elevation_scale;
         }
     });
     coords

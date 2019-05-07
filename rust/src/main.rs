@@ -69,7 +69,7 @@ fn noui() {
 
     let dataset = Dataset::open(Path::new(file_name)).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
-    let mesh = profile!("Make mesh", file.full_mesh(5));
+    let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
 
     let mut mesh_parent = window.add_group();
 
@@ -88,7 +88,7 @@ fn noui() {
             coords.x, coords.y, coords.w, coords.h
         );
         // None
-        file.get_mesh(&coords, sample).map(|mesh| {
+        file.get_mesh(&coords, sample, 1.0).map(|mesh| {
             let mut mesh_node = parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
             mesh_node.set_color(0.0, 1.0, 0.0);
             mesh_node.enable_backface_culling(false);
