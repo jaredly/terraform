@@ -1,9 +1,8 @@
-#![ allow( dead_code, unused_imports ) ]
+#![allow(dead_code, unused_imports)]
 use gdal::raster::Dataset;
 use std::path::Path;
 // use gdal::raster::types::GdalType;
 use gdal::raster::dataset::Buffer;
-
 
 #[macro_use]
 extern crate kiss3d;
@@ -81,8 +80,8 @@ fn noui() {
     selection.set_color(0.0, 0.0, 1.0);
     selection.set_alpha(0.5);
 
-    let mut size = (500.0, 500.0);
-    let mut selpos = (-0.5, -0.5, 1.0, 1.0);
+    let mut size = Vector2::new(500.0, 500.0);
+    let mut selpos = (Point2::new(-0.5, -0.5), Vector2::new(1.0, 1.0));
     let mut cursor = Point2::new(0.0, 0.0);
     let mut pressing = false;
 
@@ -90,9 +89,7 @@ fn noui() {
         let mut manager = window.events();
         for mut event in manager.iter() {
             match event.value {
-                WindowEvent::FramebufferSize(x, y) => {
-                    size = (x as f32, y as f32);
-                }
+                WindowEvent::FramebufferSize(x, y) => size = Vector2::new(x as f32, y as f32),
                 WindowEvent::MouseButton(MouseButton::Button1, action, modifiers) => {
                     if modifiers.contains(Modifiers::Super) {
                         match action {
@@ -103,10 +100,8 @@ fn noui() {
                             Action::Press => {
                                 pressing = true;
                                 println!("Super down {}, {}", cursor.x, cursor.y);
-                                selpos.0 = cursor.x;
-                                selpos.1 = cursor.y;
-                                selpos.2 = 0.0;
-                                selpos.3 = 0.0;
+                                selpos.0 = cursor;
+                                selpos.1 = Vector2::new(0.0, 0.0);
                             }
                         }
                         event.inhibited = true;
@@ -115,30 +110,29 @@ fn noui() {
                 }
                 WindowEvent::CursorPos(x, y, modifiers) => {
                     if modifiers.contains(Modifiers::Super) {
-                        get_unprojected_coords(
-                            &Point2::new(x as f32, y as f32),
-                            &Vector2::new(size.0, size.1),
-                            &window,
-                        )
-                        .map(|point| {
-                            cursor = point;
-                            pointer.set_local_translation(Translation3::from(Vector3::new(
-                                point.x as f32,
-                                point.y as f32,
-                                0.0,
-                            )));
-                            event.inhibited = true;
-                            if pressing {
-                                selpos.2 = cursor.x - selpos.0;
-                                selpos.3 = cursor.y - selpos.1;
-                                selection.set_local_scale(selpos.2 / 2.0, selpos.3 / 2.0, 0.15);
-                                selection.set_local_translation(Translation3::from(Vector3::new(
-                                    selpos.0 + selpos.2 / 2.0,
-                                    selpos.1 + selpos.3 / 2.0,
-                                    0.0,
+                        get_unprojected_coords(&Point2::new(x as f32, y as f32), &size, &window)
+                            .map(|point| {
+                                cursor = point;
+                                pointer.set_local_translation(Translation3::from(Vector3::new(
+                                    point.x, point.y, 0.0,
                                 )));
-                            }
-                        });
+                                event.inhibited = true;
+                                if pressing {
+                                    selpos.1 = cursor - selpos.0;
+                                    selection.set_local_scale(
+                                        selpos.1.x / 2.0,
+                                        selpos.1.y / 2.0,
+                                        0.15,
+                                    );
+                                    selection.set_local_translation(Translation3::from(
+                                        Vector3::new(
+                                            selpos.0.x + selpos.1.x / 2.0,
+                                            selpos.0.y + selpos.1.y / 2.0,
+                                            0.0,
+                                        ),
+                                    ));
+                                }
+                            });
                     }
                 }
                 _ => (),
