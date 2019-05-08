@@ -16,6 +16,7 @@ type MeshCell = Rc<RefCell<Mesh>>;
 
 pub struct File {
     raster: Buffer<f32>,
+    pub name: String,
     pub size: Vector2<usize>,
     pub longest_dim_in_meters: f32,
 }
@@ -67,8 +68,8 @@ fn dataset_size_in_meters(dataset: &Dataset) -> f64 {
     }
 }
 
-impl From<&Dataset> for File {
-    fn from(dataset: &Dataset) -> File {
+impl File {
+    pub fn from_dataset(dataset: &Dataset, file_name: String) -> File {
         let raster: Buffer<f32> = dataset.read_full_raster_as(1).unwrap();
         let (width, height) = dataset.size();
         println!(
@@ -78,14 +79,13 @@ impl From<&Dataset> for File {
             height
         );
         File {
+            name: file_name,
             raster,
             size: Vector2::new(width, height),
             longest_dim_in_meters: dataset_size_in_meters(dataset) as f32,
         }
     }
-}
 
-impl File {
     fn get_terrain(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Terrain> {
         if coords.validate(self) {
             let elevation_scale = if self.size.x >= self.size.y {

@@ -67,14 +67,17 @@ enum Status {
 enum Transition {
     Open(String),
     Select(terrain::Coords, usize),
-    Export
+    Export,
 }
 
 fn make_large(window: &mut Window, file_name: String) -> Status {
     window.scene_mut().clear();
     window.set_camera(make_camera());
     if let Ok(dataset) = Dataset::open(Path::new(file_name.as_str())) {
-        let file = profile!("Load file", terrain::File::from(&dataset));
+        let file = profile!(
+            "Load file",
+            terrain::File::from_dataset(&dataset, file_name)
+        );
         let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
         let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
         mesh_node.set_color(0.0, 1.0, 0.0);
@@ -141,7 +144,14 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                 }
             }
         }
-        (Status::Small { file, coords, sample }, Transition::Export) => {
+        (
+            Status::Small {
+                file,
+                coords,
+                sample,
+            },
+            Transition::Export,
+        ) => {
             match file.to_stl(&coords, sample, 1.0) {
                 None => println!("Failed to get stl"),
                 Some(stl) => {
@@ -155,8 +165,11 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                     }
                 }
             };
-            Status::Small { file, coords, sample }
-
+            Status::Small {
+                file,
+                coords,
+                sample,
+            }
         }
         (status, _) => status,
     }
@@ -168,11 +181,11 @@ fn make_camera() -> kiss3d::camera::ArcBall {
     camera
 }
 
-fn calc_coords(size: Vector2<usize>, selpos: (Point2<f32>, Vector2<f32>)) -> terrain::Coords {
-    let x = ((selpos.0.x + 0.5) * size.x as f32) as usize;
-    let y = ((selpos.0.y + 0.5) * size.y as f32) as usize;
-    let w = (selpos.1.x) * size.x as f32;
-    let h = (selpos.1.y) * size.y as f32;
+fn normalize_selection(size: Vector2<usize>, selection: &Selection) -> terrain::Coords {
+    let x = ((selection.pos.x + 0.5) * size.x as f32) as usize;
+    let y = ((selection.pos.y + 0.5) * size.y as f32) as usize;
+    let w = (selection.size.x) * size.x as f32;
+    let h = (selection.size.y) * size.y as f32;
     let (x, w) = if w < 0.0 {
         (x - (-w) as usize, (-w) as usize)
     } else {
@@ -195,10 +208,6 @@ fn make_window() -> Window {
 }
 
 struct State {
-    // window_size: Vector2<f32>,
-    // selection: Selection,
-    // cursor: Point2<f32>,
-    // pressing: bool,
     window: Window,
     status: Status,
     ids: Ids,
@@ -242,6 +251,8 @@ widget_ids! {
         hlist,
         status_text,
         open_file,
+        selection_text,
+        crop,
     }
 }
 
@@ -262,7 +273,6 @@ impl Status {
             .h(40.0)
             // .scroll_kids_vertically()
             .set(ids.canvas, ui);
-
 
         match self {
             Status::Initial => {
@@ -289,11 +299,42 @@ impl Status {
                         _ => (),
                     }
                 }
-                return None
+                return None;
             }
-            _ => None
-        }
+            Status::Large {
+                file, selection, ..
+            } => {
+                let name = file.name[0.max(file.name.len() - 20)..].to_string();
+                let label_text = format!("File: {}", name);
+                widget::Text::new(label_text.as_str())
+                    .mid_left_of(ids.canvas)
+                    .set(ids.status_text, ui);
 
+                if selection.size.x != 0.0 && selection.size.y != 0.0 {
+                    let coords = normalize_selection(file.size, selection);
+                    let selected_text = format!(
+                        " Selection: {:.3}, {:.3} - {:.3} x {:.3}",
+                        coords.x, coords.y, coords.w, coords.h
+                    );
+                    widget::Text::new(selected_text.as_str())
+                        .right_from(ids.status_text, 10.0)
+                        .set(ids.selection_text, ui);
+
+                    for _press in widget::Button::new()
+                        .label("Crop")
+                        .right_from(ids.selection_text, 10.0)
+                        .h(20.0)
+                        .w(50.0)
+                        .set(ids.crop, ui)
+                    {
+                        return Some(Transition::Select(coords, 1))
+                    }
+                };
+
+                None
+            }
+            _ => None,
+        }
     }
 
     fn handle_event(
@@ -348,7 +389,7 @@ impl Status {
                     selection_node: _,
                 } => {
                     println!("ok");
-                    let coords = calc_coords(file.size, (selection.pos, selection.size));
+                    let coords = normalize_selection(file.size, selection);
                     let total = coords.w * coords.h;
                     let max_points = 10_000_000;
                     let sample = if total <= max_points {
@@ -501,7 +542,11 @@ fn main() {
         2 => someui(Some(args[1].clone())),
         6 => {
             let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
-            let file = profile!("Load file", terrain::File::from(&dataset));
+            let file = profile!(
+                "Load file",
+                terrain::File::from_dataset(&dataset, args[1].clone())
+            );
+            // let coords = normalize_selection(file.size, selection);
             let coords = terrain::Coords {
                 x: args[2].parse().unwrap(),
                 y: args[3].parse().unwrap(),
