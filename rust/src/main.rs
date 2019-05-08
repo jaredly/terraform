@@ -283,6 +283,7 @@ impl Status {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
+                    .w(60.0)
                     .h(20.0)
                     .set(ids.open_file, ui)
                 {
@@ -296,8 +297,6 @@ impl Status {
 
                 widget::Text::new("No file loaded")
                     .right_from(ids.open_file, 10.0)
-                    // .align_middle_y_of(ids.canvas)
-                    // .x(0.0)
                     .set(ids.status_text, ui);
 
                 return None;
@@ -309,6 +308,7 @@ impl Status {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
+                    .w(60.0)
                     .h(20.0)
                     .set(ids.open_file, ui)
                 {
