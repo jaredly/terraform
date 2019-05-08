@@ -69,6 +69,15 @@ impl SceneNodeData {
         }
     }
 
+    /// Clear all children
+    pub fn clear(&mut self) {
+        for mut child in self.children.iter_mut() {
+            // child.unlink();
+            child.data_mut().parent = None
+        }
+        self.children = vec![];
+    }
+
     /// Whether this node contains an `Object`.
     #[inline]
     pub fn has_object(&self) -> bool {
@@ -611,6 +620,11 @@ impl SceneNode {
         SceneNode {
             data: Rc::new(RefCell::new(data)),
         }
+    }
+
+    /// Clear all children
+    pub fn clear(&mut self) {
+        self.data_mut().clear();
     }
 
     /// Creates a new empty, not rooted, node with identity transformations.

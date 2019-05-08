@@ -1,6 +1,5 @@
 //! A renderer for Conrod primitives.
 
-use std::collections::HashMap;
 use std::rc::Rc;
 use context::{Context, Texture};
 use na::{Vector2, Point3, Point2, Point4};

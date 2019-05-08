@@ -21,38 +21,9 @@ use std::time::SystemTime;
 mod profile;
 mod terrain;
 
-extern crate nfd;
+mod threed;
 
-fn make_selection() -> TriMesh<f32> {
-    TriMesh::new(
-        vec![
-            Point3::new(-1.0, -1.0, -1.0), // 0 bl
-            Point3::new(1.0, -1.0, -1.0),  // 1 br
-            Point3::new(1.0, 1.0, -1.0),   // 2 tr
-            Point3::new(-1.0, 1.0, -1.0),  // 3 tl
-            Point3::new(-1.0, 1.0, 1.0),   // 4 tl
-            Point3::new(1.0, 1.0, 1.0),    // 5 tr
-            Point3::new(1.0, -1.0, 1.0),   // 6 br
-            Point3::new(-1.0, -1.0, 1.0),  // 7 bl
-        ],
-        None,
-        None,
-        Some(IndexBuffer::Unified(vec![
-            // top face
-            Point3::new(3, 2, 4),
-            Point3::new(2, 5, 4),
-            // left face
-            Point3::new(0, 3, 7),
-            Point3::new(3, 4, 7),
-            // right face
-            Point3::new(1, 2, 6),
-            Point3::new(2, 5, 6),
-            // bottom face
-            Point3::new(0, 1, 7),
-            Point3::new(1, 6, 7),
-        ])),
-    )
-}
+extern crate nfd;
 
 fn select(
     file: &terrain::File,
@@ -73,17 +44,88 @@ fn select(
     })
 }
 
-use std::env;
-fn noui(file_name: String) {
-    let mut window = Window::new("Topo");
-    window.set_light(Light::StickToCamera);
+struct Selection {
+    pos: Point2<f32>,
+    size: Vector2<f32>,
+}
+
+enum Status {
+    Initial,
+    Large {
+        file: terrain::File,
+    },
+    Small {
+        file: terrain::File,
+        coords: terrain::Coords,
+        sample: usize,
+    },
+}
+
+struct State {
+    window_size: Vector2<f32>,
+    selection: Selection,
+    cursor: Point2<f32>,
+    pressing: bool,
+    window: Window,
+}
+
+fn setup_scene(window: &mut Window, status: &Status) -> Result<(), &'static str> {
+    window.scene_mut().clear();
+    window.set_camera(make_camera());
+    match status {
+        Status::Initial => Ok(()),
+        Status::Large { file } => {
+            let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+            let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+            mesh_node.set_color(0.0, 1.0, 0.0);
+            mesh_node.enable_backface_culling(false);
+            Ok(())
+        }
+        Status::Small { file, coords, sample } => {
+            file.get_mesh(&coords, *sample, 1.0).map(|mesh| {
+                let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+                mesh_node.set_color(0.0, 1.0, 0.0);
+                mesh_node.enable_backface_culling(false);
+                ()
+            }).ok_or("Invalid selection coordinates")
+        }
+    }
+}
+
+fn make_camera() -> kiss3d::camera::ArcBall {
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
     camera.set_dist_step(1.0);
-    window.set_camera(camera);
+    camera
+}
+
+fn calc_coords(size: Vector2<usize>, selpos: (Point2<f32>, Vector2<f32>)) -> terrain::Coords {
+    let x = ((selpos.0.x + 0.5) * size.x as f32) as usize;
+    let y = ((selpos.0.y + 0.5) * size.y as f32) as usize;
+    let w = (selpos.1.x) * size.x as f32;
+    let h = (selpos.1.y) * size.y as f32;
+    let (x, w) = if w < 0.0 {
+        (x - (-w) as usize, (-w) as usize)
+    } else {
+        (x, w as usize)
+    };
+    let (y, h) = if h < 0.0 {
+        (y - (-h) as usize, (-h) as usize)
+    } else {
+        (y, h as usize)
+    };
+    let y = size.y - (y + h);
+    terrain::Coords { x, y, w, h }
+}
+
+use std::env;
+fn noui(file_name: String) {
+    let mut window = Window::new("Terraform");
+    window.set_light(Light::StickToCamera);
+    window.set_camera(make_camera());
 
     let dataset = Dataset::open(Path::new(file_name.as_str())).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
-    let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+    let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
 
     let mut mesh_parent = window.add_group();
 
@@ -95,7 +137,7 @@ fn noui(file_name: String) {
     pointer.set_color(1.0, 0.0, 0.0);
     pointer.set_visible(false);
 
-    let mut selection = window.add_trimesh(make_selection(), Vector3::from_element(1.0));
+    let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
     selection.set_local_scale(0.0, 0.0, 0.15);
     selection.enable_backface_culling(false);
     selection.set_color(0.0, 0.0, 1.0);
@@ -161,22 +203,8 @@ fn noui(file_name: String) {
                 }
                 WindowEvent::Key(Key::Space, Action::Press, _) => {
                     println!("ok");
-                    let x = ((selpos.0.x + 0.5) * file.size.x as f32) as usize;
-                    let y = ((selpos.0.y + 0.5) * file.size.y as f32) as usize;
-                    let w = (selpos.1.x) * file.size.x as f32;
-                    let h = (selpos.1.y) * file.size.y as f32;
-                    let (x, w) = if w < 0.0 {
-                        (x - (-w) as usize, (-w) as usize)
-                    } else {
-                        (x, w as usize)
-                    };
-                    let (y, h) = if h < 0.0 {
-                        (y - (-h) as usize, (-h) as usize)
-                    } else {
-                        (y, h as usize)
-                    };
-                    let y = file.size.y - (y + h);
-                    let total = w * h;
+                    let coords = calc_coords(file.size, selpos);
+                    let total = coords.w * coords.h;
                     let max_points = 10_000_000;
                     let sample = if total <= max_points {
                         1
@@ -184,83 +212,50 @@ fn noui(file_name: String) {
                         (total as f32 / max_points as f32).sqrt().ceil() as usize
                     };
                     println!("Selected sample size: {}", sample);
-                    match select(
-                        &file,
-                        &mut mesh_parent,
-                        terrain::Coords { x, y, w, h },
-                        sample,
-                    ) {
+                    match select(&file, &mut mesh_parent, coords, sample) {
                         None => (),
                         Some(new_node) => {
-                            selected_info = Some((terrain::Coords { x, y, w, h }, sample));
-                            println!(
-                                "To run the extraction from the cli: 
-                            cargo run --release {} {} {} {} {}",
-                                file_name, x, y, w, h
-                            );
+                            selected_info = Some((coords, sample));
+                            // println!(
+                            //     "To run the extraction from the cli: 
+                            // cargo run --release {} {} {} {} {}",
+                            //     file_name, x, y, w, h
+                            // );
                             mesh_node.unlink();
                             mesh_node = new_node;
                             selection.set_local_scale(0.0, 0.0, 0.15);
-                            let mut camera = kiss3d::camera::ArcBall::new(
-                                Point3::new(0.0, 0.0, 1.0),
-                                Point3::origin(),
-                            );
-                            camera.set_dist_step(1.0);
-                            window.set_camera(camera);
+                            window.set_camera(make_camera());
                         }
                     }
                 }
                 WindowEvent::CursorPos(x, y, modifiers) => {
                     if modifiers.contains(Modifiers::Super) {
-                        get_unprojected_coords(&Point2::new(x as f32, y as f32), &size, &window)
-                            .map(|point| {
-                                cursor = point;
-                                pointer.set_local_translation(Translation3::from(Vector3::new(
-                                    point.x, point.y, 0.0,
+                        threed::get_unprojected_coords(
+                            &Point2::new(x as f32, y as f32),
+                            &size,
+                            &window,
+                        )
+                        .map(|point| {
+                            cursor = point;
+                            pointer.set_local_translation(Translation3::from(Vector3::new(
+                                point.x, point.y, 0.0,
+                            )));
+                            event.inhibited = true;
+                            if pressing {
+                                selpos.1 = cursor - selpos.0;
+                                selection.set_local_scale(selpos.1.x / 2.0, selpos.1.y / 2.0, 0.15);
+                                selection.set_local_translation(Translation3::from(Vector3::new(
+                                    selpos.0.x + selpos.1.x / 2.0,
+                                    selpos.0.y + selpos.1.y / 2.0,
+                                    0.0,
                                 )));
-                                event.inhibited = true;
-                                if pressing {
-                                    selpos.1 = cursor - selpos.0;
-                                    selection.set_local_scale(
-                                        selpos.1.x / 2.0,
-                                        selpos.1.y / 2.0,
-                                        0.15,
-                                    );
-                                    selection.set_local_translation(Translation3::from(
-                                        Vector3::new(
-                                            selpos.0.x + selpos.1.x / 2.0,
-                                            selpos.0.y + selpos.1.y / 2.0,
-                                            0.0,
-                                        ),
-                                    ));
-                                }
-                            });
+                            }
+                        });
                     }
                 }
                 _ => (),
             }
         }
-    }
-}
-
-fn get_unprojected_coords(
-    point: &Point2<f32>,
-    size: &Vector2<f32>,
-    window: &Window,
-) -> Option<Point2<f32>> {
-    use ncollide3d::query::ray_internal::ray::RayCast;
-    let (point, dir) = window.unproject(point, size);
-    let ray = ncollide3d::query::Ray::new(point, dir);
-    let v: na::Unit<Vector3<f32>> = na::Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0));
-    let plane = ncollide3d::shape::Plane::new(v);
-    let toi = plane.toi_with_ray(&nalgebra::geometry::Isometry::identity(), &ray, true);
-
-    match toi {
-        Some(t) => {
-            let point = ray.point_at(t);
-            Some(Point2::new(point.x, point.y))
-        }
-        None => None,
     }
 }
 
@@ -273,7 +268,7 @@ fn main() {
         6 => {
             let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
             let file = profile!("Load file", terrain::File::from(&dataset));
-            let coords = terrain::Coords { 
+            let coords = terrain::Coords {
                 x: args[2].parse().unwrap(),
                 y: args[3].parse().unwrap(),
                 w: args[4].parse().unwrap(),
@@ -286,14 +281,13 @@ fn main() {
                     profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
                 }
             }
+        }
+        _ => match nfd::open_file_dialog(None, None) {
+            Ok(nfd::Response::Okay(file_path)) => noui(file_path.to_owned()),
+            _ => {
+                println!("No file selected. Exiting");
+            }
         },
-        _ => 
-            match nfd::open_file_dialog(None, None) {
-                Ok(nfd::Response::Okay(file_path)) => noui(file_path.to_owned()),
-                _ => {
-                    println!("No file selected. Exiting");
-                }
-            },
     };
-    // let (file_name, preselect) = 
+    // let (file_name, preselect) =
 }

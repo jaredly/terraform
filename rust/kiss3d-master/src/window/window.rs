@@ -122,6 +122,7 @@ impl Window {
         self.canvas.set_title(title)
     }
 
+    /// Get a point & vector representing the given mouse coordinates
     pub fn unproject(&self, window_coord: &Point2<f32>, size: &Vector2<f32>) -> (Point3<f32>, Vector3<f32>) {
         self.camera.borrow().unproject(window_coord, size)
     }
@@ -521,6 +522,7 @@ impl Window {
         usr_window
     }
 
+    /// Update the camera
     pub fn set_camera(&mut self, camera: ArcBall) {
         self.camera = Rc::new(RefCell::new(camera));
     }
