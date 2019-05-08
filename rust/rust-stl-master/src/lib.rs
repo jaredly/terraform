@@ -97,23 +97,19 @@ pub fn read_stl<T: ReadBytesExt>(input: &mut T) -> Result<BinaryStlFile> {
        })
 }
 
-fn write_point<T: WriteBytesExt>(out: &mut T, p: [f32; 3]) -> Result<()> {
-    for x in &p {
-        try!(out.write_f32::<LittleEndian>(*x));
+#[cfg(target_endian = "little")]
+#[inline]
+/// On little-endian systems, we can just do a straight memcpy, leading to a ~50% speed increase overall
+fn as_u8(array: [f32; 3]) -> [u8; 12] {
+    unsafe {
+        std::mem::transmute(array)
     }
-    Ok(())
 }
 
+#[cfg(not(target_endian = "little"))]
 #[inline]
-fn write_point2<T: Write>(out: &mut T, p: [f32; 3]) -> Result<()> {
-    for x in &p {
-        try!(out.write_all(&x.to_bits().to_le_bytes()));
-    }
-    Ok(())
-}
-
-#[inline]
-fn as_u82(array: [f32; 3]) -> [u8; 12] {
+/// On big-endian systems, we go with this method, which is still quite fast.
+fn as_u8(array: [f32; 3]) -> [u8; 12] {
     let mut res = [0; 12];
     for (i, p) in array.iter().enumerate() {
         let offset = i * 4;
@@ -122,48 +118,13 @@ fn as_u82(array: [f32; 3]) -> [u8; 12] {
     res
 }
 
-pub fn write_stl3<T: Write>(out: &mut T, stl: &BinaryStlFile) -> Result<()> {
+pub fn write_stl<T: Write>(out: &mut T, stl: &BinaryStlFile) -> Result<()> {
     assert_eq!(stl.header.num_triangles as usize, stl.triangles.len());
 
     try!(out.write_all(&stl.header.header));
     try!(out.write_all(&stl.header.num_triangles.to_le_bytes()));
 
-    let tri_bytes = (3 * 4 * 4 + 2);
-    let mut buffer = Vec::<u8>::with_capacity(stl.triangles.len() * tri_bytes);
-
-    for t in stl.triangles.iter() {
-
-        buffer.extend_from_slice(&as_u82(t.normal));
-        buffer.extend_from_slice(&as_u82(t.v1));
-        buffer.extend_from_slice(&as_u82(t.v2));
-        buffer.extend_from_slice(&as_u82(t.v3));
-
-        // buffer.extend_from_slice(&as_u8(t.normal));
-        // buffer.extend_from_slice(&as_u8(t.v1));
-        // buffer.extend_from_slice(&as_u8(t.v2));
-        // buffer.extend_from_slice(&as_u8(t.v3));
-
-        buffer.extend_from_slice(&t.attr_byte_count.to_le_bytes());
-    }
-    try!(out.write_all(&buffer));
-
-    Ok(())
-}
-
-#[inline]
-fn as_u8(array: [f32; 3]) -> [u8; 12] {
-    unsafe {
-        std::mem::transmute(array)
-    }
-}
-
-pub fn write_stl2<T: Write>(out: &mut T, stl: &BinaryStlFile) -> Result<()> {
-    assert_eq!(stl.header.num_triangles as usize, stl.triangles.len());
-
-    try!(out.write_all(&stl.header.header));
-    try!(out.write_all(&stl.header.num_triangles.to_le_bytes()));
-
-    let tri_bytes = (3 * 4 * 4 + 2);
+    let tri_bytes = 3 * 4 * 4 + 2;
     let mut buffer = Vec::<u8>::with_capacity(stl.triangles.len() * tri_bytes);
 
     for t in stl.triangles.iter() {
@@ -173,33 +134,9 @@ pub fn write_stl2<T: Write>(out: &mut T, stl: &BinaryStlFile) -> Result<()> {
         buffer.extend_from_slice(&as_u8(t.v2));
         buffer.extend_from_slice(&as_u8(t.v3));
 
-        // buffer.extend_from_slice(&as_u8(t.normal));
-        // buffer.extend_from_slice(&as_u8(t.v1));
-        // buffer.extend_from_slice(&as_u8(t.v2));
-        // buffer.extend_from_slice(&as_u8(t.v3));
-
         buffer.extend_from_slice(&t.attr_byte_count.to_le_bytes());
     }
     try!(out.write_all(&buffer));
-
-    Ok(())
-}
-
-pub fn write_stl<T: WriteBytesExt>(out: &mut T, stl: &BinaryStlFile) -> Result<()> {
-    assert_eq!(stl.header.num_triangles as usize, stl.triangles.len());
-
-    //write the header.
-    try!(out.write_all(&stl.header.header));
-    try!(out.write_u32::<LittleEndian>(stl.header.num_triangles));
-
-    // write all the triangles
-    for t in &stl.triangles {
-        try!(write_point(out, t.normal));
-        try!(write_point(out, t.v1));
-        try!(write_point(out, t.v2));
-        try!(write_point(out, t.v3));
-        try!(out.write_u16::<LittleEndian>(t.attr_byte_count));
-    }
 
     Ok(())
 }

@@ -21,6 +21,8 @@ use std::time::SystemTime;
 mod profile;
 mod terrain;
 
+extern crate nfd;
+
 fn make_selection() -> TriMesh<f32> {
     TriMesh::new(
         vec![
@@ -63,9 +65,9 @@ fn noui() {
 
     let args: Vec<String> = env::args().collect();
     let (file_name, preselect) = match args.len() {
-        2 => (args[1].as_str(), None),
+        2 => (args[1].clone(), None),
         6 => (
-            args[1].as_str(),
+            args[1].clone(),
             Some((
                 args[2].parse().unwrap(),
                 args[3].parse().unwrap(),
@@ -74,12 +76,18 @@ fn noui() {
             )),
         ),
         _ => (
-            "../raw_data/USGS_NED_13_n41w112_ArcGrid_timp/grdn41w112_13",
+            match nfd::open_file_dialog(None, None) {
+                Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
+                _ => {
+                    println!("No file selected. Exiting");
+                    return;
+                }
+            },
             None,
         ),
     };
 
-    let dataset = Dataset::open(Path::new(file_name)).unwrap();
+    let dataset = Dataset::open(Path::new(file_name.as_str())).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
     if cfg!(target_endian = "little") {
         println!("Ok")
@@ -92,9 +100,7 @@ fn noui() {
             None => println!("Failed to get stl"),
             Some(stl) => {
                 let mut outfile = std::fs::File::create("./out.stl").unwrap();
-                profile!("Writing file", stl::write_stl3(&mut outfile, &stl).unwrap());
-                let mut outfile = std::fs::File::create("./out2.stl").unwrap();
-                profile!("Writing file", stl::write_stl2(&mut outfile, &stl).unwrap());
+                profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
             }
         }
         return;
@@ -175,8 +181,15 @@ fn noui() {
                         Some((coords, sample)) => match file.to_stl(&coords, sample, 1.0) {
                             None => println!("Failed to get stl"),
                             Some(stl) => {
-                                let mut outfile = std::fs::File::create("./out.stl").unwrap();
-                                stl::write_stl(&mut outfile, &stl);
+                                let out_file = match nfd::open_save_dialog(None, None) {
+                                    Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
+                                    _ => {
+                                        println!("No file selected. Exiting");
+                                        return;
+                                    }
+                                };
+                                let mut outfile = std::fs::File::create(out_file.as_str()).unwrap();
+                                profile!("Write file", stl::write_stl(&mut outfile, &stl));
                             }
                         },
                     }
@@ -221,8 +234,11 @@ fn noui() {
                         None => (),
                         Some(new_node) => {
                             selected_info = Some((terrain::Coords { x, y, w, h }, sample));
-                            println!("To run the extraction from the cli: 
-                            cargo run --release {} {} {} {} {}", file_name, x, y, w, h);
+                            println!(
+                                "To run the extraction from the cli: 
+                            cargo run --release {} {} {} {} {}",
+                                file_name, x, y, w, h
+                            );
                             mesh_node.unlink();
                             mesh_node = new_node;
                             selection.set_local_scale(0.0, 0.0, 0.15);
