@@ -52,6 +52,14 @@ fn dataset_size_in_meters(dataset: &Dataset) -> f64 {
     let tr = geo::Point::from((x0 + xdx * w as f64, y0));
     let bl = geo::Point::from((x0, y0 + ydy * h as f64));
 
+    println!(
+        "Dataset range: {}, {} - {} x {}",
+        x0,
+        y0,
+        xdx * w as f64,
+        ydy * h as f64
+    );
+
     if w >= h {
         tl.haversine_distance(&tr)
     } else {

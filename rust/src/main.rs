@@ -66,7 +66,7 @@ enum Status {
 
 enum Transition {
     Open(String),
-    Select(terrain::Coords, usize)
+    Select(terrain::Coords, usize),
 }
 
 fn make_large(window: &mut Window, file_name: String) -> Status {
@@ -83,7 +83,8 @@ fn make_large(window: &mut Window, file_name: String) -> Status {
         pointer.set_color(1.0, 0.0, 0.0);
         pointer.set_visible(false);
 
-        let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
+        let mut selection =
+            window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
         selection.set_local_scale(0.0, 0.0, 0.15);
         selection.enable_backface_culling(false);
         selection.set_color(0.0, 0.0, 1.0);
@@ -93,7 +94,10 @@ fn make_large(window: &mut Window, file_name: String) -> Status {
             file,
             pointer,
             selection_node: selection,
-            selection: Selection { pos: Point2::new(0.0, 0.0), size: Vector2::new(0.0, 0.0) }
+            selection: Selection {
+                pos: Point2::new(0.0, 0.0),
+                size: Vector2::new(0.0, 0.0),
+            },
         }
     } else {
         Status::Initial
@@ -103,7 +107,15 @@ fn make_large(window: &mut Window, file_name: String) -> Status {
 fn handle_transition(window: &mut Window, current: Status, transition: Transition) -> Status {
     match (current, transition) {
         (_, Transition::Open(file_name)) => make_large(window, file_name),
-        (Status::Large {file, pointer, selection, selection_node}, Transition::Select(coords, sample)) => {
+        (
+            Status::Large {
+                file,
+                pointer,
+                selection,
+                selection_node,
+            },
+            Transition::Select(coords, sample),
+        ) => {
             if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
                 window.scene_mut().clear();
                 window.set_camera(make_camera());
@@ -115,13 +127,18 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                 Status::Small {
                     file,
                     coords,
-                    sample
+                    sample,
                 }
             } else {
-                Status::Large {file, pointer, selection, selection_node}
+                Status::Large {
+                    file,
+                    pointer,
+                    selection,
+                    selection_node,
+                }
             }
         }
-        (status, _) => status
+        (status, _) => status,
     }
 }
 
@@ -167,13 +184,17 @@ struct State {
 }
 
 impl Status {
-    fn handle_event(&mut self, window: &mut Window, event: &mut kiss3d::event::Event) -> Option<Transition> {
+    fn handle_event(
+        &mut self,
+        window: &mut Window,
+        event: &mut kiss3d::event::Event,
+    ) -> Option<Transition> {
         match event.value {
             WindowEvent::Key(Key::LWin, Action::Release, _)
             | WindowEvent::Key(Key::RWin, Action::Release, _) => {
                 match self {
                     Status::Large { pointer, .. } => pointer.set_visible(false),
-                    _ => ()
+                    _ => (),
                 };
                 None
             }
@@ -181,26 +202,26 @@ impl Status {
             | WindowEvent::Key(Key::RWin, Action::Press, _) => {
                 match self {
                     Status::Large { pointer, .. } => pointer.set_visible(true),
-                    _ => ()
+                    _ => (),
                 };
                 None
             }
 
-            WindowEvent::Key(Key::O, Action::Press, _) => {
-                match self {
-                    Status::Initial => {
-                        match nfd::open_file_dialog(None, None) {
-                            Ok(nfd::Response::Okay(file_path)) => Some(Transition::Open(file_path)),
-                            _ => None
-                        }
-                    }
-                    _ => None
-                }
-            }
+            WindowEvent::Key(Key::O, Action::Press, _) => match self {
+                Status::Initial => match nfd::open_file_dialog(None, None) {
+                    Ok(nfd::Response::Okay(file_path)) => Some(Transition::Open(file_path)),
+                    _ => None,
+                },
+                _ => None,
+            },
 
             WindowEvent::Key(Key::Return, Action::Press, _) => {
                 match self {
-                    Status::Small {file, coords, sample} => match file.to_stl(&coords, *sample, 1.0) {
+                    Status::Small {
+                        file,
+                        coords,
+                        sample,
+                    } => match file.to_stl(&coords, *sample, 1.0) {
                         None => println!("Failed to get stl"),
                         Some(stl) => {
                             let out_file = match nfd::open_save_dialog(None, None) {
@@ -214,32 +235,37 @@ impl Status {
                             profile!("Write file", stl::write_stl(&mut outfile, &stl));
                         }
                     },
-                    _ => ()
+                    _ => (),
                 };
                 None
             }
 
-            WindowEvent::Key(Key::Space, Action::Press, _) => {
-                match self {
-                    Status::Large {file, pointer, selection, selection_node} => {
-                        println!("ok");
-                        let coords = calc_coords(file.size, (selection.pos, selection.size));
-                        let total = coords.w * coords.h;
-                        let max_points = 10_000_000;
-                        let sample = if total <= max_points {
-                            1
-                        } else {
-                            (total as f32 / max_points as f32).sqrt().ceil() as usize
-                        };
-                        Some(Transition::Select(coords, sample))
-                    }
-                    _ => None
+            WindowEvent::Key(Key::Space, Action::Press, _) => match self {
+                Status::Large {
+                    file,
+                    pointer,
+                    selection,
+                    selection_node,
+                } => {
+                    println!("ok");
+                    let coords = calc_coords(file.size, (selection.pos, selection.size));
+                    let total = coords.w * coords.h;
+                    let max_points = 10_000_000;
+                    let sample = if total <= max_points {
+                        1
+                    } else {
+                        (total as f32 / max_points as f32).sqrt().ceil() as usize
+                    };
+                    Some(Transition::Select(coords, sample))
                 }
-            }
+                _ => None,
+            },
 
-            WindowEvent::MouseButton(MouseButton::Button1, Action::Press, modifiers) if modifiers.contains(Modifiers::Super) => {
+            WindowEvent::MouseButton(MouseButton::Button1, Action::Press, modifiers)
+                if modifiers.contains(Modifiers::Super) =>
+            {
                 match self {
-                    Status::Large {selection, ..} => {
+                    Status::Large { selection, .. } => {
                         let (w, h) = window.canvas().size();
                         if let Some((x, y)) = window.canvas().cursor_pos() {
                             // println!("Super down {}, {}", cursor.x, cursor.y);
@@ -253,7 +279,7 @@ impl Status {
                             }
                         }
                     }
-                    _ => ()
+                    _ => (),
                 }
                 event.inhibited = true;
                 None
@@ -261,7 +287,12 @@ impl Status {
 
             WindowEvent::CursorPos(x, y, modifiers) => {
                 match self {
-                    Status::Large {file, pointer, selection, selection_node} => {
+                    Status::Large {
+                        file,
+                        pointer,
+                        selection,
+                        selection_node,
+                    } => {
                         if modifiers.contains(Modifiers::Super) {
                             let (w, h) = window.canvas().size();
                             threed::get_unprojected_coords(
@@ -275,25 +306,35 @@ impl Status {
                                     point.x, point.y, 0.0,
                                 )));
                                 event.inhibited = true;
-                                if window.canvas().get_mouse_button(kiss3d::event::MouseButton::Button1) == Action::Press {
+                                if window
+                                    .canvas()
+                                    .get_mouse_button(kiss3d::event::MouseButton::Button1)
+                                    == Action::Press
+                                {
                                     // selection.pos = point;
                                     selection.size = point - selection.pos;
-                                    selection_node.set_local_scale(selection.size.x / 2.0, selection.size.y / 2.0, 0.15);
-                                    selection_node.set_local_translation(Translation3::from(Vector3::new(
-                                        selection.pos.x + selection.size.x / 2.0,
-                                        selection.pos.y + selection.size.y / 2.0,
-                                        0.0,
-                                    )));
+                                    selection_node.set_local_scale(
+                                        selection.size.x / 2.0,
+                                        selection.size.y / 2.0,
+                                        0.15,
+                                    );
+                                    selection_node.set_local_translation(Translation3::from(
+                                        Vector3::new(
+                                            selection.pos.x + selection.size.x / 2.0,
+                                            selection.pos.y + selection.size.y / 2.0,
+                                            0.0,
+                                        ),
+                                    ));
                                 }
                             });
                         }
                     }
-                    _ => ()
+                    _ => (),
                 };
                 None
             }
 
-            _ => None
+            _ => None,
         }
     }
 }
@@ -302,96 +343,23 @@ impl State {
     fn new() -> Self {
         State {
             window: make_window(),
-            status: Status::Initial
+            status: Status::Initial,
         }
     }
 
     fn transition(&mut self, transition: Transition) {
-        self.status = handle_transition(&mut self.window, std::mem::replace(&mut self.status, Status::Initial), transition);
+        self.status = handle_transition(
+            &mut self.window,
+            std::mem::replace(&mut self.status, Status::Initial),
+            transition,
+        );
     }
 
     fn handle_event(&mut self, event: &mut kiss3d::event::Event) {
-        match event.value {
-            // WindowEvent::FramebufferSize(x, y) => self.window_size = Vector2::new(x as f32, y as f32),
-
-            // WindowEvent::MouseButton(MouseButton::Button1, action, modifiers) => {
-            //     if modifiers.contains(Modifiers::Super) {
-            //         match action {
-            //             Action::Release => {
-            //                 // self.pressing = false;
-            //                 println!("Finished");
-            //                 pointer.set_visible(false);
-            //             }
-            //             Action::Press => {
-            //                 self.pressing = true;
-            //                 println!("Super down {}, {}", cursor.x, cursor.y);
-            //                 self.selection.pos = cursor;
-            //                 self.selection.size = Vector2::new(0.0, 0.0);
-            //             }
-            //         }
-            //         event.inhibited = true;
-            //     }
-            // }
-            // WindowEvent::Key(Key::Space, Action::Press, _) => {
-            //     println!("ok");
-            //     let coords = calc_coords(file.size, selpos);
-            //     let total = coords.w * coords.h;
-            //     let max_points = 10_000_000;
-            //     let sample = if total <= max_points {
-            //         1
-            //     } else {
-            //         (total as f32 / max_points as f32).sqrt().ceil() as usize
-            //     };
-            //     println!("Selected sample size: {}", sample);
-            //     match select(&file, &mut mesh_parent, coords, sample) {
-            //         None => (),
-            //         Some(new_node) => {
-            //             selected_info = Some((coords, sample));
-            //             // println!(
-            //             //     "To run the extraction from the cli: 
-            //             // cargo run --release {} {} {} {} {}",
-            //             //     file_name, x, y, w, h
-            //             // );
-            //             mesh_node.unlink();
-            //             mesh_node = new_node;
-            //             selection.set_local_scale(0.0, 0.0, 0.15);
-            //             window.set_camera(make_camera());
-            //         }
-            //     }
-            // }
-            // WindowEvent::CursorPos(x, y, modifiers) => {
-            //     if modifiers.contains(Modifiers::Super) {
-            //         threed::get_unprojected_coords(
-            //             &Point2::new(x as f32, y as f32),
-            //             &size,
-            //             &window,
-            //         )
-            //         .map(|point| {
-            //             cursor = point;
-            //             pointer.set_local_translation(Translation3::from(Vector3::new(
-            //                 point.x, point.y, 0.0,
-            //             )));
-            //             event.inhibited = true;
-            //             if self.pressing {
-            //                 selpos.1 = cursor - selpos.0;
-            //                 selection.set_local_scale(selpos.1.x / 2.0, selpos.1.y / 2.0, 0.15);
-            //                 selection.set_local_translation(Translation3::from(Vector3::new(
-            //                     selpos.0.x + selpos.1.x / 2.0,
-            //                     selpos.0.y + selpos.1.y / 2.0,
-            //                     0.0,
-            //                 )));
-            //             }
-            //         });
-            //     }
-            // }
-            _ => ()
-        }
-        if !event.inhibited {
-            match self.status.handle_event(&mut self.window, event) {
-                None => (),
-                Some(transition) => {
-                    self.transition(transition);
-                }
+        match self.status.handle_event(&mut self.window, event) {
+            None => (),
+            Some(transition) => {
+                self.transition(transition);
             }
         }
     }
@@ -410,164 +378,13 @@ fn someui(file_name: Option<String>) {
     let mut state = State::new();
     match file_name {
         None => (),
-        Some(file_name) => state.transition(Transition::Open(file_name))
+        Some(file_name) => state.transition(Transition::Open(file_name)),
     }
     state.run();
 }
 
-use std::env;
-fn noui(file_name: Option<String>) {
-    let mut window = make_window();
-
-    let file_name = match file_name {
-        Some(name) => name,
-        None => match nfd::open_file_dialog(None, None) {
-            Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
-            _ => {
-                println!("No file selected. Exiting");
-                return
-            }
-        }
-    };
-    let dataset = Dataset::open(Path::new(file_name.as_str())).unwrap();
-    let file = profile!("Load file", terrain::File::from(&dataset));
-    let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
-
-    let mut mesh_parent = window.add_group();
-
-    let mut mesh_node = mesh_parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-    mesh_node.set_color(0.0, 1.0, 0.0);
-    mesh_node.enable_backface_culling(false);
-
-    let mut pointer = window.add_cube(0.002, 0.002, 0.5);
-    pointer.set_color(1.0, 0.0, 0.0);
-    pointer.set_visible(false);
-
-    let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
-    selection.set_local_scale(0.0, 0.0, 0.15);
-    selection.enable_backface_culling(false);
-    selection.set_color(0.0, 0.0, 1.0);
-    selection.set_alpha(0.5);
-
-    let mut size = Vector2::new(500.0, 500.0);
-    let mut selpos = (Point2::new(-0.5, -0.5), Vector2::new(0.0, 0.0));
-    let mut cursor = Point2::new(0.0, 0.0);
-    let mut pressing = false;
-    let mut selected_info = None;
-
-    while window.render() {
-        let mut manager = window.events();
-        for mut event in manager.iter() {
-            match event.value {
-                WindowEvent::FramebufferSize(x, y) => size = Vector2::new(x as f32, y as f32),
-                WindowEvent::MouseButton(MouseButton::Button1, action, modifiers) => {
-                    if modifiers.contains(Modifiers::Super) {
-                        match action {
-                            Action::Release => {
-                                pressing = false;
-                                println!("Finished");
-                                pointer.set_visible(false);
-                            }
-                            Action::Press => {
-                                pressing = true;
-                                println!("Super down {}, {}", cursor.x, cursor.y);
-                                selpos.0 = cursor;
-                                selpos.1 = Vector2::new(0.0, 0.0);
-                            }
-                        }
-                        event.inhibited = true;
-                    }
-                }
-                WindowEvent::Key(Key::LWin, Action::Release, _)
-                | WindowEvent::Key(Key::RWin, Action::Release, _) => {
-                    pointer.set_visible(false);
-                }
-                WindowEvent::Key(Key::Return, Action::Press, _) => {
-                    match selected_info {
-                        None => println!("No selection yet"),
-                        Some((coords, sample)) => match file.to_stl(&coords, sample, 1.0) {
-                            None => println!("Failed to get stl"),
-                            Some(stl) => {
-                                let out_file = match nfd::open_save_dialog(None, None) {
-                                    Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
-                                    _ => {
-                                        println!("No file selected. Exiting");
-                                        return;
-                                    }
-                                };
-                                let mut outfile = std::fs::File::create(out_file.as_str()).unwrap();
-                                profile!("Write file", stl::write_stl(&mut outfile, &stl));
-                            }
-                        },
-                    }
-                    // Export maybe?
-                    // mesh_node
-                }
-                WindowEvent::Key(Key::LWin, Action::Press, _)
-                | WindowEvent::Key(Key::RWin, Action::Press, _) => {
-                    pointer.set_visible(true);
-                }
-                WindowEvent::Key(Key::Space, Action::Press, _) => {
-                    println!("ok");
-                    let coords = calc_coords(file.size, selpos);
-                    let total = coords.w * coords.h;
-                    let max_points = 10_000_000;
-                    let sample = if total <= max_points {
-                        1
-                    } else {
-                        (total as f32 / max_points as f32).sqrt().ceil() as usize
-                    };
-                    println!("Selected sample size: {}", sample);
-                    match select(&file, &mut mesh_parent, coords, sample) {
-                        None => (),
-                        Some(new_node) => {
-                            selected_info = Some((coords, sample));
-                            // println!(
-                            //     "To run the extraction from the cli: 
-                            // cargo run --release {} {} {} {} {}",
-                            //     file_name, x, y, w, h
-                            // );
-                            mesh_node.unlink();
-                            mesh_node = new_node;
-                            selection.set_local_scale(0.0, 0.0, 0.15);
-                            window.set_camera(make_camera());
-                        }
-                    }
-                }
-                WindowEvent::CursorPos(x, y, modifiers) => {
-                    if modifiers.contains(Modifiers::Super) {
-                        threed::get_unprojected_coords(
-                            &Point2::new(x as f32, y as f32),
-                            &size,
-                            &window,
-                        )
-                        .map(|point| {
-                            cursor = point;
-                            pointer.set_local_translation(Translation3::from(Vector3::new(
-                                point.x, point.y, 0.0,
-                            )));
-                            event.inhibited = true;
-                            if pressing {
-                                selpos.1 = cursor - selpos.0;
-                                selection.set_local_scale(selpos.1.x / 2.0, selpos.1.y / 2.0, 0.15);
-                                selection.set_local_translation(Translation3::from(Vector3::new(
-                                    selpos.0.x + selpos.1.x / 2.0,
-                                    selpos.0.y + selpos.1.y / 2.0,
-                                    0.0,
-                                )));
-                            }
-                        });
-                    }
-                }
-                _ => (),
-            }
-        }
-    }
-}
-
-// mod ui;
-
 fn main() {
+    use std::env;
     let args: Vec<String> = env::args().collect();
     match args.len() {
         2 => someui(Some(args[1].clone())),
@@ -588,7 +405,7 @@ fn main() {
                 }
             }
         }
-        _ => someui(None)
+        _ => someui(None),
     };
     // let (file_name, preselect) =
 }
