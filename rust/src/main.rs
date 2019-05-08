@@ -69,15 +69,6 @@ enum Transition {
     Select(terrain::Coords, usize)
 }
 
-struct State {
-    window_size: Vector2<f32>,
-    selection: Selection,
-    cursor: Point2<f32>,
-    pressing: bool,
-    window: Window,
-    status: Status,
-}
-
 fn make_large(window: &mut Window, file_name: String) -> Status {
     window.scene_mut().clear();
     window.set_camera(make_camera());
@@ -134,39 +125,6 @@ fn transition(window: &mut Window, current: Status, transition: Transition) -> S
     }
 }
 
-// fn setup_scene(window: &mut Window, status: &Status) -> Status {
-//     window.scene_mut().clear();
-//     window.set_camera(make_camera());
-//     match status {
-//         Status::Initial => Status::Initial,
-//         Status::Large { file } => {
-//             let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
-//             let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-//             mesh_node.set_color(0.0, 1.0, 0.0);
-//             mesh_node.enable_backface_culling(false);
-
-//             let mut pointer = window.add_cube(0.002, 0.002, 0.5);
-//             pointer.set_color(1.0, 0.0, 0.0);
-//             pointer.set_visible(false);
-
-//             let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
-//             selection.set_local_scale(0.0, 0.0, 0.15);
-//             selection.enable_backface_culling(false);
-//             selection.set_color(0.0, 0.0, 1.0);
-//             selection.set_alpha(0.5);
-            
-//         }
-//         Status::Small { file, coords, sample } => {
-//             file.get_mesh(&coords, *sample, 1.0).map(|mesh| {
-//                 let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-//                 mesh_node.set_color(0.0, 1.0, 0.0);
-//                 mesh_node.enable_backface_culling(false);
-//                 ()
-//             }).ok_or("Invalid selection coordinates")
-//         }
-//     }
-// }
-
 fn make_camera() -> kiss3d::camera::ArcBall {
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
     camera.set_dist_step(1.0);
@@ -197,6 +155,147 @@ fn make_window() -> Window {
     window.set_light(Light::StickToCamera);
     window.set_camera(make_camera());
     window
+}
+
+struct State {
+    window_size: Vector2<f32>,
+    // selection: Selection,
+    // cursor: Point2<f32>,
+    // pressing: bool,
+    window: Window,
+    status: Status,
+}
+
+impl Status {
+    fn handle_event(&mut self, event: &mut kiss3d::event::Event) {
+        match event.value {
+            WindowEvent::Key(Key::LWin, Action::Release, _)
+            | WindowEvent::Key(Key::RWin, Action::Release, _) => {
+                match self {
+                    Status::Large { pointer, .. } => pointer.set_visible(false),
+                    _ => ()
+                }
+            }
+            WindowEvent::Key(Key::LWin, Action::Press, _)
+            | WindowEvent::Key(Key::RWin, Action::Press, _) => {
+                match self {
+                    Status::Large { pointer, .. } => pointer.set_visible(true),
+                    _ => ()
+                }
+            }
+            _ => ()
+        }
+    }
+}
+
+impl State {
+    fn handle_event(&mut self, event: &mut kiss3d::event::Event) {
+        match event.value {
+            WindowEvent::FramebufferSize(x, y) => self.window_size = Vector2::new(x as f32, y as f32),
+
+            // WindowEvent::MouseButton(MouseButton::Button1, action, modifiers) => {
+            //     if modifiers.contains(Modifiers::Super) {
+            //         match action {
+            //             Action::Release => {
+            //                 // self.pressing = false;
+            //                 println!("Finished");
+            //                 pointer.set_visible(false);
+            //             }
+            //             Action::Press => {
+            //                 self.pressing = true;
+            //                 println!("Super down {}, {}", cursor.x, cursor.y);
+            //                 self.selection.pos = cursor;
+            //                 self.selection.size = Vector2::new(0.0, 0.0);
+            //             }
+            //         }
+            //         event.inhibited = true;
+            //     }
+            // }
+            // WindowEvent::Key(Key::Return, Action::Press, _) => {
+            //     match selected_info {
+            //         None => println!("No selection yet"),
+            //         Some((coords, sample)) => match file.to_stl(&coords, sample, 1.0) {
+            //             None => println!("Failed to get stl"),
+            //             Some(stl) => {
+            //                 let out_file = match nfd::open_save_dialog(None, None) {
+            //                     Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
+            //                     _ => {
+            //                         println!("No file selected. Exiting");
+            //                         return;
+            //                     }
+            //                 };
+            //                 let mut outfile = std::fs::File::create(out_file.as_str()).unwrap();
+            //                 profile!("Write file", stl::write_stl(&mut outfile, &stl));
+            //             }
+            //         },
+            //     }
+            //     // Export maybe?
+            //     // mesh_node
+            // }
+            // WindowEvent::Key(Key::LWin, Action::Release, _)
+            // | WindowEvent::Key(Key::RWin, Action::Release, _) => {
+            //     pointer.set_visible(false);
+            // }
+            // WindowEvent::Key(Key::LWin, Action::Press, _)
+            // | WindowEvent::Key(Key::RWin, Action::Press, _) => {
+            //     pointer.set_visible(true);
+            // }
+            // WindowEvent::Key(Key::Space, Action::Press, _) => {
+            //     println!("ok");
+            //     let coords = calc_coords(file.size, selpos);
+            //     let total = coords.w * coords.h;
+            //     let max_points = 10_000_000;
+            //     let sample = if total <= max_points {
+            //         1
+            //     } else {
+            //         (total as f32 / max_points as f32).sqrt().ceil() as usize
+            //     };
+            //     println!("Selected sample size: {}", sample);
+            //     match select(&file, &mut mesh_parent, coords, sample) {
+            //         None => (),
+            //         Some(new_node) => {
+            //             selected_info = Some((coords, sample));
+            //             // println!(
+            //             //     "To run the extraction from the cli: 
+            //             // cargo run --release {} {} {} {} {}",
+            //             //     file_name, x, y, w, h
+            //             // );
+            //             mesh_node.unlink();
+            //             mesh_node = new_node;
+            //             selection.set_local_scale(0.0, 0.0, 0.15);
+            //             window.set_camera(make_camera());
+            //         }
+            //     }
+            // }
+            // WindowEvent::CursorPos(x, y, modifiers) => {
+            //     if modifiers.contains(Modifiers::Super) {
+            //         threed::get_unprojected_coords(
+            //             &Point2::new(x as f32, y as f32),
+            //             &size,
+            //             &window,
+            //         )
+            //         .map(|point| {
+            //             cursor = point;
+            //             pointer.set_local_translation(Translation3::from(Vector3::new(
+            //                 point.x, point.y, 0.0,
+            //             )));
+            //             event.inhibited = true;
+            //             if self.pressing {
+            //                 selpos.1 = cursor - selpos.0;
+            //                 selection.set_local_scale(selpos.1.x / 2.0, selpos.1.y / 2.0, 0.15);
+            //                 selection.set_local_translation(Translation3::from(Vector3::new(
+            //                     selpos.0.x + selpos.1.x / 2.0,
+            //                     selpos.0.y + selpos.1.y / 2.0,
+            //                     0.0,
+            //                 )));
+            //             }
+            //         });
+            //     }
+            // }
+            _ => (),
+        }
+
+    }
 }
 
 use std::env;

@@ -162,6 +162,12 @@ impl Window {
         self.canvas.show()
     }
 
+    /// Get the underlying canvas
+    #[inline]
+    pub fn canvas(&self) -> &Canvas {
+        &self.canvas
+    }
+
     /// Sets the background color.
     #[inline]
     pub fn set_background_color(&mut self, r: f32, g: f32, b: f32) {
