@@ -53,6 +53,9 @@ enum Status {
     Initial,
     Large {
         file: terrain::File,
+        pointer: kiss3d::scene::SceneNode,
+        selection_node: kiss3d::scene::SceneNode,
+        selection: Selection,
     },
     Small {
         file: terrain::File,
@@ -61,36 +64,108 @@ enum Status {
     },
 }
 
+enum Transition {
+    Open(String),
+    Select(terrain::Coords, usize)
+}
+
 struct State {
     window_size: Vector2<f32>,
     selection: Selection,
     cursor: Point2<f32>,
     pressing: bool,
     window: Window,
+    status: Status,
 }
 
-fn setup_scene(window: &mut Window, status: &Status) -> Result<(), &'static str> {
+fn make_large(window: &mut Window, file_name: String) -> Status {
     window.scene_mut().clear();
     window.set_camera(make_camera());
-    match status {
-        Status::Initial => Ok(()),
-        Status::Large { file } => {
-            let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
-            let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-            mesh_node.set_color(0.0, 1.0, 0.0);
-            mesh_node.enable_backface_culling(false);
-            Ok(())
+    if let Ok(dataset) = Dataset::open(Path::new(file_name.as_str())) {
+        let file = profile!("Load file", terrain::File::from(&dataset));
+        let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+        let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+        mesh_node.set_color(0.0, 1.0, 0.0);
+        mesh_node.enable_backface_culling(false);
+
+        let mut pointer = window.add_cube(0.002, 0.002, 0.5);
+        pointer.set_color(1.0, 0.0, 0.0);
+        pointer.set_visible(false);
+
+        let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
+        selection.set_local_scale(0.0, 0.0, 0.15);
+        selection.enable_backface_culling(false);
+        selection.set_color(0.0, 0.0, 1.0);
+        selection.set_alpha(0.5);
+
+        Status::Large {
+            file,
+            pointer,
+            selection_node: selection,
+            selection: Selection { pos: Point2::new(0.0, 0.0), size: Vector2::new(0.0, 0.0) }
         }
-        Status::Small { file, coords, sample } => {
-            file.get_mesh(&coords, *sample, 1.0).map(|mesh| {
+    } else {
+        Status::Initial
+    }
+}
+
+fn transition(window: &mut Window, current: Status, transition: Transition) -> Status {
+    match (current, transition) {
+        (_, Transition::Open(file_name)) => make_large(window, file_name),
+        (Status::Large {file, pointer, selection, selection_node}, Transition::Select(coords, sample)) => {
+            if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
+                window.scene_mut().clear();
+                window.set_camera(make_camera());
+
                 let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
                 mesh_node.set_color(0.0, 1.0, 0.0);
                 mesh_node.enable_backface_culling(false);
-                ()
-            }).ok_or("Invalid selection coordinates")
+
+                Status::Small {
+                    file,
+                    coords,
+                    sample
+                }
+            } else {
+                Status::Large {file, pointer, selection, selection_node}
+            }
         }
+        (status, _) => status
     }
 }
+
+// fn setup_scene(window: &mut Window, status: &Status) -> Status {
+//     window.scene_mut().clear();
+//     window.set_camera(make_camera());
+//     match status {
+//         Status::Initial => Status::Initial,
+//         Status::Large { file } => {
+//             let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+//             let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+//             mesh_node.set_color(0.0, 1.0, 0.0);
+//             mesh_node.enable_backface_culling(false);
+
+//             let mut pointer = window.add_cube(0.002, 0.002, 0.5);
+//             pointer.set_color(1.0, 0.0, 0.0);
+//             pointer.set_visible(false);
+
+//             let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
+//             selection.set_local_scale(0.0, 0.0, 0.15);
+//             selection.enable_backface_culling(false);
+//             selection.set_color(0.0, 0.0, 1.0);
+//             selection.set_alpha(0.5);
+            
+//         }
+//         Status::Small { file, coords, sample } => {
+//             file.get_mesh(&coords, *sample, 1.0).map(|mesh| {
+//                 let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+//                 mesh_node.set_color(0.0, 1.0, 0.0);
+//                 mesh_node.enable_backface_culling(false);
+//                 ()
+//             }).ok_or("Invalid selection coordinates")
+//         }
+//     }
+// }
 
 fn make_camera() -> kiss3d::camera::ArcBall {
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
@@ -117,11 +192,16 @@ fn calc_coords(size: Vector2<usize>, selpos: (Point2<f32>, Vector2<f32>)) -> ter
     terrain::Coords { x, y, w, h }
 }
 
-use std::env;
-fn noui(file_name: Option<String>) {
+fn make_window() -> Window {
     let mut window = Window::new("Terraform");
     window.set_light(Light::StickToCamera);
     window.set_camera(make_camera());
+    window
+}
+
+use std::env;
+fn noui(file_name: Option<String>) {
+    let mut window = make_window();
 
     let file_name = match file_name {
         Some(name) => name,
@@ -269,7 +349,7 @@ fn noui(file_name: Option<String>) {
     }
 }
 
-mod ui;
+// mod ui;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
