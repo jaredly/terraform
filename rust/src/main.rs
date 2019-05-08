@@ -118,11 +118,21 @@ fn calc_coords(size: Vector2<usize>, selpos: (Point2<f32>, Vector2<f32>)) -> ter
 }
 
 use std::env;
-fn noui(file_name: String) {
+fn noui(file_name: Option<String>) {
     let mut window = Window::new("Terraform");
     window.set_light(Light::StickToCamera);
     window.set_camera(make_camera());
 
+    let file_name = match file_name {
+        Some(name) => name,
+        None => match nfd::open_file_dialog(None, None) {
+            Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
+            _ => {
+                println!("No file selected. Exiting");
+                return
+            }
+        }
+    };
     let dataset = Dataset::open(Path::new(file_name.as_str())).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
     let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
@@ -264,7 +274,7 @@ mod ui;
 fn main() {
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        2 => noui(args[1].clone()),
+        2 => noui(Some(args[1].clone())),
         6 => {
             let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
             let file = profile!("Load file", terrain::File::from(&dataset));
@@ -282,12 +292,7 @@ fn main() {
                 }
             }
         }
-        _ => match nfd::open_file_dialog(None, None) {
-            Ok(nfd::Response::Okay(file_path)) => noui(file_path.to_owned()),
-            _ => {
-                println!("No file selected. Exiting");
-            }
-        },
+        _ => noui(None)
     };
     // let (file_name, preselect) =
 }
