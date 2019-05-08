@@ -54,57 +54,35 @@ fn make_selection() -> TriMesh<f32> {
     )
 }
 
-use ncollide3d::query::ray_internal::ray::RayCast;
+fn select(
+    file: &terrain::File,
+    parent: &mut kiss3d::scene::SceneNode,
+    coords: terrain::Coords,
+    sample: usize,
+) -> Option<kiss3d::scene::SceneNode> {
+    println!(
+        "Coords: {},{} - {} x {}",
+        coords.x, coords.y, coords.w, coords.h
+    );
+    // None
+    file.get_mesh(&coords, sample, 1.0).map(|mesh| {
+        let mut mesh_node = parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+        mesh_node.set_color(0.0, 1.0, 0.0);
+        mesh_node.enable_backface_culling(false);
+        mesh_node
+    })
+}
+
 use std::env;
-fn noui() {
+fn noui(file_name: String) {
     let mut window = Window::new("Topo");
     window.set_light(Light::StickToCamera);
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
     camera.set_dist_step(1.0);
     window.set_camera(camera);
 
-    let args: Vec<String> = env::args().collect();
-    let (file_name, preselect) = match args.len() {
-        2 => (args[1].clone(), None),
-        6 => (
-            args[1].clone(),
-            Some((
-                args[2].parse().unwrap(),
-                args[3].parse().unwrap(),
-                args[4].parse().unwrap(),
-                args[5].parse().unwrap(),
-            )),
-        ),
-        _ => (
-            match nfd::open_file_dialog(None, None) {
-                Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
-                _ => {
-                    println!("No file selected. Exiting");
-                    return;
-                }
-            },
-            None,
-        ),
-    };
-
     let dataset = Dataset::open(Path::new(file_name.as_str())).unwrap();
     let file = profile!("Load file", terrain::File::from(&dataset));
-    if cfg!(target_endian = "little") {
-        println!("Ok")
-    } else {
-        panic!("At the disco")
-    }
-    if let Some((x, y, w, h)) = preselect {
-        let coords = terrain::Coords { x, y, w, h };
-        match file.to_stl(&coords, 1, 1.0) {
-            None => println!("Failed to get stl"),
-            Some(stl) => {
-                let mut outfile = std::fs::File::create("./out.stl").unwrap();
-                profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
-            }
-        }
-        return;
-    }
     let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
 
     let mut mesh_parent = window.add_group();
@@ -113,37 +91,18 @@ fn noui() {
     mesh_node.set_color(0.0, 1.0, 0.0);
     mesh_node.enable_backface_culling(false);
 
-    fn select(
-        file: &terrain::File,
-        parent: &mut kiss3d::scene::SceneNode,
-        coords: terrain::Coords,
-        sample: usize,
-    ) -> Option<kiss3d::scene::SceneNode> {
-        println!(
-            "Coords: {},{} - {} x {}",
-            coords.x, coords.y, coords.w, coords.h
-        );
-        // None
-        file.get_mesh(&coords, sample, 1.0).map(|mesh| {
-            let mut mesh_node = parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-            mesh_node.set_color(0.0, 1.0, 0.0);
-            mesh_node.enable_backface_culling(false);
-            mesh_node
-        })
-    }
-
     let mut pointer = window.add_cube(0.002, 0.002, 0.5);
     pointer.set_color(1.0, 0.0, 0.0);
     pointer.set_visible(false);
 
     let mut selection = window.add_trimesh(make_selection(), Vector3::from_element(1.0));
-    selection.set_local_scale(0.5, 0.5, 0.15);
+    selection.set_local_scale(0.0, 0.0, 0.15);
     selection.enable_backface_culling(false);
     selection.set_color(0.0, 0.0, 1.0);
     selection.set_alpha(0.5);
 
     let mut size = Vector2::new(500.0, 500.0);
-    let mut selpos = (Point2::new(-0.5, -0.5), Vector2::new(1.0, 1.0));
+    let mut selpos = (Point2::new(-0.5, -0.5), Vector2::new(0.0, 0.0));
     let mut cursor = Point2::new(0.0, 0.0);
     let mut pressing = false;
     let mut selected_info = None;
@@ -289,6 +248,7 @@ fn get_unprojected_coords(
     size: &Vector2<f32>,
     window: &Window,
 ) -> Option<Point2<f32>> {
+    use ncollide3d::query::ray_internal::ray::RayCast;
     let (point, dir) = window.unproject(point, size);
     let ray = ncollide3d::query::Ray::new(point, dir);
     let v: na::Unit<Vector3<f32>> = na::Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0));
@@ -307,6 +267,33 @@ fn get_unprojected_coords(
 mod ui;
 
 fn main() {
-    // ui::main();
-    noui();
+    let args: Vec<String> = env::args().collect();
+    match args.len() {
+        2 => noui(args[1].clone()),
+        6 => {
+            let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
+            let file = profile!("Load file", terrain::File::from(&dataset));
+            let coords = terrain::Coords { 
+                x: args[2].parse().unwrap(),
+                y: args[3].parse().unwrap(),
+                w: args[4].parse().unwrap(),
+                h: args[5].parse().unwrap(),
+            };
+            match file.to_stl(&coords, 1, 1.0) {
+                None => println!("Failed to get stl"),
+                Some(stl) => {
+                    let mut outfile = std::fs::File::create("./out.stl").unwrap();
+                    profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
+                }
+            }
+        },
+        _ => 
+            match nfd::open_file_dialog(None, None) {
+                Ok(nfd::Response::Okay(file_path)) => noui(file_path.to_owned()),
+                _ => {
+                    println!("No file selected. Exiting");
+                }
+            },
+    };
+    // let (file_name, preselect) = 
 }
