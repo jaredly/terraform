@@ -280,15 +280,9 @@ impl Status {
                 //     .w_of(ids.canvas)
                 //     .set(ids.hlist, ui);
 
-                widget::Text::new("No file loaded")
-                    .mid_left_of(ids.canvas)
-                    // .align_middle_y_of(ids.canvas)
-                    // .x(0.0)
-                    .set(ids.status_text, ui);
-
                 for _press in widget::Button::new()
                     .label("Open File")
-                    .right_from(ids.status_text, 10.0)
+                    .mid_left_of(ids.canvas)
                     .h(20.0)
                     .set(ids.open_file, ui)
                 {
@@ -299,15 +293,37 @@ impl Status {
                         _ => (),
                     }
                 }
+
+                widget::Text::new("No file loaded")
+                    .right_from(ids.open_file, 10.0)
+                    // .align_middle_y_of(ids.canvas)
+                    // .x(0.0)
+                    .set(ids.status_text, ui);
+
                 return None;
             }
             Status::Large {
                 file, selection, ..
             } => {
+
+                for _press in widget::Button::new()
+                    .label("Open File")
+                    .mid_left_of(ids.canvas)
+                    .h(20.0)
+                    .set(ids.open_file, ui)
+                {
+                    match nfd::open_file_dialog(None, None) {
+                        Ok(nfd::Response::Okay(file_path)) => {
+                            return Some(Transition::Open(file_path))
+                        }
+                        _ => (),
+                    }
+                }
+
                 let name = file.name[0.max(file.name.len() - 20)..].to_string();
                 let label_text = format!("File: {}", name);
                 widget::Text::new(label_text.as_str())
-                    .mid_left_of(ids.canvas)
+                    .right_from(ids.open_file, 10.0)
                     .set(ids.status_text, ui);
 
                 if selection.size.x != 0.0 && selection.size.y != 0.0 {
