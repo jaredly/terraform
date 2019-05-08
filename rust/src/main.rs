@@ -200,27 +200,56 @@ struct State {
 }
 
 impl Status {
-    // fn ui(&mut self, ui: &mut kiss3d::conrod::UiCell, ids: &Ids, app: &mut DemoApp) -> Option<Transition> {
-    //     use kiss3d::conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
-    //     use std::iter::once;
+    fn ui(&mut self, ui: &mut kiss3d::conrod::UiCell, ids: &Ids) -> Option<Transition> {
+        use kiss3d::conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
+        use std::iter::once;
 
-    //     const MARGIN: conrod::Scalar = 30.0;
-    //     const SHAPE_GAP: conrod::Scalar = 50.0;
-    //     const TITLE_SIZE: conrod::FontSize = 42;
-    //     const SUBTITLE_SIZE: conrod::FontSize = 32;
+        const MARGIN: conrod::Scalar = 30.0;
+        const SHAPE_GAP: conrod::Scalar = 50.0;
+        const TITLE_SIZE: conrod::FontSize = 42;
+        const SUBTITLE_SIZE: conrod::FontSize = 32;
 
-    //     widget::Canvas::new()
-    //         .pad(MARGIN)
-    //         .align_top()
-    //         .h(100.0)
-    //         .scroll_kids_vertically()
-    //         .set(ids.canvas, ui);
-
-    //     match self {
+        widget::Canvas::new()
+            .pad(MARGIN)
+            .align_top()
+            .h(100.0)
+            // .scroll_kids_vertically()
+            .set(ids.canvas, ui);
 
 
-    //     }
-    // }
+        match self {
+            Status::Initial => {
+                widget::List::flow_right(2)
+                    .set(ids.hlist, ui);
+
+                widget::Text::new("No file loaded")
+                    // .padded_w_of(ids.canvas, MARGIN)
+                    // .down(60.0)
+                    // .align_middle_x_of(ids.canvas)
+                    .center_justify()
+                    // .line_spacing(5.0)
+                    .set(ids.introduction, ui);
+
+                for _press in widget::Button::new()
+                    .label("Open File")
+                    .mid_left_with_margin_on(ids.hlist, MARGIN)
+                    // .down_from(ids.button_title, 60.0)
+                    // .w_h(side, side)
+                    .set(ids.button, ui)
+                {
+                    match nfd::open_file_dialog(None, None) {
+                        Ok(nfd::Response::Okay(file_path)) => {
+                            return Some(Transition::Open(file_path))
+                        }
+                        _ => (),
+                    }
+                }
+                return None
+            }
+            _ => None
+        }
+
+    }
 
     fn handle_event(
         &mut self,
