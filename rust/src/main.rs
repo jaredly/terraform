@@ -90,6 +90,7 @@ fn make_large(window: &mut Window, file_name: String) -> Status {
         selection.enable_backface_culling(false);
         selection.set_color(0.0, 0.0, 1.0);
         selection.set_alpha(0.5);
+        println!("Loaded");
 
         Status::Large {
             file,
@@ -101,6 +102,7 @@ fn make_large(window: &mut Window, file_name: String) -> Status {
             },
         }
     } else {
+        println!("Reset");
         Status::Initial
     }
 }
@@ -145,7 +147,9 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                 Some(stl) => {
                     if let Ok(nfd::Response::Okay(file_path)) = nfd::open_save_dialog(None, None) {
                         let mut outfile = std::fs::File::create(file_path.as_str()).unwrap();
-                        profile!("Write file", stl::write_stl(&mut outfile, &stl));
+                        if let Err(_) = profile!("Write file", stl::write_stl(&mut outfile, &stl)) {
+                            println!("Failed to write :'(");
+                        }
                     } else {
                         println!("No file selected. Exiting");
                     }
@@ -197,6 +201,48 @@ struct State {
     // pressing: bool,
     window: Window,
     status: Status,
+    ids: Ids,
+}
+
+use kiss3d::conrod;
+
+/*
+ *
+ * This is he example taken from conrods' repository.
+ *
+ */
+/// A set of reasonable stylistic defaults that works for the `gui` below.
+pub fn theme() -> kiss3d::conrod::Theme {
+    use kiss3d::conrod::position::{Align, Direction, Padding, Position, Relative};
+    conrod::Theme {
+        name: "Demo Theme".to_string(),
+        padding: Padding::none(),
+        x_position: Position::Relative(Relative::Direction(Direction::Forwards, 10.0), None),
+        y_position: Position::Relative(Relative::Align(Align::Middle), None),
+        background_color: conrod::color::TRANSPARENT,
+        shape_color: conrod::color::LIGHT_CHARCOAL,
+        border_color: conrod::color::BLACK,
+        border_width: 0.0,
+        label_color: conrod::color::WHITE,
+        font_id: None,
+        font_size_large: 18,
+        font_size_medium: 12,
+        font_size_small: 8,
+        widget_styling: conrod::theme::StyleMap::default(),
+        mouse_drag_threshold: 0.0,
+        double_click_threshold: std::time::Duration::from_millis(500),
+    }
+}
+
+// Generate a unique `WidgetId` for each widget.
+widget_ids! {
+    pub struct Ids {
+        // The scrollable canvas.
+        canvas,
+        hlist,
+        status_text,
+        open_file,
+    }
 }
 
 impl Status {
@@ -212,30 +258,29 @@ impl Status {
         widget::Canvas::new()
             .pad(MARGIN)
             .align_top()
-            .h(100.0)
+            // .direction
+            .h(40.0)
             // .scroll_kids_vertically()
             .set(ids.canvas, ui);
 
 
         match self {
             Status::Initial => {
-                widget::List::flow_right(2)
-                    .set(ids.hlist, ui);
+                // let (mut items, _scrollbar) = widget::List::flow_right(2)
+                //     .w_of(ids.canvas)
+                //     .set(ids.hlist, ui);
 
                 widget::Text::new("No file loaded")
-                    // .padded_w_of(ids.canvas, MARGIN)
-                    // .down(60.0)
-                    // .align_middle_x_of(ids.canvas)
-                    .center_justify()
-                    // .line_spacing(5.0)
-                    .set(ids.introduction, ui);
+                    .mid_left_of(ids.canvas)
+                    // .align_middle_y_of(ids.canvas)
+                    // .x(0.0)
+                    .set(ids.status_text, ui);
 
                 for _press in widget::Button::new()
                     .label("Open File")
-                    .mid_left_with_margin_on(ids.hlist, MARGIN)
-                    // .down_from(ids.button_title, 60.0)
-                    // .w_h(side, side)
-                    .set(ids.button, ui)
+                    .right_from(ids.status_text, 10.0)
+                    .h(20.0)
+                    .set(ids.open_file, ui)
                 {
                     match nfd::open_file_dialog(None, None) {
                         Ok(nfd::Response::Okay(file_path)) => {
@@ -298,9 +343,9 @@ impl Status {
             WindowEvent::Key(Key::Space, Action::Press, _) => match self {
                 Status::Large {
                     file,
-                    pointer,
+                    pointer: _,
                     selection,
-                    selection_node,
+                    selection_node: _,
                 } => {
                     println!("ok");
                     let coords = calc_coords(file.size, (selection.pos, selection.size));
@@ -343,7 +388,7 @@ impl Status {
             WindowEvent::CursorPos(x, y, modifiers) => {
                 match self {
                     Status::Large {
-                        file,
+                        file: _,
                         pointer,
                         selection,
                         selection_node,
@@ -396,9 +441,13 @@ impl Status {
 
 impl State {
     fn new() -> Self {
+        let mut window = make_window();
+        let ids = Ids::new(window.conrod_ui_mut().widget_id_generator());
+        window.conrod_ui_mut().theme = theme();
         State {
-            window: make_window(),
+            window,
             status: Status::Initial,
+            ids,
         }
     }
 
@@ -424,6 +473,13 @@ impl State {
             let mut manager = self.window.events();
             for mut event in manager.iter() {
                 self.handle_event(&mut event)
+            }
+            let transition = {
+                let mut ui = self.window.conrod_ui_mut().set_widgets();
+                self.status.ui(&mut ui, &self.ids)
+            };
+            if let Some(transition) = transition {
+                self.transition(transition);
             }
         }
     }
