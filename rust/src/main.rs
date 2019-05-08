@@ -67,6 +67,7 @@ enum Status {
 enum Transition {
     Open(String),
     Select(terrain::Coords, usize),
+    Export
 }
 
 fn make_large(window: &mut Window, file_name: String) -> Status {
@@ -138,6 +139,21 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                 }
             }
         }
+        (Status::Small { file, coords, sample }, Transition::Export) => {
+            match file.to_stl(&coords, sample, 1.0) {
+                None => println!("Failed to get stl"),
+                Some(stl) => {
+                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_save_dialog(None, None) {
+                        let mut outfile = std::fs::File::create(file_path.as_str()).unwrap();
+                        profile!("Write file", stl::write_stl(&mut outfile, &stl));
+                    } else {
+                        println!("No file selected. Exiting");
+                    }
+                }
+            };
+            Status::Small { file, coords, sample }
+
+        }
         (status, _) => status,
     }
 }
@@ -184,6 +200,28 @@ struct State {
 }
 
 impl Status {
+    // fn ui(&mut self, ui: &mut kiss3d::conrod::UiCell, ids: &Ids, app: &mut DemoApp) -> Option<Transition> {
+    //     use kiss3d::conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
+    //     use std::iter::once;
+
+    //     const MARGIN: conrod::Scalar = 30.0;
+    //     const SHAPE_GAP: conrod::Scalar = 50.0;
+    //     const TITLE_SIZE: conrod::FontSize = 42;
+    //     const SUBTITLE_SIZE: conrod::FontSize = 32;
+
+    //     widget::Canvas::new()
+    //         .pad(MARGIN)
+    //         .align_top()
+    //         .h(100.0)
+    //         .scroll_kids_vertically()
+    //         .set(ids.canvas, ui);
+
+    //     match self {
+
+
+    //     }
+    // }
+
     fn handle_event(
         &mut self,
         window: &mut Window,
@@ -216,28 +254,16 @@ impl Status {
             },
 
             WindowEvent::Key(Key::Return, Action::Press, _) => {
-                match self {
-                    Status::Small {
-                        file,
-                        coords,
-                        sample,
-                    } => match file.to_stl(&coords, *sample, 1.0) {
-                        None => println!("Failed to get stl"),
-                        Some(stl) => {
-                            let out_file = match nfd::open_save_dialog(None, None) {
-                                Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
-                                _ => {
-                                    println!("No file selected. Exiting");
-                                    return None;
-                                }
-                            };
-                            let mut outfile = std::fs::File::create(out_file.as_str()).unwrap();
-                            profile!("Write file", stl::write_stl(&mut outfile, &stl));
-                        }
-                    },
-                    _ => (),
-                };
-                None
+                Some(Transition::Export)
+                // match self {
+                //     Status::Small {
+                //         file,
+                //         coords,
+                //         sample,
+                //     } =>
+                //     _ => (),
+                // };
+                // None
             }
 
             WindowEvent::Key(Key::Space, Action::Press, _) => match self {
