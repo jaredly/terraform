@@ -67,13 +67,14 @@ enum Status {
 enum Transition {
     Open(String),
     Select(terrain::Coords, usize),
+    Resolution(usize),
     Export,
 }
 
-fn make_large(window: &mut Window, file_name: String) -> Status {
-    window.scene_mut().clear();
-    window.set_camera(make_camera());
+fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
     if let Ok(dataset) = Dataset::open(Path::new(file_name.as_str())) {
+        window.scene_mut().clear();
+        window.set_camera(make_camera());
         let file = profile!(
             "Load file",
             terrain::File::from_dataset(&dataset, file_name)
@@ -95,7 +96,7 @@ fn make_large(window: &mut Window, file_name: String) -> Status {
         selection.set_alpha(0.5);
         println!("Loaded");
 
-        Status::Large {
+        Some(Status::Large {
             file,
             pointer,
             selection_node: selection,
@@ -103,16 +104,39 @@ fn make_large(window: &mut Window, file_name: String) -> Status {
                 pos: Point2::new(0.0, 0.0),
                 size: Vector2::new(0.0, 0.0),
             },
-        }
+        })
     } else {
         println!("Reset");
-        Status::Initial
+        None
+    }
+}
+
+fn setup_small(
+    window: &mut Window,
+    file: &terrain::File,
+    coords: &terrain::Coords,
+    sample: usize,
+) -> bool {
+    if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
+        window.scene_mut().clear();
+        // window.set_camera(make_camera());
+
+        let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+        mesh_node.set_color(0.0, 1.0, 0.0);
+        mesh_node.enable_backface_culling(false);
+
+        true
+    } else {
+        false
     }
 }
 
 fn handle_transition(window: &mut Window, current: Status, transition: Transition) -> Status {
     match (current, transition) {
-        (_, Transition::Open(file_name)) => make_large(window, file_name),
+        (current, Transition::Open(file_name)) => match make_large(window, file_name) {
+            Some(status) => status,
+            None => current,
+        },
         (
             Status::Large {
                 file,
@@ -122,14 +146,7 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
             },
             Transition::Select(coords, sample),
         ) => {
-            if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
-                window.scene_mut().clear();
-                window.set_camera(make_camera());
-
-                let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-                mesh_node.set_color(0.0, 1.0, 0.0);
-                mesh_node.enable_backface_culling(false);
-
+            if setup_small(window, &file, &coords, sample) {
                 Status::Small {
                     file,
                     coords,
@@ -141,6 +158,49 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                     pointer,
                     selection,
                     selection_node,
+                }
+            }
+            // if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
+            //     window.scene_mut().clear();
+            //     window.set_camera(make_camera());
+
+            //     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+            //     mesh_node.set_color(0.0, 1.0, 0.0);
+            //     mesh_node.enable_backface_culling(false);
+
+            //     Status::Small {
+            //         file,
+            //         coords,
+            //         sample,
+            //     }
+            // } else {
+            //     Status::Large {
+            //         file,
+            //         pointer,
+            //         selection,
+            //         selection_node,
+            //     }
+            // }
+        }
+        (
+            Status::Small {
+                file,
+                coords,
+                sample,
+            },
+            Transition::Resolution(res),
+        ) => {
+            if setup_small(window, &file, &coords, res) {
+                Status::Small {
+                    file,
+                    coords,
+                    sample: res,
+                }
+            } else {
+                Status::Small {
+                    file,
+                    coords,
+                    sample,
                 }
             }
         }
@@ -248,16 +308,21 @@ widget_ids! {
     pub struct Ids {
         // The scrollable canvas.
         canvas,
+        bottom_canvas,
         hlist,
         status_text,
         open_file,
         selection_text,
         crop,
+        sample_text,
+        sample_less,
+        sample_greater,
+        export
     }
 }
 
 impl Status {
-    fn ui(&mut self, ui: &mut kiss3d::conrod::UiCell, ids: &Ids) -> Option<Transition> {
+    fn ui(&mut self, window_height: u32, ui: &mut kiss3d::conrod::UiCell, ids: &Ids) -> Option<Transition> {
         use kiss3d::conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
         use std::iter::once;
 
@@ -265,26 +330,32 @@ impl Status {
         const SHAPE_GAP: conrod::Scalar = 50.0;
         const TITLE_SIZE: conrod::FontSize = 42;
         const SUBTITLE_SIZE: conrod::FontSize = 32;
+        const HEIGHT: conrod::Scalar = 20.0;
 
         widget::Canvas::new()
             .pad(MARGIN)
             .align_top()
-            // .direction
             .h(40.0)
-            // .scroll_kids_vertically()
             .set(ids.canvas, ui);
+
+        widget::Canvas::new()
+            .pad(MARGIN)
+            .align_bottom()
+            .x(0.0)
+            .y(- (window_height as f64) / 2.0)
+            // .y(-200.0)
+            // .y(window_height as f64 - 400.0)
+            // .y(100.0)
+            .h(0.0)
+            .set(ids.bottom_canvas, ui);
 
         match self {
             Status::Initial => {
-                // let (mut items, _scrollbar) = widget::List::flow_right(2)
-                //     .w_of(ids.canvas)
-                //     .set(ids.hlist, ui);
-
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
                     .w(60.0)
-                    .h(20.0)
+                    .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
                     match nfd::open_file_dialog(None, None) {
@@ -296,7 +367,7 @@ impl Status {
                 }
 
                 widget::Text::new("No file loaded")
-                    .right_from(ids.open_file, 10.0)
+                    .mid_left_of(ids.bottom_canvas)
                     .set(ids.status_text, ui);
 
                 return None;
@@ -304,12 +375,11 @@ impl Status {
             Status::Large {
                 file, selection, ..
             } => {
-
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
                     .w(60.0)
-                    .h(20.0)
+                    .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
                     match nfd::open_file_dialog(None, None) {
@@ -323,7 +393,7 @@ impl Status {
                 let name = file.name[0.max(file.name.len() - 20)..].to_string();
                 let label_text = format!("File: {}", name);
                 widget::Text::new(label_text.as_str())
-                    .right_from(ids.open_file, 10.0)
+                    .mid_left_of(ids.bottom_canvas)
                     .set(ids.status_text, ui);
 
                 if selection.size.x != 0.0 && selection.size.y != 0.0 {
@@ -338,18 +408,92 @@ impl Status {
 
                     for _press in widget::Button::new()
                         .label("Crop")
-                        .right_from(ids.selection_text, 10.0)
-                        .h(20.0)
+                        .right_from(ids.open_file, 10.0)
+                        .h(HEIGHT)
                         .w(50.0)
                         .set(ids.crop, ui)
                     {
-                        return Some(Transition::Select(coords, 1))
+                        return Some(Transition::Select(coords, 1));
                     }
                 };
 
                 None
             }
-            _ => None,
+            Status::Small {
+                file,
+                coords,
+                sample
+            } => {
+
+                for _press in widget::Button::new()
+                    .label("Open File")
+                    .mid_left_of(ids.canvas)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.open_file, ui)
+                {
+                    match nfd::open_file_dialog(None, None) {
+                        Ok(nfd::Response::Okay(file_path)) => {
+                            return Some(Transition::Open(file_path))
+                        }
+                        _ => (),
+                    }
+                }
+
+                let name = file.name[0.max(file.name.len() - 20)..].to_string();
+                let label_text = format!("File: {}", name);
+                widget::Text::new(label_text.as_str())
+                    .mid_left_of(ids.bottom_canvas)
+                    .set(ids.status_text, ui);
+
+                let points = (coords.w / *sample) * (coords.h / *sample);
+                widget::Text::new(format!(
+                    "{} triangles, {}mb file size. Sample: {}",
+                    points * 2,
+                    // each "square" takes 100 bytes, 50 bytes per triangle
+                    points * 100 / 1_048_576,
+                    sample
+                ).as_str())
+                    .right_from(ids.status_text, 10.0)
+                    .set(ids.sample_text, ui);
+
+                for _press in widget::Button::new()
+                    .label("-")
+                    .right_from(ids.open_file, 10.0)
+                    .w(30.0)
+                    .h(HEIGHT)
+                    .set(ids.sample_less, ui)
+                {
+                    if *sample > 1 {
+                        return Some(Transition::Resolution(*sample - 1))
+                    }
+                }
+
+                for _press in widget::Button::new()
+                    .label("+")
+                    .right_from(ids.sample_less, 10.0)
+                    .w(30.0)
+                    .h(HEIGHT)
+                    .set(ids.sample_greater, ui)
+                {
+                    if *sample < 100 {
+                        return Some(Transition::Resolution(*sample + 1))
+                    }
+                }
+
+                for _press in widget::Button::new()
+                    .label("export")
+                    .right_from(ids.sample_greater, 10.0)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.export, ui)
+                {
+                    return Some(Transition::Export)
+                }
+
+                None
+
+            }
         }
     }
 
@@ -526,14 +670,17 @@ impl State {
     }
 
     fn run(&mut self) {
+        let window_height = self.window.canvas().size().1;
+        println!("Height {}", window_height);
         while self.window.render() {
             let mut manager = self.window.events();
             for mut event in manager.iter() {
                 self.handle_event(&mut event)
             }
             let transition = {
+                let window_height = self.window.canvas().size().1 / 2;
                 let mut ui = self.window.conrod_ui_mut().set_widgets();
-                self.status.ui(&mut ui, &self.ids)
+                self.status.ui(window_height, &mut ui, &self.ids)
             };
             if let Some(transition) = transition {
                 self.transition(transition);
