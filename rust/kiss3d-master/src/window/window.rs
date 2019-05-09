@@ -324,6 +324,11 @@ impl Window {
         self.scene.add_capsule(r, h)
     }
 
+    /// Add a scene node
+    pub fn add_child(&mut self, node: &SceneNode) {
+        self.scene.add_child(node.clone());
+    }
+
     /// Adds a 2D capsule to the scene. The capsule is initially centered at (0, 0) and has its
     /// principal axis aligned with the `y` axis.
     ///

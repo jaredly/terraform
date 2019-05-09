@@ -185,27 +185,6 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                     selection_node,
                 }
             }
-            // if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
-            //     window.scene_mut().clear();
-            //     window.set_camera(make_camera());
-
-            //     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-            //     mesh_node.set_color(0.0, 1.0, 0.0);
-            //     mesh_node.enable_backface_culling(false);
-
-            //     Status::Small {
-            //         file,
-            //         coords,
-            //         sample,
-            //     }
-            // } else {
-            //     Status::Large {
-            //         file,
-            //         pointer,
-            //         selection,
-            //         selection_node,
-            //     }
-            // }
         }
         (
             Status::Small {
@@ -218,7 +197,10 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
             },
             Transition::Resolution(res),
         ) => {
-            if let Some((pointer, selection_node)) = setup_small(window, &file, &coords, res) {
+            if let Some((pointer, mut sel_new)) = setup_small(window, &file, &coords, res) {
+                // TODO preserve the selection_node from the previous
+                sel_new.unlink();
+                window.add_child(&selection_node);
                 Status::Small {
                     file,
                     coords,
