@@ -231,6 +231,83 @@ impl Terrain {
     }
 }
 
+// fn hex_mesh(
+//     raster: &Buffer<f32>,
+//     center: Point2<usize>,
+//     // This is the "inner" radius of the hexagon, e.g. the distance to a side
+//     half_height: usize,
+//     full_width: usize,
+//     // How much of a "stand" to make. 0 for no stand
+//     extend_down: f32,
+// ) -> TriMesh<f32> {
+//     // Hex will be 4 * half_height / sqrt(3) wide
+
+//     // Ways that a square can be sliced: 
+//     // Just a tri left
+
+//     let mut coords = Vec::new();
+//     let mut faces = Vec::new();
+//     let mut indices = 
+// }
+
+// fn hex_points(
+//     raster: &Buffer<f32>,
+//     center: Point2<usize>,
+//     // This is the "inner" radius of the hexagon, e.g. the distance to a side
+//     half_height: usize,
+//     sample: usize,
+//     full_width: usize,
+//     // points, offsets per line
+// ) -> (Vec<Point3<f32>>, Vec<usize>) {
+//     // Hex will be 4 * half_height / sqrt(3) wide
+//     let ww = w / sample;
+//     let hh = h / sample;
+//     let total = ww * hh;
+
+//     let scaler = if ww > hh { ww as f32 } else { hh as f32 };
+//     let scalew = ww as f32 / scaler;
+//     let scaleh = hh as f32 / scaler;
+
+//     let mut coords = Vec::with_capacity(total);
+//     println!("Total points: {}", total);
+//     let mut max = 0.0;
+//     let mut min = std::f32::INFINITY;
+//     let mut offsets = Vec::with_capacity(ww);
+//     for x in 0..ww {
+//         let mut past = false;
+//         for y in 0..hh {
+
+
+//             let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
+
+//             if p > max {
+//                 max = p
+//             }
+//             if p < min {
+//                 min = p
+//             }
+
+//             coords.push(Point3::new(
+//                 x as f32 / scaler - scalew / 2.0,
+//                 -(y as f32 / scaler - scaleh / 2.0),
+//                 p,
+//             ));
+//         }
+//     }
+//     println!("Max {} min {}", max, min);
+//     // let scale = max - min;
+//     // let m = if w > h { w.to_owned() } else { h.to_owned() };
+//     // let scale = scale * 20.0 / (full_width as f32 / (m) as f32);
+//     // let scale = zscale / (full_width / scaler)
+//     profile!("Rescale things", {
+//         for point in coords.iter_mut() {
+//             point.z = (point.z - min);
+//         }
+//     });
+//     coords
+
+// }
+
 fn to_points(
     raster: &Buffer<f32>,
     Coords { x: x0, y: y0, w, h }: &Coords,
@@ -269,10 +346,6 @@ fn to_points(
         }
     }
     println!("Max {} min {}", max, min);
-    // let scale = max - min;
-    // let m = if w > h { w.to_owned() } else { h.to_owned() };
-    // let scale = scale * 20.0 / (full_width as f32 / (m) as f32);
-    // let scale = zscale / (full_width / scaler)
     profile!("Rescale things", {
         for point in coords.iter_mut() {
             point.z = (point.z - min) * elevation_scale;
