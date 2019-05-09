@@ -61,6 +61,7 @@ impl ArcBall {
         ArcBall::new_with_frustrum(f32::consts::PI / 4.0, 0.1, 1024.0, eye, at)
     }
 
+    /// Set the zoom step per mouse scroll wheel
     pub fn set_dist_step(&mut self, dist_step: f32) {
         self.dist_step = dist_step;
     }

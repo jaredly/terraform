@@ -326,6 +326,7 @@ impl Object {
         self.data.color.z = b;
     }
 
+    /// Set alpha for object
     #[inline]
     pub fn set_alpha(&mut self, a: f32) {
         self.data.color.w = a;

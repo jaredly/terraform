@@ -21,38 +21,9 @@ use std::time::SystemTime;
 mod profile;
 mod terrain;
 
-extern crate nfd;
+mod threed;
 
-fn make_selection() -> TriMesh<f32> {
-    TriMesh::new(
-        vec![
-            Point3::new(-1.0, -1.0, -1.0), // 0 bl
-            Point3::new(1.0, -1.0, -1.0),  // 1 br
-            Point3::new(1.0, 1.0, -1.0),   // 2 tr
-            Point3::new(-1.0, 1.0, -1.0),  // 3 tl
-            Point3::new(-1.0, 1.0, 1.0),   // 4 tl
-            Point3::new(1.0, 1.0, 1.0),    // 5 tr
-            Point3::new(1.0, -1.0, 1.0),   // 6 br
-            Point3::new(-1.0, -1.0, 1.0),  // 7 bl
-        ],
-        None,
-        None,
-        Some(IndexBuffer::Unified(vec![
-            // top face
-            Point3::new(3, 2, 4),
-            Point3::new(2, 5, 4),
-            // left face
-            Point3::new(0, 3, 7),
-            Point3::new(3, 4, 7),
-            // right face
-            Point3::new(1, 2, 6),
-            Point3::new(2, 5, 6),
-            // bottom face
-            Point3::new(0, 1, 7),
-            Point3::new(1, 6, 7),
-        ])),
-    )
-}
+extern crate nfd;
 
 fn select(
     file: &terrain::File,
@@ -73,207 +44,673 @@ fn select(
     })
 }
 
-use std::env;
-fn noui(file_name: String) {
-    let mut window = Window::new("Topo");
-    window.set_light(Light::StickToCamera);
+struct Selection {
+    pos: Point2<f32>,
+    size: Vector2<f32>,
+}
+
+enum Status {
+    Initial,
+    Large {
+        file: terrain::File,
+        pointer: kiss3d::scene::SceneNode,
+        selection_node: kiss3d::scene::SceneNode,
+        selection: Selection,
+    },
+    Small {
+        file: terrain::File,
+        coords: terrain::Coords,
+        sample: usize,
+    },
+}
+
+enum Transition {
+    Open(String),
+    Select(terrain::Coords, usize),
+    Resolution(usize),
+    Export,
+}
+
+fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
+    if let Ok(dataset) = Dataset::open(Path::new(file_name.as_str())) {
+        window.scene_mut().clear();
+        window.set_camera(make_camera());
+        let file = profile!(
+            "Load file",
+            terrain::File::from_dataset(&dataset, file_name)
+        );
+        let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+        let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+        mesh_node.set_color(0.0, 1.0, 0.0);
+        mesh_node.enable_backface_culling(false);
+
+        let mut pointer = window.add_cube(0.002, 0.002, 0.5);
+        pointer.set_color(1.0, 0.0, 0.0);
+        pointer.set_visible(false);
+
+        let mut selection =
+            window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
+        selection.set_local_scale(0.0, 0.0, 0.15);
+        selection.enable_backface_culling(false);
+        selection.set_color(0.0, 0.0, 1.0);
+        selection.set_alpha(0.5);
+        println!("Loaded");
+
+        Some(Status::Large {
+            file,
+            pointer,
+            selection_node: selection,
+            selection: Selection {
+                pos: Point2::new(0.0, 0.0),
+                size: Vector2::new(0.0, 0.0),
+            },
+        })
+    } else {
+        println!("Reset");
+        None
+    }
+}
+
+fn setup_small(
+    window: &mut Window,
+    file: &terrain::File,
+    coords: &terrain::Coords,
+    sample: usize,
+) -> bool {
+    if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
+        window.scene_mut().clear();
+        // window.set_camera(make_camera());
+
+        let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+        mesh_node.set_color(0.0, 1.0, 0.0);
+        mesh_node.enable_backface_culling(false);
+
+        true
+    } else {
+        false
+    }
+}
+
+fn handle_transition(window: &mut Window, current: Status, transition: Transition) -> Status {
+    match (current, transition) {
+        (current, Transition::Open(file_name)) => match make_large(window, file_name) {
+            Some(status) => status,
+            None => current,
+        },
+        (
+            Status::Large {
+                file,
+                pointer,
+                selection,
+                selection_node,
+            },
+            Transition::Select(coords, sample),
+        ) => {
+            if setup_small(window, &file, &coords, sample) {
+                Status::Small {
+                    file,
+                    coords,
+                    sample,
+                }
+            } else {
+                Status::Large {
+                    file,
+                    pointer,
+                    selection,
+                    selection_node,
+                }
+            }
+            // if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
+            //     window.scene_mut().clear();
+            //     window.set_camera(make_camera());
+
+            //     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+            //     mesh_node.set_color(0.0, 1.0, 0.0);
+            //     mesh_node.enable_backface_culling(false);
+
+            //     Status::Small {
+            //         file,
+            //         coords,
+            //         sample,
+            //     }
+            // } else {
+            //     Status::Large {
+            //         file,
+            //         pointer,
+            //         selection,
+            //         selection_node,
+            //     }
+            // }
+        }
+        (
+            Status::Small {
+                file,
+                coords,
+                sample,
+            },
+            Transition::Resolution(res),
+        ) => {
+            if setup_small(window, &file, &coords, res) {
+                Status::Small {
+                    file,
+                    coords,
+                    sample: res,
+                }
+            } else {
+                Status::Small {
+                    file,
+                    coords,
+                    sample,
+                }
+            }
+        }
+        (
+            Status::Small {
+                file,
+                coords,
+                sample,
+            },
+            Transition::Export,
+        ) => {
+            match file.to_stl(&coords, sample, 1.0) {
+                None => println!("Failed to get stl"),
+                Some(stl) => {
+                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_save_dialog(None, None) {
+                        let mut outfile = std::fs::File::create(file_path.as_str()).unwrap();
+                        if let Err(_) = profile!("Write file", stl::write_stl(&mut outfile, &stl)) {
+                            println!("Failed to write :'(");
+                        }
+                    } else {
+                        println!("No file selected. Exiting");
+                    }
+                }
+            };
+            Status::Small {
+                file,
+                coords,
+                sample,
+            }
+        }
+        (status, _) => status,
+    }
+}
+
+fn make_camera() -> kiss3d::camera::ArcBall {
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
     camera.set_dist_step(1.0);
-    window.set_camera(camera);
+    camera
+}
 
-    let dataset = Dataset::open(Path::new(file_name.as_str())).unwrap();
-    let file = profile!("Load file", terrain::File::from(&dataset));
-    let mut mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+fn normalize_selection(size: Vector2<usize>, selection: &Selection) -> terrain::Coords {
+    let x = ((selection.pos.x + 0.5) * size.x as f32) as usize;
+    let y = ((selection.pos.y + 0.5) * size.y as f32) as usize;
+    let w = (selection.size.x) * size.x as f32;
+    let h = (selection.size.y) * size.y as f32;
+    let (x, w) = if w < 0.0 {
+        (x - (-w) as usize, (-w) as usize)
+    } else {
+        (x, w as usize)
+    };
+    let (y, h) = if h < 0.0 {
+        (y - (-h) as usize, (-h) as usize)
+    } else {
+        (y, h as usize)
+    };
+    let y = size.y - (y + h);
+    terrain::Coords { x, y, w, h }
+}
 
-    let mut mesh_parent = window.add_group();
+fn make_window() -> Window {
+    let mut window = Window::new("Terraform");
+    window.set_light(Light::StickToCamera);
+    window.set_camera(make_camera());
+    window
+}
 
-    let mut mesh_node = mesh_parent.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
-    mesh_node.set_color(0.0, 1.0, 0.0);
-    mesh_node.enable_backface_culling(false);
+struct State {
+    window: Window,
+    status: Status,
+    ids: Ids,
+}
 
-    let mut pointer = window.add_cube(0.002, 0.002, 0.5);
-    pointer.set_color(1.0, 0.0, 0.0);
-    pointer.set_visible(false);
+use kiss3d::conrod;
 
-    let mut selection = window.add_trimesh(make_selection(), Vector3::from_element(1.0));
-    selection.set_local_scale(0.0, 0.0, 0.15);
-    selection.enable_backface_culling(false);
-    selection.set_color(0.0, 0.0, 1.0);
-    selection.set_alpha(0.5);
+/*
+ *
+ * This is he example taken from conrods' repository.
+ *
+ */
+/// A set of reasonable stylistic defaults that works for the `gui` below.
+pub fn theme() -> kiss3d::conrod::Theme {
+    use kiss3d::conrod::position::{Align, Direction, Padding, Position, Relative};
+    conrod::Theme {
+        name: "Demo Theme".to_string(),
+        padding: Padding::none(),
+        x_position: Position::Relative(Relative::Direction(Direction::Forwards, 10.0), None),
+        y_position: Position::Relative(Relative::Align(Align::Middle), None),
+        background_color: conrod::color::TRANSPARENT,
+        shape_color: conrod::color::LIGHT_CHARCOAL,
+        border_color: conrod::color::BLACK,
+        border_width: 0.0,
+        label_color: conrod::color::WHITE,
+        font_id: None,
+        font_size_large: 18,
+        font_size_medium: 12,
+        font_size_small: 8,
+        widget_styling: conrod::theme::StyleMap::default(),
+        mouse_drag_threshold: 0.0,
+        double_click_threshold: std::time::Duration::from_millis(500),
+    }
+}
 
-    let mut size = Vector2::new(500.0, 500.0);
-    let mut selpos = (Point2::new(-0.5, -0.5), Vector2::new(0.0, 0.0));
-    let mut cursor = Point2::new(0.0, 0.0);
-    let mut pressing = false;
-    let mut selected_info = None;
+// Generate a unique `WidgetId` for each widget.
+widget_ids! {
+    pub struct Ids {
+        // The scrollable canvas.
+        canvas,
+        bottom_canvas,
+        hlist,
+        status_text,
+        open_file,
+        selection_text,
+        crop,
+        sample_text,
+        sample_less,
+        sample_greater,
+        export
+    }
+}
 
-    while window.render() {
-        let mut manager = window.events();
-        for mut event in manager.iter() {
-            match event.value {
-                WindowEvent::FramebufferSize(x, y) => size = Vector2::new(x as f32, y as f32),
-                WindowEvent::MouseButton(MouseButton::Button1, action, modifiers) => {
-                    if modifiers.contains(Modifiers::Super) {
-                        match action {
-                            Action::Release => {
-                                pressing = false;
-                                println!("Finished");
-                                pointer.set_visible(false);
-                            }
-                            Action::Press => {
-                                pressing = true;
-                                println!("Super down {}, {}", cursor.x, cursor.y);
-                                selpos.0 = cursor;
-                                selpos.1 = Vector2::new(0.0, 0.0);
-                            }
+impl Status {
+    fn ui(&mut self, window_height: u32, ui: &mut kiss3d::conrod::UiCell, ids: &Ids) -> Option<Transition> {
+        use kiss3d::conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
+        use std::iter::once;
+
+        const MARGIN: conrod::Scalar = 30.0;
+        const SHAPE_GAP: conrod::Scalar = 50.0;
+        const TITLE_SIZE: conrod::FontSize = 42;
+        const SUBTITLE_SIZE: conrod::FontSize = 32;
+        const HEIGHT: conrod::Scalar = 20.0;
+
+        widget::Canvas::new()
+            .pad(MARGIN)
+            .align_top()
+            .h(40.0)
+            .set(ids.canvas, ui);
+
+        widget::Canvas::new()
+            .pad(MARGIN)
+            .align_bottom()
+            .x(0.0)
+            .y(- (window_height as f64) / 2.0)
+            // .y(-200.0)
+            // .y(window_height as f64 - 400.0)
+            // .y(100.0)
+            .h(0.0)
+            .set(ids.bottom_canvas, ui);
+
+        match self {
+            Status::Initial => {
+                for _press in widget::Button::new()
+                    .label("Open File")
+                    .mid_left_of(ids.canvas)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.open_file, ui)
+                {
+                    match nfd::open_file_dialog(None, None) {
+                        Ok(nfd::Response::Okay(file_path)) => {
+                            return Some(Transition::Open(file_path))
                         }
-                        event.inhibited = true;
+                        _ => (),
                     }
                 }
-                WindowEvent::Key(Key::LWin, Action::Release, _)
-                | WindowEvent::Key(Key::RWin, Action::Release, _) => {
-                    pointer.set_visible(false);
-                }
-                WindowEvent::Key(Key::Return, Action::Press, _) => {
-                    match selected_info {
-                        None => println!("No selection yet"),
-                        Some((coords, sample)) => match file.to_stl(&coords, sample, 1.0) {
-                            None => println!("Failed to get stl"),
-                            Some(stl) => {
-                                let out_file = match nfd::open_save_dialog(None, None) {
-                                    Ok(nfd::Response::Okay(file_path)) => file_path.to_owned(),
-                                    _ => {
-                                        println!("No file selected. Exiting");
-                                        return;
-                                    }
-                                };
-                                let mut outfile = std::fs::File::create(out_file.as_str()).unwrap();
-                                profile!("Write file", stl::write_stl(&mut outfile, &stl));
-                            }
-                        },
+
+                widget::Text::new("No file loaded")
+                    .mid_left_of(ids.bottom_canvas)
+                    .set(ids.status_text, ui);
+
+                return None;
+            }
+            Status::Large {
+                file, selection, ..
+            } => {
+                for _press in widget::Button::new()
+                    .label("Open File")
+                    .mid_left_of(ids.canvas)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.open_file, ui)
+                {
+                    match nfd::open_file_dialog(None, None) {
+                        Ok(nfd::Response::Okay(file_path)) => {
+                            return Some(Transition::Open(file_path))
+                        }
+                        _ => (),
                     }
-                    // Export maybe?
-                    // mesh_node
                 }
-                WindowEvent::Key(Key::LWin, Action::Press, _)
-                | WindowEvent::Key(Key::RWin, Action::Press, _) => {
-                    pointer.set_visible(true);
+
+                let name = file.name[0.max(file.name.len() - 20)..].to_string();
+                let label_text = format!("File: {}", name);
+                widget::Text::new(label_text.as_str())
+                    .mid_left_of(ids.bottom_canvas)
+                    .set(ids.status_text, ui);
+
+                if selection.size.x != 0.0 && selection.size.y != 0.0 {
+                    let coords = normalize_selection(file.size, selection);
+                    let selected_text = format!(
+                        " Selection: {:.3}, {:.3} - {:.3} x {:.3}",
+                        coords.x, coords.y, coords.w, coords.h
+                    );
+                    widget::Text::new(selected_text.as_str())
+                        .right_from(ids.status_text, 10.0)
+                        .set(ids.selection_text, ui);
+
+                    for _press in widget::Button::new()
+                        .label("Crop")
+                        .right_from(ids.open_file, 10.0)
+                        .h(HEIGHT)
+                        .w(50.0)
+                        .set(ids.crop, ui)
+                    {
+                        return Some(Transition::Select(coords, 1));
+                    }
+                };
+
+                None
+            }
+            Status::Small {
+                file,
+                coords,
+                sample
+            } => {
+
+                for _press in widget::Button::new()
+                    .label("Open File")
+                    .mid_left_of(ids.canvas)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.open_file, ui)
+                {
+                    match nfd::open_file_dialog(None, None) {
+                        Ok(nfd::Response::Okay(file_path)) => {
+                            return Some(Transition::Open(file_path))
+                        }
+                        _ => (),
+                    }
                 }
-                WindowEvent::Key(Key::Space, Action::Press, _) => {
+
+                let name = file.name[0.max(file.name.len() - 20)..].to_string();
+                let label_text = format!("File: {}", name);
+                widget::Text::new(label_text.as_str())
+                    .mid_left_of(ids.bottom_canvas)
+                    .set(ids.status_text, ui);
+
+                let points = (coords.w / *sample) * (coords.h / *sample);
+                widget::Text::new(format!(
+                    "{} triangles, {}mb file size. Sample: {}",
+                    points * 2,
+                    // each "square" takes 100 bytes, 50 bytes per triangle
+                    points * 100 / 1_048_576,
+                    sample
+                ).as_str())
+                    .right_from(ids.status_text, 10.0)
+                    .set(ids.sample_text, ui);
+
+                for _press in widget::Button::new()
+                    .label("-")
+                    .right_from(ids.open_file, 10.0)
+                    .w(30.0)
+                    .h(HEIGHT)
+                    .set(ids.sample_less, ui)
+                {
+                    if *sample > 1 {
+                        return Some(Transition::Resolution(*sample - 1))
+                    }
+                }
+
+                for _press in widget::Button::new()
+                    .label("+")
+                    .right_from(ids.sample_less, 10.0)
+                    .w(30.0)
+                    .h(HEIGHT)
+                    .set(ids.sample_greater, ui)
+                {
+                    if *sample < 100 {
+                        return Some(Transition::Resolution(*sample + 1))
+                    }
+                }
+
+                for _press in widget::Button::new()
+                    .label("export")
+                    .right_from(ids.sample_greater, 10.0)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.export, ui)
+                {
+                    return Some(Transition::Export)
+                }
+
+                None
+
+            }
+        }
+    }
+
+    fn handle_event(
+        &mut self,
+        window: &mut Window,
+        event: &mut kiss3d::event::Event,
+    ) -> Option<Transition> {
+        match event.value {
+            WindowEvent::Key(Key::LWin, Action::Release, _)
+            | WindowEvent::Key(Key::RWin, Action::Release, _) => {
+                match self {
+                    Status::Large { pointer, .. } => pointer.set_visible(false),
+                    _ => (),
+                };
+                None
+            }
+            WindowEvent::Key(Key::LWin, Action::Press, _)
+            | WindowEvent::Key(Key::RWin, Action::Press, _) => {
+                match self {
+                    Status::Large { pointer, .. } => pointer.set_visible(true),
+                    _ => (),
+                };
+                None
+            }
+
+            WindowEvent::Key(Key::O, Action::Press, _) => match self {
+                Status::Initial => match nfd::open_file_dialog(None, None) {
+                    Ok(nfd::Response::Okay(file_path)) => Some(Transition::Open(file_path)),
+                    _ => None,
+                },
+                _ => None,
+            },
+
+            WindowEvent::Key(Key::Return, Action::Press, _) => {
+                Some(Transition::Export)
+                // match self {
+                //     Status::Small {
+                //         file,
+                //         coords,
+                //         sample,
+                //     } =>
+                //     _ => (),
+                // };
+                // None
+            }
+
+            WindowEvent::Key(Key::Space, Action::Press, _) => match self {
+                Status::Large {
+                    file,
+                    pointer: _,
+                    selection,
+                    selection_node: _,
+                } => {
                     println!("ok");
-                    let x = ((selpos.0.x + 0.5) * file.size.x as f32) as usize;
-                    let y = ((selpos.0.y + 0.5) * file.size.y as f32) as usize;
-                    let w = (selpos.1.x) * file.size.x as f32;
-                    let h = (selpos.1.y) * file.size.y as f32;
-                    let (x, w) = if w < 0.0 {
-                        (x - (-w) as usize, (-w) as usize)
-                    } else {
-                        (x, w as usize)
-                    };
-                    let (y, h) = if h < 0.0 {
-                        (y - (-h) as usize, (-h) as usize)
-                    } else {
-                        (y, h as usize)
-                    };
-                    let y = file.size.y - (y + h);
-                    let total = w * h;
+                    let coords = normalize_selection(file.size, selection);
+                    let total = coords.w * coords.h;
                     let max_points = 10_000_000;
                     let sample = if total <= max_points {
                         1
                     } else {
                         (total as f32 / max_points as f32).sqrt().ceil() as usize
                     };
-                    println!("Selected sample size: {}", sample);
-                    match select(
-                        &file,
-                        &mut mesh_parent,
-                        terrain::Coords { x, y, w, h },
-                        sample,
-                    ) {
-                        None => (),
-                        Some(new_node) => {
-                            selected_info = Some((terrain::Coords { x, y, w, h }, sample));
-                            println!(
-                                "To run the extraction from the cli: 
-                            cargo run --release {} {} {} {} {}",
-                                file_name, x, y, w, h
-                            );
-                            mesh_node.unlink();
-                            mesh_node = new_node;
-                            selection.set_local_scale(0.0, 0.0, 0.15);
-                            let mut camera = kiss3d::camera::ArcBall::new(
-                                Point3::new(0.0, 0.0, 1.0),
-                                Point3::origin(),
-                            );
-                            camera.set_dist_step(1.0);
-                            window.set_camera(camera);
+                    Some(Transition::Select(coords, sample))
+                }
+                _ => None,
+            },
+
+            WindowEvent::MouseButton(MouseButton::Button1, Action::Press, modifiers)
+                if modifiers.contains(Modifiers::Super) =>
+            {
+                match self {
+                    Status::Large { selection, .. } => {
+                        let (w, h) = window.canvas().size();
+                        if let Some((x, y)) = window.canvas().cursor_pos() {
+                            // println!("Super down {}, {}", cursor.x, cursor.y);
+                            if let Some(point) = threed::get_unprojected_coords(
+                                &Point2::new(x as f32, y as f32),
+                                &Vector2::new(w as f32, h as f32),
+                                &window,
+                            ) {
+                                selection.pos = point;
+                                selection.size = Vector2::new(0.0, 0.0);
+                            }
                         }
                     }
+                    _ => (),
                 }
-                WindowEvent::CursorPos(x, y, modifiers) => {
-                    if modifiers.contains(Modifiers::Super) {
-                        get_unprojected_coords(&Point2::new(x as f32, y as f32), &size, &window)
+                event.inhibited = true;
+                None
+            }
+
+            WindowEvent::CursorPos(x, y, modifiers) => {
+                match self {
+                    Status::Large {
+                        file: _,
+                        pointer,
+                        selection,
+                        selection_node,
+                    } => {
+                        if modifiers.contains(Modifiers::Super) {
+                            let (w, h) = window.canvas().size();
+                            threed::get_unprojected_coords(
+                                &Point2::new(x as f32, y as f32),
+                                &Vector2::new(w as f32, h as f32),
+                                &window,
+                            )
                             .map(|point| {
-                                cursor = point;
+                                // cursor = point;
                                 pointer.set_local_translation(Translation3::from(Vector3::new(
                                     point.x, point.y, 0.0,
                                 )));
                                 event.inhibited = true;
-                                if pressing {
-                                    selpos.1 = cursor - selpos.0;
-                                    selection.set_local_scale(
-                                        selpos.1.x / 2.0,
-                                        selpos.1.y / 2.0,
+                                if window
+                                    .canvas()
+                                    .get_mouse_button(kiss3d::event::MouseButton::Button1)
+                                    == Action::Press
+                                {
+                                    // selection.pos = point;
+                                    selection.size = point - selection.pos;
+                                    selection_node.set_local_scale(
+                                        selection.size.x / 2.0,
+                                        selection.size.y / 2.0,
                                         0.15,
                                     );
-                                    selection.set_local_translation(Translation3::from(
+                                    selection_node.set_local_translation(Translation3::from(
                                         Vector3::new(
-                                            selpos.0.x + selpos.1.x / 2.0,
-                                            selpos.0.y + selpos.1.y / 2.0,
+                                            selection.pos.x + selection.size.x / 2.0,
+                                            selection.pos.y + selection.size.y / 2.0,
                                             0.0,
                                         ),
                                     ));
                                 }
                             });
+                        }
                     }
-                }
-                _ => (),
+                    _ => (),
+                };
+                None
+            }
+
+            _ => None,
+        }
+    }
+}
+
+impl State {
+    fn new() -> Self {
+        let mut window = make_window();
+        let ids = Ids::new(window.conrod_ui_mut().widget_id_generator());
+        window.conrod_ui_mut().theme = theme();
+        State {
+            window,
+            status: Status::Initial,
+            ids,
+        }
+    }
+
+    fn transition(&mut self, transition: Transition) {
+        self.status = handle_transition(
+            &mut self.window,
+            std::mem::replace(&mut self.status, Status::Initial),
+            transition,
+        );
+    }
+
+    fn handle_event(&mut self, event: &mut kiss3d::event::Event) {
+        match self.status.handle_event(&mut self.window, event) {
+            None => (),
+            Some(transition) => {
+                self.transition(transition);
+            }
+        }
+    }
+
+    fn run(&mut self) {
+        let window_height = self.window.canvas().size().1;
+        println!("Height {}", window_height);
+        while self.window.render() {
+            let mut manager = self.window.events();
+            for mut event in manager.iter() {
+                self.handle_event(&mut event)
+            }
+            let transition = {
+                let window_height = self.window.canvas().size().1 / 2;
+                let mut ui = self.window.conrod_ui_mut().set_widgets();
+                self.status.ui(window_height, &mut ui, &self.ids)
+            };
+            if let Some(transition) = transition {
+                self.transition(transition);
             }
         }
     }
 }
 
-fn get_unprojected_coords(
-    point: &Point2<f32>,
-    size: &Vector2<f32>,
-    window: &Window,
-) -> Option<Point2<f32>> {
-    use ncollide3d::query::ray_internal::ray::RayCast;
-    let (point, dir) = window.unproject(point, size);
-    let ray = ncollide3d::query::Ray::new(point, dir);
-    let v: na::Unit<Vector3<f32>> = na::Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0));
-    let plane = ncollide3d::shape::Plane::new(v);
-    let toi = plane.toi_with_ray(&nalgebra::geometry::Isometry::identity(), &ray, true);
-
-    match toi {
-        Some(t) => {
-            let point = ray.point_at(t);
-            Some(Point2::new(point.x, point.y))
-        }
-        None => None,
+fn someui(file_name: Option<String>) {
+    let mut state = State::new();
+    match file_name {
+        None => (),
+        Some(file_name) => state.transition(Transition::Open(file_name)),
     }
+    state.run();
 }
 
-mod ui;
-
 fn main() {
+    use std::env;
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        2 => noui(args[1].clone()),
+        2 => someui(Some(args[1].clone())),
         6 => {
             let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
-            let file = profile!("Load file", terrain::File::from(&dataset));
-            let coords = terrain::Coords { 
+            let file = profile!(
+                "Load file",
+                terrain::File::from_dataset(&dataset, args[1].clone())
+            );
+            // let coords = normalize_selection(file.size, selection);
+            let coords = terrain::Coords {
                 x: args[2].parse().unwrap(),
                 y: args[3].parse().unwrap(),
                 w: args[4].parse().unwrap(),
@@ -286,14 +723,8 @@ fn main() {
                     profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
                 }
             }
-        },
-        _ => 
-            match nfd::open_file_dialog(None, None) {
-                Ok(nfd::Response::Okay(file_path)) => noui(file_path.to_owned()),
-                _ => {
-                    println!("No file selected. Exiting");
-                }
-            },
+        }
+        _ => someui(None),
     };
-    // let (file_name, preselect) = 
+    // let (file_name, preselect) =
 }
