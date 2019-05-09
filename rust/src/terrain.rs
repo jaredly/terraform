@@ -327,8 +327,8 @@ fn to_points(
     println!("Total points: {}", total);
     let mut max = 0.0;
     let mut min = std::f32::INFINITY;
-    for x in 0..ww {
-        for y in 0..hh {
+    for y in 0..hh {
+        for x in 0..ww {
             let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
 
             if p > max {
@@ -371,18 +371,18 @@ fn gen_faces(width: usize, height: usize, sample: usize) -> Vec<Point3<IndexNum>
     let total = ww * hh;
 
     let mut faces = Vec::with_capacity(total);
-    for x in 0..ww - 2 {
-        for y in 0..hh - 2 {
-            let i = x * hh + y;
+    for y in 0..hh - 1 {
+        for x in 0..ww - 1 {
+            let i = y * ww + x;
             faces.push(Point3::new(
-                (i + hh + 1) as IndexNum,
-                (i + hh) as IndexNum,
+                (i + ww + 1) as IndexNum,
                 (i) as IndexNum,
+                (i + ww) as IndexNum,
             ));
             faces.push(Point3::new(
-                (i + hh + 1) as IndexNum,
-                (i) as IndexNum,
+                (i + ww + 1) as IndexNum,
                 (i + 1) as IndexNum,
+                (i) as IndexNum,
             ));
         }
     }
