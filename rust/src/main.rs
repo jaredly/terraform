@@ -284,7 +284,7 @@ use kiss3d::conrod;
 pub fn theme() -> kiss3d::conrod::Theme {
     use kiss3d::conrod::position::{Align, Direction, Padding, Position, Relative};
     conrod::Theme {
-        name: "Demo Theme".to_string(),
+        name: "Main Theme".to_string(),
         padding: Padding::none(),
         x_position: Position::Relative(Relative::Direction(Direction::Forwards, 10.0), None),
         y_position: Position::Relative(Relative::Align(Align::Middle), None),
@@ -322,7 +322,12 @@ widget_ids! {
 }
 
 impl Status {
-    fn ui(&mut self, window_height: u32, ui: &mut kiss3d::conrod::UiCell, ids: &Ids) -> Option<Transition> {
+    fn ui(
+        &mut self,
+        window_height: u32,
+        ui: &mut kiss3d::conrod::UiCell,
+        ids: &Ids,
+    ) -> Option<Transition> {
         use kiss3d::conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
         use std::iter::once;
 
@@ -342,7 +347,7 @@ impl Status {
             .pad(MARGIN)
             .align_bottom()
             .x(0.0)
-            .y(- (window_height as f64) / 2.0)
+            .y(-(window_height as f64) / 2.0)
             // .y(-200.0)
             // .y(window_height as f64 - 400.0)
             // .y(100.0)
@@ -422,9 +427,8 @@ impl Status {
             Status::Small {
                 file,
                 coords,
-                sample
+                sample,
             } => {
-
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
@@ -447,15 +451,18 @@ impl Status {
                     .set(ids.status_text, ui);
 
                 let points = (coords.w / *sample) * (coords.h / *sample);
-                widget::Text::new(format!(
-                    "{} triangles, {}mb file size. Sample: {}",
-                    points * 2,
-                    // each "square" takes 100 bytes, 50 bytes per triangle
-                    points * 100 / 1_048_576,
-                    sample
-                ).as_str())
-                    .right_from(ids.status_text, 10.0)
-                    .set(ids.sample_text, ui);
+                widget::Text::new(
+                    format!(
+                        "{} triangles, {}mb file size. Sample: {}",
+                        points * 2,
+                        // each "square" takes 100 bytes, 50 bytes per triangle
+                        points * 100 / 1_048_576,
+                        sample
+                    )
+                    .as_str(),
+                )
+                .right_from(ids.status_text, 10.0)
+                .set(ids.sample_text, ui);
 
                 for _press in widget::Button::new()
                     .label("-")
@@ -465,7 +472,7 @@ impl Status {
                     .set(ids.sample_less, ui)
                 {
                     if *sample > 1 {
-                        return Some(Transition::Resolution(*sample - 1))
+                        return Some(Transition::Resolution(*sample - 1));
                     }
                 }
 
@@ -477,7 +484,7 @@ impl Status {
                     .set(ids.sample_greater, ui)
                 {
                     if *sample < 100 {
-                        return Some(Transition::Resolution(*sample + 1))
+                        return Some(Transition::Resolution(*sample + 1));
                     }
                 }
 
@@ -488,11 +495,10 @@ impl Status {
                     .h(HEIGHT)
                     .set(ids.export, ui)
                 {
-                    return Some(Transition::Export)
+                    return Some(Transition::Export);
                 }
 
                 None
-
             }
         }
     }
