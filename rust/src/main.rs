@@ -198,7 +198,6 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
             Transition::Resolution(res),
         ) => {
             if let Some((pointer, mut sel_new)) = setup_small(window, &file, &coords, res) {
-                // TODO preserve the selection_node from the previous
                 sel_new.unlink();
                 window.add_child(&selection_node);
                 Status::Small {

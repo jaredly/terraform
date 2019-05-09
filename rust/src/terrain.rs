@@ -250,11 +250,6 @@ fn to_points(
     println!("Total points: {}", total);
     let mut max = 0.0;
     let mut min = std::f32::INFINITY;
-    // coords will look like
-    // (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2),
-    // to turn [x, y] into an index, you do (x * h + y)
-    // raster data looks like
-    //
     for x in 0..ww {
         for y in 0..hh {
             let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
