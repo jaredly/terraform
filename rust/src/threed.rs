@@ -29,33 +29,84 @@ pub fn get_unprojected_coords(
     }
 }
 
-pub fn make_selection() -> TriMesh<f32> {
+fn make_prism(positions: &[(f32, f32)]) -> TriMesh<f32> {
+    let mut points = vec![];
+    let mut faces = vec![];
+
+    for (i, (x, y)) in positions.iter().enumerate() {
+        let x = *x;
+        let y = *y;
+        let i2 = if i == positions.len() - 1  {
+            0
+        } else {
+            i as u32 + 1
+        };
+        let i = i as u32;
+        points.push(Point3::new(x, y, -1.0));
+        points.push(Point3::new(x, y, 1.0));
+        faces.push(Point3::new(i * 2, i * 2 + 1, i2 * 2));
+        faces.push(Point3::new(i * 2 + 1, i2 * 2, i2 * 2 + 1));
+    }
+
     TriMesh::new(
-        vec![
-            Point3::new(-1.0, -1.0, -1.0), // 0 bl
-            Point3::new(1.0, -1.0, -1.0),  // 1 br
-            Point3::new(1.0, 1.0, -1.0),   // 2 tr
-            Point3::new(-1.0, 1.0, -1.0),  // 3 tl
-            Point3::new(-1.0, 1.0, 1.0),   // 4 tl
-            Point3::new(1.0, 1.0, 1.0),    // 5 tr
-            Point3::new(1.0, -1.0, 1.0),   // 6 br
-            Point3::new(-1.0, -1.0, 1.0),  // 7 bl
-        ],
+        points,
         None,
         None,
-        Some(IndexBuffer::Unified(vec![
-            // top face
-            Point3::new(3, 2, 4),
-            Point3::new(2, 5, 4),
-            // left face
-            Point3::new(0, 3, 7),
-            Point3::new(3, 4, 7),
-            // right face
-            Point3::new(1, 2, 6),
-            Point3::new(2, 5, 6),
-            // bottom face
-            Point3::new(0, 1, 7),
-            Point3::new(1, 6, 7),
-        ])),
+        Some(IndexBuffer::Unified(faces)),
     )
+
+}
+
+pub fn make_hex() -> TriMesh<f32> {
+    //    a   b
+    // f         c
+    //    e   d
+    // top, bottom
+
+    let rt3 = (3.0_f32).sqrt();
+    let positions: [(f32, f32); 6] = [
+        (-0.5, -rt3),
+        (0.5, -rt3),
+        (1.0, 0.0),
+        (0.5, rt3),
+        (-0.5, rt3),
+        (-1.0, 0.0),
+    ];
+
+    make_prism(&positions)
+}
+
+pub fn make_selection() -> TriMesh<f32> {
+    let positions = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)];
+
+    make_prism(&positions)
+
+    // TriMesh::new(
+    //     vec![
+    //         Point3::new(-1.0, -1.0, -1.0), // 0 bl
+    //         Point3::new(1.0, -1.0, -1.0),  // 1 br
+    //         Point3::new(1.0, 1.0, -1.0),   // 2 tr
+    //         Point3::new(-1.0, 1.0, -1.0),  // 3 tl
+    //         Point3::new(-1.0, 1.0, 1.0),   // 4 tl
+    //         Point3::new(1.0, 1.0, 1.0),    // 5 tr
+    //         Point3::new(1.0, -1.0, 1.0),   // 6 br
+    //         Point3::new(-1.0, -1.0, 1.0),  // 7 bl
+    //     ],
+    //     None,
+    //     None,
+    //     Some(IndexBuffer::Unified(vec![
+    //         // top face
+    //         Point3::new(3, 2, 4),
+    //         Point3::new(2, 5, 4),
+    //         // left face
+    //         Point3::new(0, 3, 7),
+    //         Point3::new(3, 4, 7),
+    //         // right face
+    //         Point3::new(1, 2, 6),
+    //         Point3::new(2, 5, 6),
+    //         // bottom face
+    //         Point3::new(0, 1, 7),
+    //         Point3::new(1, 6, 7),
+    //     ])),
+    // )
 }
