@@ -680,7 +680,7 @@ impl Status {
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
                                 == Action::Press
                             {
-                                selection.1 = na::norm(&(point - selection.0));
+                                selection.1 = (point - selection.0).norm();
                                 selection_node.set_local_scale(selection.1, selection.1, 0.15);
                                 selection_node.set_local_translation(Translation3::from(
                                     Vector3::new(selection.0.x, selection.0.y, 0.0),
