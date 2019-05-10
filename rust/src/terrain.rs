@@ -9,7 +9,7 @@ extern crate geo;
 use kiss3d::light::Light;
 use kiss3d::resource::{IndexNum, Mesh};
 use kiss3d::window::Window;
-use na::{Point3, UnitQuaternion, Vector2, Vector3, Point2};
+use na::{Point2, Point3, UnitQuaternion, Vector2, Vector3};
 use std::time::SystemTime;
 
 type MeshCell = Rc<RefCell<Mesh>>;
@@ -183,10 +183,7 @@ impl Coords {
     }
 
     pub fn center(&self) -> Point2<usize> {
-        Point2::new(
-            self.x + self.w / 2,
-            self.y + self.h / 2
-        )
+        Point2::new(self.x + self.w / 2, self.y + self.h / 2)
     }
 
     pub fn validate(&self, file: &File) -> bool {
@@ -219,7 +216,8 @@ impl Terrain {
         full_width: usize,
         elevation_scale: f32,
     ) -> Self {
-        let (points, offsets, lengths) = hex_points(raster, hex, sample, full_width, elevation_scale);
+        let (points, offsets, lengths) =
+            hex_points(raster, hex, sample, full_width, elevation_scale);
         Terrain {
             points,
             faces: hex_faces(hex, sample, offsets, lengths),
@@ -284,7 +282,10 @@ impl Hex {
     pub fn new(cx: usize, cy: usize, half_height: usize) -> Self {
         let half_width = (2.0 * half_height as f32 / (3.0_f32).sqrt()).ceil() as usize;
         Hex {
-            cx, cy, half_height, half_width
+            cx,
+            cy,
+            half_height,
+            half_width,
         }
     }
     pub fn width(&self) -> usize {
@@ -295,12 +296,17 @@ impl Hex {
             self.cx - self.half_width,
             self.cy - self.half_height,
             self.half_width * 2,
-            self.half_height * 2
+            self.half_height * 2,
         )
     }
 }
 
-fn hex_faces(hex: &Hex, sample: usize, offsets: Vec<usize>, lengths: Vec<usize>) -> Vec<Point3<IndexNum>> {
+fn hex_faces(
+    hex: &Hex,
+    sample: usize,
+    offsets: Vec<usize>,
+    lengths: Vec<usize>,
+) -> Vec<Point3<IndexNum>> {
     let (_x0, _y0, w, h) = hex.bbox();
 
     let ww = w / sample;
@@ -348,15 +354,13 @@ fn hex_points(
     full_width: usize,
     elevation_scale: f32,
     // points, offsets per line
-) -> 
-(
+) -> (
     Vec<Point3<f32>>,
     // offsets by line
     Vec<usize>,
     // line length by index
-    Vec<usize>
-)
-{
+    Vec<usize>,
+) {
     let (x0, y0, w, h) = hex.bbox();
 
     // Hex will be 4 * half_height / sqrt(3) wide
@@ -387,7 +391,6 @@ fn hex_points(
         let mut found = false;
         let mut total = 0;
         for x in 0..ww {
-
             if !found {
                 // Here calculate if mx + b < y or something
                 let is_too_small = false;
@@ -429,7 +432,6 @@ fn hex_points(
         }
     });
     (coords, offsets, lengths)
-
 }
 
 fn to_points(

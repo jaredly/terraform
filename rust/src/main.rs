@@ -49,22 +49,35 @@ struct Selection {
     size: Vector2<f32>,
 }
 
+struct Zoom {
+    coords: terrain::Coords,
+    hselection: (Point2<f32>, f32),
+    sample: usize,
+    cut: Option<terrain::Hex>,
+}
+
 enum Status {
     Initial,
-    Large {
+    Loaded {
         file: terrain::File,
         pointer: kiss3d::scene::SceneNode,
         selection_node: kiss3d::scene::SceneNode,
         selection: Selection,
-    },
-    Small {
-        file: terrain::File,
-        coords: terrain::Coords,
-        selection: (Point2<f32>, f32),
-        pointer: kiss3d::scene::SceneNode,
-        selection_node: kiss3d::scene::SceneNode,
-        sample: usize,
-    },
+        zoom: Option<Zoom>,
+    }, // Large {
+       //     file: terrain::File,
+       //     pointer: kiss3d::scene::SceneNode,
+       //     selection_node: kiss3d::scene::SceneNode,
+       //     selection: Selection,
+       // },
+       // Small {
+       //     file: terrain::File,
+       //     coords: terrain::Coords,
+       //     selection: (Point2<f32>, f32),
+       //     pointer: kiss3d::scene::SceneNode,
+       //     selection_node: kiss3d::scene::SceneNode,
+       //     sample: usize,
+       // }
 }
 
 enum Transition {
@@ -108,7 +121,7 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
 
         let (pointer, selection) = large_nodes(&file, window);
 
-        Some(Status::Large {
+        Some(Status::Loaded {
             file,
             pointer,
             selection_node: selection,
@@ -116,6 +129,7 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
                 pos: Point2::new(0.0, 0.0),
                 size: Vector2::new(0.0, 0.0),
             },
+            zoom: None,
         })
     } else {
         println!("Reset");
@@ -154,123 +168,156 @@ fn setup_small(
 }
 
 fn handle_transition(window: &mut Window, current: Status, transition: Transition) -> Status {
-    match (current, transition) {
-        (current, Transition::Open(file_name)) => match make_large(window, file_name) {
-            Some(status) => status,
-            None => current,
+    match current {
+        Status::Initial => match transition {
+            Transition::Open(file_name) => match make_large(window, file_name) {
+                Some(status) => status,
+                None => Status::Initial,
+            },
+            _ => Status::Initial,
         },
-        (
-            Status::Large {
-                file,
-                pointer,
-                selection,
-                selection_node,
-            },
-            Transition::Select(coords, sample),
-        ) => {
-            if let Some((pointer, selection_node)) = setup_small(window, &file, &coords, sample) {
-                Status::Small {
-                    file,
-                    coords,
-                    sample,
-                    pointer,
-                    selection_node,
-                    selection: (Point2::new(0.0, 0.0), 0.0),
-                }
-            } else {
-                Status::Large {
+        Status::Loaded {
+            file,
+            pointer,
+            selection,
+            selection_node,
+            zoom,
+        } => match transition {
+            Transition::Open(file_name) => match make_large(window, file_name) {
+                Some(status) => status,
+                None => Status::Loaded {
                     file,
                     pointer,
                     selection,
                     selection_node,
-                }
-            }
-        }
-        (
-            Status::Small {
-                file,
-                coords,
-                sample,
-                selection_node,
-                selection,
-                pointer,
-            },
-            Transition::Resolution(res),
-        ) => {
-            if let Some((pointer, mut sel_new)) = setup_small(window, &file, &coords, res) {
-                sel_new.unlink();
-                window.add_child(&selection_node);
-                Status::Small {
-                    file,
-                    coords,
-                    sample: res,
-                    selection_node,
-                    selection,
-                    pointer,
-                }
-            } else {
-                Status::Small {
-                    file,
-                    coords,
-                    sample,
-                    selection_node,
-                    selection,
-                    pointer,
-                }
-            }
-        }
-        (
-            Status::Small {
-                file,
-                ..
-            },
-            Transition::Reset,
-        ) => {
-            let (pointer, selection_node) = large_nodes(&file, window);
-            Status::Large {
-                file,
-                pointer,
-                selection_node,
-                selection: Selection {
-                    pos: Point2::new(0.0, 0.0),
-                    size: Vector2::new(0.0, 0.0),
+                    zoom,
                 },
-            }
-        }
-        (
-            Status::Small {
-                file,
-                coords,
-                sample,
-                selection_node,
-                selection,
-                pointer,
             },
-            Transition::Export,
-        ) => {
-            match file.to_stl(&coords, sample, 1.0) {
-                None => println!("Failed to get stl"),
-                Some(stl) => {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_save_dialog(None, None) {
-                        let mut outfile = std::fs::File::create(file_path.as_str()).unwrap();
-                        if let Err(_) = profile!("Write file", stl::write_stl(&mut outfile, &stl)) {
-                            println!("Failed to write :'(");
-                        }
+            Transition::Select(coords, sample) => {
+                let (pointer, selection_node, zoom) = if let Some((pointer, selection_node)) =
+                    setup_small(window, &file, &coords, sample)
+                {
+                    (
+                        pointer,
+                        selection_node,
+                        Some(Zoom {
+                            coords,
+                            sample,
+                            hselection: (Point2::new(0.0, 0.0), 0.0),
+                            cut: None,
+                        }),
+                    )
+                } else {
+                    (pointer, selection_node, zoom)
+                };
+                Status::Loaded {
+                    zoom,
+                    file,
+                    pointer,
+                    selection,
+                    selection_node,
+                }
+            }
+            Transition::Resolution(res) => match zoom {
+                None => Status::Loaded {
+                    file,
+                    pointer,
+                    selection,
+                    selection_node,
+                    zoom: None,
+                },
+                Some(Zoom {
+                    hselection,
+                    coords,
+                    sample,
+                    cut,
+                }) => Status::Loaded {
+                    zoom: if let Some((pointer, mut sel_new)) =
+                        setup_small(window, &file, &coords, res)
+                    {
+                        sel_new.unlink();
+                        window.add_child(&selection_node);
+                        Some(Zoom {
+                            coords,
+                            sample: res,
+                            hselection,
+                            cut,
+                        })
                     } else {
-                        println!("No file selected. Exiting");
+                        Some(Zoom {
+                            hselection,
+                            coords,
+                            sample,
+                            cut,
+                        })
+                    },
+                    file,
+                    pointer,
+                    selection,
+                    selection_node,
+                },
+            },
+            Transition::Reset => {
+                let (pointer, selection_node) = large_nodes(&file, window);
+                Status::Loaded {
+                    file,
+                    pointer,
+                    selection_node,
+                    selection: Selection {
+                        pos: Point2::new(0.0, 0.0),
+                        size: Vector2::new(0.0, 0.0),
+                    },
+                    zoom: None,
+                }
+            }
+            Transition::Export => match zoom {
+                None => Status::Loaded {
+                    file,
+                    pointer,
+                    selection_node,
+                    selection,
+                    zoom: None,
+                },
+                Some(Zoom {
+                    coords,
+                    sample,
+                    hselection,
+                    cut,
+                }) => {
+                    match file.to_stl(&coords, sample, 1.0) {
+                        None => println!("Failed to get stl"),
+                        Some(stl) => {
+                            if let Ok(nfd::Response::Okay(file_path)) =
+                                nfd::open_save_dialog(None, None)
+                            {
+                                let mut outfile =
+                                    std::fs::File::create(file_path.as_str()).unwrap();
+                                if let Err(_) =
+                                    profile!("Write file", stl::write_stl(&mut outfile, &stl))
+                                {
+                                    println!("Failed to write :'(");
+                                }
+                            } else {
+                                println!("No file selected. Exiting");
+                            }
+                        }
+                    };
+
+                    Status::Loaded {
+                        file,
+                        pointer,
+                        selection,
+                        selection_node,
+                        zoom: Some(Zoom {
+                            coords,
+                            sample,
+                            hselection,
+                            cut: None,
+                        }),
                     }
                 }
-            };
-            Status::Small {
-                file,
-                coords,
-                sample,
-                selection_node,
-                selection,
-                pointer,
-            }
-        }
-        (status, _) => status,
+            },
+        },
     }
 }
 
@@ -417,8 +464,11 @@ impl Status {
 
                 return None;
             }
-            Status::Large {
-                file, selection, ..
+            Status::Loaded {
+                file,
+                selection,
+                zoom: None,
+                ..
             } => {
                 for _press in widget::Button::new()
                     .label("Open File")
@@ -471,10 +521,9 @@ impl Status {
 
                 None
             }
-            Status::Small {
+            Status::Loaded {
                 file,
-                coords,
-                sample,
+                zoom: Some(Zoom { coords, sample, .. }),
                 ..
             } => {
                 for _press in widget::Button::new()
@@ -570,8 +619,7 @@ impl Status {
             WindowEvent::Key(Key::LWin, Action::Release, _)
             | WindowEvent::Key(Key::RWin, Action::Release, _) => {
                 match self {
-                    Status::Large { pointer, .. } => pointer.set_visible(false),
-                    Status::Small { pointer, .. } => pointer.set_visible(false),
+                    Status::Loaded { pointer, .. } => pointer.set_visible(false),
                     _ => (),
                 };
                 None
@@ -579,8 +627,7 @@ impl Status {
             WindowEvent::Key(Key::LWin, Action::Press, _)
             | WindowEvent::Key(Key::RWin, Action::Press, _) => {
                 match self {
-                    Status::Large { pointer, .. } => pointer.set_visible(true),
-                    Status::Small { pointer, .. } => pointer.set_visible(true),
+                    Status::Loaded { pointer, .. } => pointer.set_visible(true),
                     _ => (),
                 };
                 None
@@ -594,35 +641,14 @@ impl Status {
                 _ => None,
             },
 
-            // WindowEvent::Key(Key::Return, Action::Press, _) => {
-            //     Some(Transition::Export)
-            // }
-
-            // WindowEvent::Key(Key::Space, Action::Press, _) => match self {
-            //     Status::Large {
-            //         file,
-            //         pointer: _,
-            //         selection,
-            //         selection_node: _,
-            //     } => {
-            //         println!("ok");
-            //         let coords = normalize_selection(file.size, selection);
-            //         let total = coords.w * coords.h;
-            //         let max_points = 10_000_000;
-            //         let sample = if total <= max_points {
-            //             1
-            //         } else {
-            //             (total as f32 / max_points as f32).sqrt().ceil() as usize
-            //         };
-            //         Some(Transition::Select(coords, sample))
-            //     }
-            //     _ => None,
-            // },
             WindowEvent::MouseButton(MouseButton::Button1, Action::Press, modifiers)
                 if modifiers.contains(Modifiers::Super) =>
             {
                 match self {
-                    Status::Small { selection, .. } => {
+                    Status::Loaded {
+                        zoom: Some(Zoom { hselection, .. }),
+                        ..
+                    } => {
                         let (w, h) = window.canvas().size();
                         if let Some((x, y)) = window.canvas().cursor_pos() {
                             // println!("Super down {}, {}", cursor.x, cursor.y);
@@ -631,12 +657,16 @@ impl Status {
                                 &Vector2::new(w as f32, h as f32),
                                 &window,
                             ) {
-                                selection.0 = point;
-                                selection.1 = 0.0;
+                                hselection.0 = point;
+                                hselection.1 = 0.0;
                             }
                         }
                     }
-                    Status::Large { selection, .. } => {
+                    Status::Loaded {
+                        zoom: None,
+                        selection,
+                        ..
+                    } => {
                         let (w, h) = window.canvas().size();
                         if let Some((x, y)) = window.canvas().cursor_pos() {
                             // println!("Super down {}, {}", cursor.x, cursor.y);
@@ -658,10 +688,10 @@ impl Status {
 
             WindowEvent::CursorPos(x, y, modifiers) => {
                 match self {
-                    Status::Small {
+                    Status::Loaded {
                         pointer,
-                        selection,
                         selection_node,
+                        zoom: Some(Zoom { hselection, .. }),
                         ..
                     } if modifiers.contains(Modifiers::Super) => {
                         let (w, h) = window.canvas().size();
@@ -680,17 +710,18 @@ impl Status {
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
                                 == Action::Press
                             {
-                                selection.1 = (point - selection.0).norm();
-                                selection_node.set_local_scale(selection.1, selection.1, 0.15);
+                                hselection.1 = (point - hselection.0).norm();
+                                selection_node.set_local_scale(hselection.1, hselection.1, 0.15);
                                 selection_node.set_local_translation(Translation3::from(
-                                    Vector3::new(selection.0.x, selection.0.y, 0.0),
+                                    Vector3::new(hselection.0.x, hselection.0.y, 0.0),
                                 ));
                             }
                         };
                     }
 
-                    Status::Large {
+                    Status::Loaded {
                         file: _,
+                        zoom: None,
                         pointer,
                         selection,
                         selection_node,
