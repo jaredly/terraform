@@ -324,7 +324,7 @@ fn hex_faces(
 
     let mut faces = Vec::with_capacity(max);
     for y in 0..hh - 1 {
-        for x in 0..lengths[y] {
+        for x in 0..lengths[y] - 1 {
             // let i = y * ww + x;
 
             faces.push(Point3::new(

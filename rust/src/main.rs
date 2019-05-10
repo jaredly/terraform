@@ -298,12 +298,12 @@ fn make_camera() -> kiss3d::camera::ArcBall {
     camera
 }
 
-fn hselection_to_hex(w: usize, h: usize, selection: (Point2<f32>, f32)) -> terrain::Hex {
-    let cx = ((selection.0.x + 0.5) * w as f32) as usize;
-    let cy = ((selection.0.y + 0.5) * h as f32) as usize;
-    let r = selection.1 * (w.max(h) as f32);
+fn hselection_to_hex(coords: &terrain::Coords, selection: (Point2<f32>, f32)) -> terrain::Hex {
+    let cx = ((selection.0.x + 0.5) * coords.w as f32) as usize;
+    let cy = ((selection.0.y + 0.5) * coords.h as f32) as usize;
+    let r = selection.1 * (coords.w.max(coords.h) as f32);
     let half_height = (r / 2.0 * (3.0_f32).sqrt()) as usize;
-    terrain::Hex::new(cx, cy, half_height)
+    terrain::Hex::new(coords.x + cx, coords.y + cy, half_height)
 }
 
 fn normalize_selection(size: Vector2<usize>, selection: &Selection) -> terrain::Coords {
@@ -609,8 +609,7 @@ impl Statusable for Option<Status> {
                         .set(ids.cut, ui)
                     {
                         return Some(Transition::Cut(hselection_to_hex(
-                            zoom.coords.w,
-                            zoom.coords.h,
+                            &zoom.coords,
                             zoom.hselection,
                         )));
                     }
