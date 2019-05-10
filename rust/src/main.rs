@@ -64,20 +64,7 @@ enum Status {
         selection_node: kiss3d::scene::SceneNode,
         selection: Selection,
         zoom: Option<Zoom>,
-    }, // Large {
-       //     file: terrain::File,
-       //     pointer: kiss3d::scene::SceneNode,
-       //     selection_node: kiss3d::scene::SceneNode,
-       //     selection: Selection,
-       // },
-       // Small {
-       //     file: terrain::File,
-       //     coords: terrain::Coords,
-       //     selection: (Point2<f32>, f32),
-       //     pointer: kiss3d::scene::SceneNode,
-       //     selection_node: kiss3d::scene::SceneNode,
-       //     sample: usize,
-       // }
+    },
 }
 
 enum Transition {
@@ -226,30 +213,20 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                     selection_node,
                     zoom: None,
                 },
-                Some(Zoom {
-                    hselection,
-                    coords,
-                    sample,
-                    cut,
-                }) => Status::Loaded {
-                    zoom: if let Some((pointer, mut sel_new)) =
-                        setup_small(window, &file, &coords, res)
+                Some(zoom) => Status::Loaded {
+                    zoom: if let Some((mut p_new, mut sel_new)) =
+                        setup_small(window, &file, &zoom.coords, res)
                     {
                         sel_new.unlink();
                         window.add_child(&selection_node);
+                        p_new.unlink();
+                        window.add_child(&pointer);
                         Some(Zoom {
-                            coords,
                             sample: res,
-                            hselection,
-                            cut,
+                            ..zoom
                         })
                     } else {
-                        Some(Zoom {
-                            hselection,
-                            coords,
-                            sample,
-                            cut,
-                        })
+                        Some(zoom)
                     },
                     file,
                     pointer,
@@ -278,13 +255,8 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                     selection,
                     zoom: None,
                 },
-                Some(Zoom {
-                    coords,
-                    sample,
-                    hselection,
-                    cut,
-                }) => {
-                    match file.to_stl(&coords, sample, 1.0) {
+                Some(zoom) => {
+                    match file.to_stl(&zoom.coords, zoom.sample, 1.0) {
                         None => println!("Failed to get stl"),
                         Some(stl) => {
                             if let Ok(nfd::Response::Okay(file_path)) =
@@ -308,12 +280,7 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                         pointer,
                         selection,
                         selection_node,
-                        zoom: Some(Zoom {
-                            coords,
-                            sample,
-                            hselection,
-                            cut: None,
-                        }),
+                        zoom: Some(zoom),
                     }
                 }
             },
@@ -523,7 +490,7 @@ impl Status {
             }
             Status::Loaded {
                 file,
-                zoom: Some(Zoom { coords, sample, .. }),
+                zoom: Some(zoom),
                 ..
             } => {
                 for _press in widget::Button::new()
@@ -547,14 +514,14 @@ impl Status {
                     .mid_left_of(ids.bottom_canvas)
                     .set(ids.status_text, ui);
 
-                let points = (coords.w / *sample) * (coords.h / *sample);
+                let points = (zoom.coords.w / zoom.sample) * (zoom.coords.h / zoom.sample);
                 widget::Text::new(
                     format!(
                         "{} triangles, {}mb file size. Sample: {}",
                         points * 2,
                         // each "square" takes 100 bytes, 50 bytes per triangle
                         points * 100 / 1_048_576,
-                        sample
+                        zoom.sample
                     )
                     .as_str(),
                 )
@@ -568,8 +535,8 @@ impl Status {
                     .h(HEIGHT)
                     .set(ids.sample_less, ui)
                 {
-                    if *sample > 1 {
-                        return Some(Transition::Resolution(*sample - 1));
+                    if zoom.sample > 1 {
+                        return Some(Transition::Resolution(zoom.sample - 1));
                     }
                 }
 
@@ -580,8 +547,8 @@ impl Status {
                     .h(HEIGHT)
                     .set(ids.sample_greater, ui)
                 {
-                    if *sample < 100 {
-                        return Some(Transition::Resolution(*sample + 1));
+                    if zoom.sample < 100 {
+                        return Some(Transition::Resolution(zoom.sample + 1));
                     }
                 }
 
@@ -646,7 +613,7 @@ impl Status {
             {
                 match self {
                     Status::Loaded {
-                        zoom: Some(Zoom { hselection, .. }),
+                        zoom: Some(zoom),
                         ..
                     } => {
                         let (w, h) = window.canvas().size();
@@ -657,8 +624,8 @@ impl Status {
                                 &Vector2::new(w as f32, h as f32),
                                 &window,
                             ) {
-                                hselection.0 = point;
-                                hselection.1 = 0.0;
+                                zoom.hselection.0 = point;
+                                zoom.hselection.1 = 0.0;
                             }
                         }
                     }
