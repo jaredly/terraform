@@ -207,6 +207,7 @@ fn handle_transition(
             Transition::Cut(hex) => match status.zoom {
                 None => Some(status),
                 Some(zoom) => {
+                    println!("To re-run at this setting: \n cargo run --release {} {} {} {} {} {} {} {}", status.file.name, zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h, hex.cx, hex.cy, hex.half_height);
                     setup_cut(window, &status.file, &hex, zoom.sample);
                     Some(Status {
                         zoom: Some(Zoom {
@@ -818,11 +819,16 @@ impl State {
     }
 }
 
-fn someui(file_name: Option<String>) {
+fn someui(file_name: Option<String>, coords: Option<terrain::Coords>, hex: Option<terrain::Hex>) {
     let mut state = State::new();
-    match file_name {
-        None => (),
-        Some(file_name) => state.transition(Transition::Open(file_name)),
+    if let Some(file_name) = file_name {
+        state.transition(Transition::Open(file_name));
+    }
+    if let Some(coords) = coords {
+        state.transition(Transition::Select(coords, 1));
+    }
+    if let Some(hex) = hex {
+        state.transition(Transition::Cut(hex));
     }
     state.run();
 }
@@ -831,29 +837,57 @@ fn main() {
     use std::env;
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        2 => someui(Some(args[1].clone())),
-        6 => {
-            let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
-            let file = profile!(
-                "Load file",
-                terrain::File::from_dataset(&dataset, args[1].clone())
-            );
-            // let coords = normalize_selection(file.size, selection);
-            let coords = terrain::Coords {
+        2 => someui(Some(args[1].clone()), None, None),
+
+        6 => someui(
+            Some(args[1].clone()),
+            Some(terrain::Coords {
                 x: args[2].parse().unwrap(),
                 y: args[3].parse().unwrap(),
                 w: args[4].parse().unwrap(),
                 h: args[5].parse().unwrap(),
-            };
-            match file.to_stl(&coords, 1, 1.0) {
-                None => println!("Failed to get stl"),
-                Some(stl) => {
-                    let mut outfile = std::fs::File::create("./out.stl").unwrap();
-                    profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
-                }
-            }
-        }
-        _ => someui(None),
+            }),
+            None
+        ),
+
+        9 => someui(
+            Some(args[1].clone()),
+            Some(terrain::Coords {
+                x: args[2].parse().unwrap(),
+                y: args[3].parse().unwrap(),
+                w: args[4].parse().unwrap(),
+                h: args[5].parse().unwrap(),
+            }),
+            Some(terrain::Hex::new(
+                args[6].parse().unwrap(),
+                args[7].parse().unwrap(),
+                args[8].parse().unwrap(),
+            ))
+        ),
+
+        // 6 => {
+        //     let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
+        //     let file = profile!(
+        //         "Load file",
+        //         terrain::File::from_dataset(&dataset, args[1].clone())
+        //     );
+        //     // let coords = normalize_selection(file.size, selection);
+        //     let coords = terrain::Coords {
+        //         x: args[2].parse().unwrap(),
+        //         y: args[3].parse().unwrap(),
+        //         w: args[4].parse().unwrap(),
+        //         h: args[5].parse().unwrap(),
+        //     };
+        //     match file.to_stl(&coords, 1, 1.0) {
+        //         None => println!("Failed to get stl"),
+        //         Some(stl) => {
+        //             let mut outfile = std::fs::File::create("./out.stl").unwrap();
+        //             profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
+        //         }
+        //     }
+        // }
+
+        _ => someui(None, None, None),
     };
     // let (file_name, preselect) =
 }
