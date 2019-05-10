@@ -292,6 +292,23 @@ impl Hex {
             half_width,
         }
     }
+
+    pub fn intercepts(&self, y: usize) -> (usize, usize) {
+        let m = (3.0_f32).sqrt();
+        let b = (self.half_height * 2) as f32;
+        let y = if y < self.half_height {
+            self.half_height - 1 - y
+        } else {
+            y - self.half_height
+        };
+        // y = mx + b
+        // y - b = mx
+        // x = (y - b) / m
+        let x = ((y as f32 - b) / m).floor() as isize;
+        // println!(">> x: {}, y: {}, m: {}, b: {}", x, y, m, b);
+        ((self.half_width as isize + x) as usize, (self.half_width as isize - x) as usize)
+    }
+
     pub fn width(&self) -> usize {
         self.half_width * 2
     }
@@ -303,6 +320,30 @@ impl Hex {
             self.half_height * 2,
         )
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hex() {
+        let hex = Hex::new(30, 30, 10);
+        let (x0, y0, w, h) = hex.bbox();
+        for y in 0..h {
+            let (x_min, x_max) = hex.intercepts(y);
+            for x in 0..w {
+                if x >= x_min && x < x_max {
+                    print!("X")
+                } else {
+                    print!(".")
+                }
+            }
+            println!("");
+        }
+        assert_eq!(1,1);
+    }
+
 }
 
 fn hex_faces(
@@ -351,14 +392,11 @@ fn hex_faces(
 fn hex_points(
     raster: &Buffer<f32>,
     hex: &Hex,
-    // center: Point2<usize>,
-    // This is the "inner" radius of the hexagon, e.g. the distance to a side
-    // half_height: usize,
     sample: usize,
     full_width: usize,
     elevation_scale: f32,
-    // points, offsets per line
 ) -> (
+    // points
     Vec<Point3<f32>>,
     // offsets by line
     Vec<usize>,
@@ -367,25 +405,16 @@ fn hex_points(
 ) {
     let (x0, y0, w, h) = hex.bbox();
 
-    // Hex will be 4 * half_height / sqrt(3) wide
-    // let cx = center.x;
-    // let cy = center.y;
-    // let half_w = (2.0 * half_height as f32 / (3.0_f32).sqrt()).ceil() as usize;
-    // let w = half_w * 2;
-    // let h = half_height * 2;
-    // let x0 = cx - half_w;
-    // let y0 = cy - half_height;
-
     let ww = w / sample;
     let hh = h / sample;
     let max = ww * hh;
+    println!("max points: {}", max);
 
     let scaler = if ww > hh { ww as f32 } else { hh as f32 };
     let scalew = ww as f32 / scaler;
     let scaleh = hh as f32 / scaler;
 
     let mut coords = Vec::with_capacity(max);
-    println!("max points: {}", max);
     let mut max = 0.0;
     let mut min = std::f32::INFINITY;
     let mut total_offset = 0;
@@ -394,11 +423,14 @@ fn hex_points(
     for y in 0..hh {
         let mut found = false;
         let mut total = 0;
+        let (x_min, x_max) = hex.intercepts(y * sample);
+        // if y < 5 {
+        //     println!("Intercepts for {}: {} - {}", y, x_min, x_max);
+        // }
         for x in 0..ww {
             if !found {
                 // Here calculate if mx + b < y or something
-                let is_too_small = false;
-                if !is_too_small {
+                if x * sample >= x_min {
                     found = true;
                     offsets.push(total_offset);
                 } else {
@@ -406,8 +438,7 @@ fn hex_points(
                     continue;
                 }
             }
-            let is_too_large = false;
-            if is_too_large {
+            if x * sample >= x_max {
                 break;
             }
             total += 1;
