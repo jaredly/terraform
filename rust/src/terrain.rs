@@ -351,7 +351,7 @@ impl Hex {
         let m = (3.0_f32).sqrt();
         let b = (self.half_height * 2) as f32;
         let y = if y < self.half_height {
-            self.half_height - 1 - y
+            self.half_height - y
         } else {
             y - self.half_height
         };
