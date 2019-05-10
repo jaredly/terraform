@@ -442,9 +442,6 @@ fn hex_points(
     let mut offsets = Vec::with_capacity(hh);
     for y in 0..hh + 1 {
         let (x_min, x_max) = hex.intercepts(y * sample);
-        // if y < 5 {
-        //     println!("Intercepts for {}: {} - {}", y, x_min, x_max);
-        // }
         total_offset += x_min / sample;
         offsets.push(total_offset);
         total_offset += ww - (x_max / sample + 1);
