@@ -314,7 +314,7 @@ pub struct Hex {
 
 impl Hex {
     pub fn new(cx: usize, cy: usize, half_height: usize) -> Self {
-        let half_width = (2.0 * half_height as f32 / (3.0_f32).sqrt()).ceil() as usize + 1;
+        let half_width = (2.0 * half_height as f32 / (3.0_f32).sqrt()).ceil() as usize + 2;
         Hex {
             cx,
             cy,
@@ -365,7 +365,7 @@ impl Hex {
         let y_intercept = m * x.floor() + b;
         let dy = y as f32 - y_intercept;
 
-        let border = if dy < 1.0 {
+        let border = if dy.abs() < 1.0 {
             Border::Two(dy, dx)
         } else {
             Border::One(dx)
@@ -405,8 +405,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hex() {
-        let hex = Hex::new(30, 30, 10);
+    fn test_hex_shape() {
+        let hex = Hex::new(30, 30, 5);
         let (x0, y0, w, h) = hex.bbox();
         for y in 0..h {
             let (border, x_min, x_max) = hex.intercepts(y);
@@ -473,7 +473,8 @@ fn hex_faces(
         // and the x_max is one too many
         // Ok now I fixed it (by the >= -> >) so that it's just
         // that the x_min is one too small....
-        for x in x_min + 1..x_max - 1 {
+        let min = if y < hh / 2 { x_min } else {x_min + 1};
+        for x in min..x_max - 1 {
             // let i = y * ww + x;
 
             faces.push(Point3::new(
