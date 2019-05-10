@@ -221,10 +221,10 @@ impl Terrain {
         elevation_scale: f32,
     ) -> Self {
         let (points, offsets, lengths) =
-            hex_points(raster, hex, sample, full_width, elevation_scale);
+            hex_points(&raster.data, hex, sample, full_width, elevation_scale);
         Terrain {
             points,
-            faces: hex_faces(hex, sample, offsets, lengths),
+            faces: hex_faces(hex, sample, offsets),
         }
     }
 
@@ -344,13 +344,39 @@ mod tests {
         assert_eq!(1,1);
     }
 
+    #[test]
+    fn test_hex_points() {
+        // 20 x 10
+        let heights = [0.0_f32; 200].to_vec();
+        let hex = Hex::new(10, 5, 4);
+        let sample =1;
+        let (points, offsets, lengths) = hex_points(
+            &heights,
+            &hex,
+            sample,
+            20,
+            1.0,
+        );
+        for (i, offset) in offsets.iter().enumerate() {
+            println!("Offset for {}: {}", i, offset);
+        }
+        let faces = hex_faces(&hex, sample, offsets);
+        for face in faces {
+            println!("{:?}", face);
+            assert!(face.x < points.len() as u32);
+            assert!(face.y < points.len() as u32);
+            assert!(face.z < points.len() as u32);
+        }
+        // assert_eq!(1,1);
+    }
+
 }
 
 fn hex_faces(
     hex: &Hex,
     sample: usize,
     offsets: Vec<usize>,
-    lengths: Vec<usize>,
+    // lengths: Vec<usize>,
 ) -> Vec<Point3<IndexNum>> {
     let (_x0, _y0, w, h) = hex.bbox();
 
@@ -360,12 +386,14 @@ fn hex_faces(
 
     #[inline]
     fn at(ww: usize, offsets: &Vec<usize>, x: usize, y: usize) -> IndexNum {
-        (y * ww - offsets[y] + x) as IndexNum
+        // println!("At ww: {}, ({}, {}), offset {}", ww, x, y, offsets[y]);
+        (y * ww + x - offsets[y]) as IndexNum
     }
 
     let mut faces = Vec::with_capacity(max);
-    for y in 0..hh - 1 {
-        for x in 0..lengths[y] - 1 {
+    for y in 0..hh - 2 {
+        let (x_min, x_max) = hex.intercepts(y);
+        for x in x_min / sample .. x_max / sample - 1 {
             // let i = y * ww + x;
 
             faces.push(Point3::new(
@@ -390,7 +418,7 @@ fn hex_faces(
 }
 
 fn hex_points(
-    raster: &Buffer<f32>,
+    raster: &Vec<f32>,
     hex: &Hex,
     sample: usize,
     full_width: usize,
@@ -439,11 +467,12 @@ fn hex_points(
                 }
             }
             if x * sample >= x_max {
+                total_offset += ww - x;
                 break;
             }
             total += 1;
 
-            let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
+            let p = raster[(y0 + y * sample) * full_width + (x0 + x * sample)];
 
             if p > max {
                 max = p
