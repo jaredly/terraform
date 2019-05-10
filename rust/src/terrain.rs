@@ -227,24 +227,26 @@ impl Terrain {
         let (mut points, offsets) =
             hex_points(&raster.data, hex, sample, full_width, elevation_scale);
         let mut faces = hex_faces(hex, sample, offsets);
-        let ln = points.len() as u32;
-        let (_, _, ww, _) = hex.bbox();
-        let ww = ww as f32;
-        let mut corners = hex
-            .corners()
-            // .to_vec()
-            .into_iter()
-            .map(|i| {
-                println!("Corner {} {}", i.x, i.y);
-                Point3::new(i.x / ww, i.y / ww, 0.0)
-            })
-            .collect::<Vec<Point3<f32>>>();
-        // let corners: &[Point3<f32>] = &corners;
-        points.append(&mut corners);
-        // points.extend_from_slice(corners);
-        println!("Adding the faces!");
-        faces.push(Point3::new(ln, ln + 1, ln + 2));
-        faces.push(Point3::new(ln + 3, ln + 4, ln + 5));
+
+        {
+            let hex = hex.sample(sample);
+            let ln = points.len() as u32;
+            let (_, _, ww, _) = hex.bbox();
+            let ww = ww as f32;
+            let mut corners = hex
+                .corners()
+                // .to_vec()
+                .into_iter()
+                .map(|i| {
+                    println!("Corner {} {}", i.x, i.y);
+                    Point3::new(i.x / ww, i.y / ww, 0.0)
+                })
+                .collect::<Vec<Point3<f32>>>();
+            points.append(&mut corners);
+            faces.push(Point3::new(ln, ln + 1, ln + 2));
+            faces.push(Point3::new(ln + 3, ln + 4, ln + 5));
+        }
+
         Terrain { points, faces }
     }
 
@@ -294,6 +296,7 @@ impl Terrain {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum Border {
     // horizontal displacement
     One(f32),
@@ -311,7 +314,7 @@ pub struct Hex {
 
 impl Hex {
     pub fn new(cx: usize, cy: usize, half_height: usize) -> Self {
-        let half_width = (2.0 * half_height as f32 / (3.0_f32).sqrt()).ceil() as usize;
+        let half_width = (2.0 * half_height as f32 / (3.0_f32).sqrt()).ceil() as usize + 1;
         Hex {
             cx,
             cy,
@@ -329,16 +332,16 @@ impl Hex {
     }
 
     pub fn corners(&self) -> [Point2<f32>; 6] {
-        let cx = self.cx as f32;
-        let cy = self.cy as f32;
+        // let cx = self.cx as f32;
+        // let cy = self.cy as f32;
         let hh = self.half_height as f32;
         let half_width = 2.0 * hh / (3.0_f32).sqrt();
         [
             // tl
-            Point2::new(- half_width / 2.0, - hh),
-            Point2::new(- half_width, 0.0),
-            Point2::new(- half_width / 2.0, hh),
-            Point2::new(half_width / 2.0, - hh),
+            Point2::new(-half_width / 2.0, -hh),
+            Point2::new(-half_width, 0.0),
+            Point2::new(-half_width / 2.0, hh),
+            Point2::new(half_width / 2.0, -hh),
             Point2::new(half_width, 0.0),
             Point2::new(half_width / 2.0, hh),
         ]
@@ -355,7 +358,7 @@ impl Hex {
         // y = mx + b
         // y - b = mx
         // x = (y - b) / m
-        let x = ((y as f32 - b) / m);
+        let x = (y as f32 - b) / m;
         let dx = x - x.floor();
         let xi = x.ceil() as isize;
 
@@ -389,6 +392,14 @@ impl Hex {
     }
 }
 
+fn extend_intercepts((border, min, max): (Border, usize, usize)) -> (usize, usize) {
+    match border {
+        Border::One(_) => (min - 1, max + 1),
+        Border::Two(_, _) => (min - 2, max + 2),
+    }
+    // (min, max)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -414,25 +425,25 @@ mod tests {
         assert_eq!(1, 1);
     }
 
-    // #[test]
-    // fn test_hex_points() {
-    //     // 20 x 10
-    //     let heights = [0.0_f32; 200].to_vec();
-    //     let hex = Hex::new(10, 5, 4);
-    //     let sample = 1;
-    //     let (points, offsets) = hex_points(&heights, &hex, sample, 20, 1.0);
-    //     for (i, offset) in offsets.iter().enumerate() {
-    //         println!("Offset for {}: {}", i, offset);
-    //     }
-    //     let faces = hex_faces(&hex, sample, offsets);
-    //     for face in faces {
-    //         println!("{:?}", face);
-    //         assert!(face.x < points.len() as u32);
-    //         assert!(face.y < points.len() as u32);
-    //         assert!(face.z < points.len() as u32);
-    //     }
-    //     // assert_eq!(1,1);
-    // }
+    #[test]
+    fn test_hex_points() {
+        // 20 x 10
+        let heights = [0.0_f32; 200].to_vec();
+        let hex = Hex::new(10, 5, 4);
+        let sample = 1;
+        let (points, offsets) = hex_points(&heights, &hex, sample, 20, 1.0);
+        for (i, offset) in offsets.iter().enumerate() {
+            println!("Offset for {}: {}", i, offset);
+        }
+        let faces = hex_faces(&hex, sample, offsets);
+        for face in faces {
+            println!("{:?}", face);
+            assert!(face.x < points.len() as u32);
+            assert!(face.y < points.len() as u32);
+            assert!(face.z < points.len() as u32);
+        }
+        // assert_eq!(1,1);
+    }
 
 }
 
@@ -455,7 +466,8 @@ fn hex_faces(
 
     let mut faces = Vec::with_capacity(max);
     for y in 0..hh {
-        let (border, x_min, x_max) = sampled_hex.intercepts(y);
+        // let (border, x_min, x_max) = sampled_hex.intercepts(y);
+        let (x_min, x_max) = extend_intercepts(sampled_hex.intercepts(y));
         // For some reason, once we pass the line of y = half_height,
         // the x_min is one too few? Or something weird is happening.
         // and the x_max is one too many
@@ -508,16 +520,49 @@ fn hex_points(
     let mut total_offset = 0;
     let mut offsets = Vec::with_capacity(hh);
     for y in 0..hh + 1 {
+        // let (border, x_min, x_max) = sampled_hex.intercepts(y);
         let (border, x_min, x_max) = sampled_hex.intercepts(y);
-        total_offset += x_min;
-        offsets.push(total_offset);
-        total_offset += ww - (x_max + 1);
-        for x in x_min..x_max + 1 {
-            let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
+        let (ex_min, ex_max) = extend_intercepts((border, x_min, x_max));
 
+        total_offset += ex_min;
+        offsets.push(total_offset);
+        total_offset += ww - (ex_max + 1);
+
+        match border {
+            Border::One(dx) => {
+                let x = x_min - 1;
+                let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
+                coords.push(Point3::new(
+                    (x as f32 + dx) / scaler - scalew / 2.0,
+                    -(y as f32 / scaler - scaleh / 2.0),
+                    p,
+                ))
+            }
+            Border::Two(dy, dx) => {
+                // the dy one
+                let x = x_min - 1;
+                let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
+                coords.push(Point3::new(
+                    (x as f32) / scaler - scalew / 2.0,
+                    -((y as f32 + dy) / scaler - scaleh / 2.0),
+                    p,
+                ));
+
+                // the dx one
+                let x = x_min - 1;
+                let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
+                coords.push(Point3::new(
+                    (x as f32 + dx) / scaler - scalew / 2.0,
+                    -(y as f32 / scaler - scaleh / 2.0),
+                    p,
+                ));
+            }
+        }
+
+        for x in x_min..ex_max + 1 {
+            let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
             max = max.max(p);
             min = min.min(p);
-
             coords.push(Point3::new(
                 x as f32 / scaler - scalew / 2.0,
                 -(y as f32 / scaler - scaleh / 2.0),
