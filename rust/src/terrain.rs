@@ -129,13 +129,8 @@ impl File {
         self.get_hex_terrain(hex, sample).map(|t| t.to_mesh())
     }
 
-    pub fn to_hex_stl(
-        &self,
-        hex: &Hex,
-        sample: usize,
-    ) -> Option<stl::BinaryStlFile> {
-        self.get_hex_terrain(hex, sample)
-            .map(|m| m.to_stl())
+    pub fn to_hex_stl(&self, hex: &Hex, sample: usize) -> Option<stl::BinaryStlFile> {
+        self.get_hex_terrain(hex, sample).map(|m| m.to_stl())
     }
 
     pub fn to_stl(
@@ -229,11 +224,28 @@ impl Terrain {
         full_width: usize,
         elevation_scale: f32,
     ) -> Self {
-        let (points, offsets) = hex_points(&raster.data, hex, sample, full_width, elevation_scale);
-        Terrain {
-            points,
-            faces: hex_faces(hex, sample, offsets),
-        }
+        let (mut points, offsets) =
+            hex_points(&raster.data, hex, sample, full_width, elevation_scale);
+        let mut faces = hex_faces(hex, sample, offsets);
+        let ln = points.len() as u32;
+        let (_, _, ww, _) = hex.bbox();
+        let ww = ww as f32;
+        let mut corners = hex
+            .corners()
+            // .to_vec()
+            .into_iter()
+            .map(|i| {
+                println!("Corner {} {}", i.x, i.y);
+                Point3::new(i.x / ww, i.y / ww, 0.0)
+            })
+            .collect::<Vec<Point3<f32>>>();
+        // let corners: &[Point3<f32>] = &corners;
+        points.append(&mut corners);
+        // points.extend_from_slice(corners);
+        println!("Adding the faces!");
+        faces.push(Point3::new(ln, ln + 1, ln + 2));
+        faces.push(Point3::new(ln + 3, ln + 4, ln + 5));
+        Terrain { points, faces }
     }
 
     pub fn to_stl(self) -> stl::BinaryStlFile {
@@ -282,11 +294,11 @@ impl Terrain {
     }
 }
 
-enum Border {
+pub enum Border {
     // horizontal displacement
     One(f32),
     // vertical of the first, horizontal of the second
-    Two(f32, f32)
+    Two(f32, f32),
 }
 
 #[derive(Clone, Copy)]
@@ -308,7 +320,31 @@ impl Hex {
         }
     }
 
-    pub fn intercepts(&self, y: usize) -> (usize, usize) {
+    pub fn sample(&self, sample: usize) -> Self {
+        Hex::new(
+            self.cx / sample,
+            self.cy / sample,
+            self.half_height / sample,
+        )
+    }
+
+    pub fn corners(&self) -> [Point2<f32>; 6] {
+        let cx = self.cx as f32;
+        let cy = self.cy as f32;
+        let hh = self.half_height as f32;
+        let half_width = 2.0 * hh / (3.0_f32).sqrt();
+        [
+            // tl
+            Point2::new(- half_width / 2.0, - hh),
+            Point2::new(- half_width, 0.0),
+            Point2::new(- half_width / 2.0, hh),
+            Point2::new(half_width / 2.0, - hh),
+            Point2::new(half_width, 0.0),
+            Point2::new(half_width / 2.0, hh),
+        ]
+    }
+
+    pub fn intercepts(&self, y: usize) -> (Border, usize, usize) {
         let m = (3.0_f32).sqrt();
         let b = (self.half_height * 2) as f32;
         let y = if y < self.half_height {
@@ -319,11 +355,24 @@ impl Hex {
         // y = mx + b
         // y - b = mx
         // x = (y - b) / m
-        let x = ((y as f32 - b) / m).floor() as isize;
-        // println!(">> x: {}, y: {}, m: {}, b: {}", x, y, m, b);
+        let x = ((y as f32 - b) / m);
+        let dx = x - x.floor();
+        let xi = x.ceil() as isize;
+
+        let y_intercept = m * x.floor() + b;
+        let dy = y as f32 - y_intercept;
+
+        let border = if dy < 1.0 {
+            Border::Two(dy, dx)
+        } else {
+            Border::One(dx)
+        };
+
         (
-            (self.half_width as isize + x) as usize,
-            (self.half_width as isize - x) as usize,
+            border,
+            // xi is negative, so this is left then right intercepts
+            (self.half_width as isize + xi) as usize,
+            (self.half_width as isize - xi) as usize,
         )
     }
 
@@ -349,7 +398,7 @@ mod tests {
         let hex = Hex::new(30, 30, 10);
         let (x0, y0, w, h) = hex.bbox();
         for y in 0..h {
-            let (x_min, x_max) = hex.intercepts(y);
+            let (border, x_min, x_max) = hex.intercepts(y);
             for x in 0..w {
                 if x >= x_min && x < x_max {
                     print!("X")
@@ -357,30 +406,33 @@ mod tests {
                     print!(".")
                 }
             }
-            println!("");
+            match border {
+                Border::One(dx) => println!(" - dx: {}", dx),
+                Border::Two(dy, dx) => println!(" - dy: {}, dx: {}", dy, dx),
+            }
         }
         assert_eq!(1, 1);
     }
 
-    #[test]
-    fn test_hex_points() {
-        // 20 x 10
-        let heights = [0.0_f32; 200].to_vec();
-        let hex = Hex::new(10, 5, 4);
-        let sample = 1;
-        let (points, offsets) = hex_points(&heights, &hex, sample, 20, 1.0);
-        for (i, offset) in offsets.iter().enumerate() {
-            println!("Offset for {}: {}", i, offset);
-        }
-        let faces = hex_faces(&hex, sample, offsets);
-        for face in faces {
-            println!("{:?}", face);
-            assert!(face.x < points.len() as u32);
-            assert!(face.y < points.len() as u32);
-            assert!(face.z < points.len() as u32);
-        }
-        // assert_eq!(1,1);
-    }
+    // #[test]
+    // fn test_hex_points() {
+    //     // 20 x 10
+    //     let heights = [0.0_f32; 200].to_vec();
+    //     let hex = Hex::new(10, 5, 4);
+    //     let sample = 1;
+    //     let (points, offsets) = hex_points(&heights, &hex, sample, 20, 1.0);
+    //     for (i, offset) in offsets.iter().enumerate() {
+    //         println!("Offset for {}: {}", i, offset);
+    //     }
+    //     let faces = hex_faces(&hex, sample, offsets);
+    //     for face in faces {
+    //         println!("{:?}", face);
+    //         assert!(face.x < points.len() as u32);
+    //         assert!(face.y < points.len() as u32);
+    //         assert!(face.z < points.len() as u32);
+    //     }
+    //     // assert_eq!(1,1);
+    // }
 
 }
 
@@ -390,10 +442,9 @@ fn hex_faces(
     offsets: Vec<usize>,
     // lengths: Vec<usize>,
 ) -> Vec<Point3<IndexNum>> {
-    let (_x0, _y0, w, h) = hex.bbox();
+    let sampled_hex = hex.sample(sample);
+    let (_x0, _y0, ww, hh) = sampled_hex.bbox();
 
-    let ww = w / sample;
-    let hh = h / sample;
     let max = ww * hh;
 
     #[inline]
@@ -404,13 +455,13 @@ fn hex_faces(
 
     let mut faces = Vec::with_capacity(max);
     for y in 0..hh {
-        let (x_min, x_max) = hex.intercepts(y);
+        let (border, x_min, x_max) = sampled_hex.intercepts(y);
         // For some reason, once we pass the line of y = half_height,
         // the x_min is one too few? Or something weird is happening.
         // and the x_max is one too many
         // Ok now I fixed it (by the >= -> >) so that it's just
         // that the x_min is one too small....
-        for x in x_min / sample + 1..x_max / sample - 1 {
+        for x in x_min + 1..x_max - 1 {
             // let i = y * ww + x;
 
             faces.push(Point3::new(
@@ -440,10 +491,10 @@ fn hex_points(
     // offsets by line
     Vec<usize>,
 ) {
-    let (x0, y0, w, h) = hex.bbox();
+    let sampled_hex = hex.sample(sample);
 
-    let ww = w / sample;
-    let hh = h / sample;
+    let (x0, y0, ww, hh) = sampled_hex.bbox();
+
     let max = ww * hh;
     println!("max points: {}", max);
 
@@ -457,12 +508,12 @@ fn hex_points(
     let mut total_offset = 0;
     let mut offsets = Vec::with_capacity(hh);
     for y in 0..hh + 1 {
-        let (x_min, x_max) = hex.intercepts(y * sample);
-        total_offset += x_min / sample;
+        let (border, x_min, x_max) = sampled_hex.intercepts(y);
+        total_offset += x_min;
         offsets.push(total_offset);
-        total_offset += ww - (x_max / sample + 1);
-        for x in x_min / sample..x_max / sample + 1 {
-            let p = raster[(y0 + y * sample) * full_width + (x0 + x * sample)];
+        total_offset += ww - (x_max + 1);
+        for x in x_min..x_max + 1 {
+            let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
 
             max = max.max(p);
             min = min.min(p);
