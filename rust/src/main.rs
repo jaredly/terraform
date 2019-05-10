@@ -56,15 +56,12 @@ struct Zoom {
     cut: Option<terrain::Hex>,
 }
 
-enum Status {
-    Initial,
-    Loaded {
-        file: terrain::File,
-        pointer: kiss3d::scene::SceneNode,
-        selection_node: kiss3d::scene::SceneNode,
-        selection: Selection,
-        zoom: Option<Zoom>,
-    },
+struct Status {
+    file: terrain::File,
+    pointer: kiss3d::scene::SceneNode,
+    selection_node: kiss3d::scene::SceneNode,
+    selection: Selection,
+    zoom: Option<Zoom>,
 }
 
 enum Transition {
@@ -108,7 +105,7 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
 
         let (pointer, selection) = large_nodes(&file, window);
 
-        Some(Status::Loaded {
+        Some(Status {
             file,
             pointer,
             selection_node: selection,
@@ -154,31 +151,35 @@ fn setup_small(
     }
 }
 
-fn handle_transition(window: &mut Window, current: Status, transition: Transition) -> Status {
+fn handle_transition(
+    window: &mut Window,
+    current: Option<Status>,
+    transition: Transition,
+) -> Option<Status> {
     match current {
-        Status::Initial => match transition {
+        None => match transition {
             Transition::Open(file_name) => match make_large(window, file_name) {
-                Some(status) => status,
-                None => Status::Initial,
+                Some(status) => Some(status),
+                None => None,
             },
-            _ => Status::Initial,
+            _ => None,
         },
-        Status::Loaded {
+        Some(Status {
             file,
             pointer,
             selection,
             selection_node,
             zoom,
-        } => match transition {
+        }) => match transition {
             Transition::Open(file_name) => match make_large(window, file_name) {
-                Some(status) => status,
-                None => Status::Loaded {
+                Some(status) => Some(status),
+                None => Some(Status {
                     file,
                     pointer,
                     selection,
                     selection_node,
                     zoom,
-                },
+                }),
             },
             Transition::Select(coords, sample) => {
                 let (pointer, selection_node, zoom) = if let Some((pointer, selection_node)) =
@@ -197,23 +198,23 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                 } else {
                     (pointer, selection_node, zoom)
                 };
-                Status::Loaded {
+                Some(Status {
                     zoom,
                     file,
                     pointer,
                     selection,
                     selection_node,
-                }
+                })
             }
             Transition::Resolution(res) => match zoom {
-                None => Status::Loaded {
+                None => Some(Status {
                     file,
                     pointer,
                     selection,
                     selection_node,
                     zoom: None,
-                },
-                Some(zoom) => Status::Loaded {
+                }),
+                Some(zoom) => Some(Status {
                     zoom: if let Some((mut p_new, mut sel_new)) =
                         setup_small(window, &file, &zoom.coords, res)
                     {
@@ -232,11 +233,11 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                     pointer,
                     selection,
                     selection_node,
-                },
+                }),
             },
             Transition::Reset => {
                 let (pointer, selection_node) = large_nodes(&file, window);
-                Status::Loaded {
+                Some(Status {
                     file,
                     pointer,
                     selection_node,
@@ -245,16 +246,16 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                         size: Vector2::new(0.0, 0.0),
                     },
                     zoom: None,
-                }
+                })
             }
             Transition::Export => match zoom {
-                None => Status::Loaded {
+                None => Some(Status {
                     file,
                     pointer,
                     selection_node,
                     selection,
                     zoom: None,
-                },
+                }),
                 Some(zoom) => {
                     match file.to_stl(&zoom.coords, zoom.sample, 1.0) {
                         None => println!("Failed to get stl"),
@@ -275,13 +276,13 @@ fn handle_transition(window: &mut Window, current: Status, transition: Transitio
                         }
                     };
 
-                    Status::Loaded {
+                    Some(Status {
                         file,
                         pointer,
                         selection,
                         selection_node,
                         zoom: Some(zoom),
-                    }
+                    })
                 }
             },
         },
@@ -322,7 +323,7 @@ fn make_window() -> Window {
 
 struct State {
     window: Window,
-    status: Status,
+    status: Option<Status>,
     ids: Ids,
 }
 
@@ -375,7 +376,22 @@ widget_ids! {
     }
 }
 
-impl Status {
+trait Statusable {
+    fn ui(
+        &mut self,
+        window_height: u32,
+        ui: &mut kiss3d::conrod::UiCell,
+        ids: &Ids,
+    ) -> Option<Transition>;
+
+    fn handle_event(
+        &mut self,
+        window: &mut Window,
+        event: &mut kiss3d::event::Event,
+    ) -> Option<Transition>;
+}
+
+impl Statusable for Option<Status> {
     fn ui(
         &mut self,
         window_height: u32,
@@ -409,7 +425,7 @@ impl Status {
             .set(ids.bottom_canvas, ui);
 
         match self {
-            Status::Initial => {
+            None => {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
@@ -431,12 +447,12 @@ impl Status {
 
                 return None;
             }
-            Status::Loaded {
+            Some(Status {
                 file,
                 selection,
                 zoom: None,
                 ..
-            } => {
+            }) => {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
@@ -488,11 +504,11 @@ impl Status {
 
                 None
             }
-            Status::Loaded {
+            Some(Status {
                 file,
                 zoom: Some(zoom),
                 ..
-            } => {
+            }) => {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
@@ -586,7 +602,7 @@ impl Status {
             WindowEvent::Key(Key::LWin, Action::Release, _)
             | WindowEvent::Key(Key::RWin, Action::Release, _) => {
                 match self {
-                    Status::Loaded { pointer, .. } => pointer.set_visible(false),
+                    Some(Status { pointer, .. }) => pointer.set_visible(false),
                     _ => (),
                 };
                 None
@@ -594,14 +610,14 @@ impl Status {
             WindowEvent::Key(Key::LWin, Action::Press, _)
             | WindowEvent::Key(Key::RWin, Action::Press, _) => {
                 match self {
-                    Status::Loaded { pointer, .. } => pointer.set_visible(true),
+                    Some(Status { pointer, .. }) => pointer.set_visible(true),
                     _ => (),
                 };
                 None
             }
 
             WindowEvent::Key(Key::O, Action::Press, _) => match self {
-                Status::Initial => match nfd::open_file_dialog(None, None) {
+                None => match nfd::open_file_dialog(None, None) {
                     Ok(nfd::Response::Okay(file_path)) => Some(Transition::Open(file_path)),
                     _ => None,
                 },
@@ -612,10 +628,9 @@ impl Status {
                 if modifiers.contains(Modifiers::Super) =>
             {
                 match self {
-                    Status::Loaded {
-                        zoom: Some(zoom),
-                        ..
-                    } => {
+                    Some(Status {
+                        zoom: Some(zoom), ..
+                    }) => {
                         let (w, h) = window.canvas().size();
                         if let Some((x, y)) = window.canvas().cursor_pos() {
                             // println!("Super down {}, {}", cursor.x, cursor.y);
@@ -629,11 +644,11 @@ impl Status {
                             }
                         }
                     }
-                    Status::Loaded {
+                    Some(Status {
                         zoom: None,
                         selection,
                         ..
-                    } => {
+                    }) => {
                         let (w, h) = window.canvas().size();
                         if let Some((x, y)) = window.canvas().cursor_pos() {
                             // println!("Super down {}, {}", cursor.x, cursor.y);
@@ -655,12 +670,12 @@ impl Status {
 
             WindowEvent::CursorPos(x, y, modifiers) => {
                 match self {
-                    Status::Loaded {
+                    Some(Status {
                         pointer,
                         selection_node,
                         zoom: Some(Zoom { hselection, .. }),
                         ..
-                    } if modifiers.contains(Modifiers::Super) => {
+                    }) if modifiers.contains(Modifiers::Super) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
                             &Point2::new(x as f32, y as f32),
@@ -686,13 +701,13 @@ impl Status {
                         };
                     }
 
-                    Status::Loaded {
+                    Some(Status {
                         file: _,
                         zoom: None,
                         pointer,
                         selection,
                         selection_node,
-                    } if modifiers.contains(Modifiers::Super) => {
+                    }) if modifiers.contains(Modifiers::Super) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
                             &Point2::new(x as f32, y as f32),
@@ -744,7 +759,7 @@ impl State {
         window.conrod_ui_mut().theme = theme();
         State {
             window,
-            status: Status::Initial,
+            status: None,
             ids,
         }
     }
@@ -752,7 +767,7 @@ impl State {
     fn transition(&mut self, transition: Transition) {
         self.status = handle_transition(
             &mut self.window,
-            std::mem::replace(&mut self.status, Status::Initial),
+            std::mem::replace(&mut self.status, None),
             transition,
         );
     }
