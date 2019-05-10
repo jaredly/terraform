@@ -164,64 +164,40 @@ fn handle_transition(
             },
             _ => None,
         },
-        Some(Status {
-            file,
-            pointer,
-            selection,
-            selection_node,
-            zoom,
-        }) => match transition {
+        Some(status) => match transition {
             Transition::Open(file_name) => match make_large(window, file_name) {
                 Some(status) => Some(status),
-                None => Some(Status {
-                    file,
-                    pointer,
-                    selection,
-                    selection_node,
-                    zoom,
-                }),
+                None => Some(status),
             },
             Transition::Select(coords, sample) => {
-                let (pointer, selection_node, zoom) = if let Some((pointer, selection_node)) =
-                    setup_small(window, &file, &coords, sample)
+                if let Some((pointer, selection_node)) =
+                    setup_small(window, &status.file, &coords, sample)
                 {
-                    (
+                    Some(Status {
                         pointer,
                         selection_node,
-                        Some(Zoom {
+                        zoom: Some(Zoom {
                             coords,
                             sample,
                             hselection: (Point2::new(0.0, 0.0), 0.0),
                             cut: None,
                         }),
-                    )
+                        ..status
+                    })
                 } else {
-                    (pointer, selection_node, zoom)
-                };
-                Some(Status {
-                    zoom,
-                    file,
-                    pointer,
-                    selection,
-                    selection_node,
-                })
+                    Some(status)
+                }
             }
-            Transition::Resolution(res) => match zoom {
-                None => Some(Status {
-                    file,
-                    pointer,
-                    selection,
-                    selection_node,
-                    zoom: None,
-                }),
+            Transition::Resolution(res) => match status.zoom {
+                None => Some(status),
                 Some(zoom) => Some(Status {
                     zoom: if let Some((mut p_new, mut sel_new)) =
-                        setup_small(window, &file, &zoom.coords, res)
+                        setup_small(window, &status.file, &zoom.coords, res)
                     {
                         sel_new.unlink();
-                        window.add_child(&selection_node);
+                        window.add_child(&status.selection_node);
                         p_new.unlink();
-                        window.add_child(&pointer);
+                        window.add_child(&status.pointer);
                         Some(Zoom {
                             sample: res,
                             ..zoom
@@ -229,16 +205,12 @@ fn handle_transition(
                     } else {
                         Some(zoom)
                     },
-                    file,
-                    pointer,
-                    selection,
-                    selection_node,
+                    ..status
                 }),
             },
             Transition::Reset => {
-                let (pointer, selection_node) = large_nodes(&file, window);
+                let (pointer, selection_node) = large_nodes(&status.file, window);
                 Some(Status {
-                    file,
                     pointer,
                     selection_node,
                     selection: Selection {
@@ -246,18 +218,13 @@ fn handle_transition(
                         size: Vector2::new(0.0, 0.0),
                     },
                     zoom: None,
+                    ..status
                 })
             }
-            Transition::Export => match zoom {
-                None => Some(Status {
-                    file,
-                    pointer,
-                    selection_node,
-                    selection,
-                    zoom: None,
-                }),
+            Transition::Export => match status.zoom {
+                None => Some(status),
                 Some(zoom) => {
-                    match file.to_stl(&zoom.coords, zoom.sample, 1.0) {
+                    match status.file.to_stl(&zoom.coords, zoom.sample, 1.0) {
                         None => println!("Failed to get stl"),
                         Some(stl) => {
                             if let Ok(nfd::Response::Okay(file_path)) =
@@ -277,11 +244,8 @@ fn handle_transition(
                     };
 
                     Some(Status {
-                        file,
-                        pointer,
-                        selection,
-                        selection_node,
                         zoom: Some(zoom),
+                        ..status
                     })
                 }
             },
