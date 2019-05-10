@@ -125,6 +125,10 @@ impl File {
         }
     }
 
+    pub fn get_hex(&self, hex: &Hex, sample: usize) -> Option<MeshCell> {
+        self.get_hex_terrain(hex, sample).map(|t| t.to_mesh())
+    }
+
     pub fn to_stl(
         &self,
         coords: &Coords,

@@ -70,6 +70,7 @@ enum Transition {
     Resolution(usize),
     Export,
     Reset,
+    Cut(terrain::Hex),
 }
 
 use kiss3d::scene::SceneNode;
@@ -118,6 +119,31 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
     } else {
         println!("Reset");
         None
+    }
+}
+
+fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, sample: usize) -> bool {
+    if let Some(mesh) = file.get_hex(&hex, sample) {
+        window.scene_mut().clear();
+        window.set_camera(make_camera());
+
+        let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
+        mesh_node.set_color(0.0, 1.0, 0.0);
+        mesh_node.enable_backface_culling(false);
+
+        // let mut pointer = window.add_cube(0.002, 0.002, 0.5);
+        // pointer.set_color(1.0, 0.0, 0.0);
+        // pointer.set_visible(false);
+
+        // let mut selection = window.add_trimesh(threed::make_hex(), Vector3::from_element(1.0));
+        // selection.set_local_scale(0.0, 0.0, 0.15);
+        // selection.enable_backface_culling(false);
+        // selection.set_color(0.0, 0.0, 1.0);
+        // selection.set_alpha(0.5);
+
+        true
+    } else {
+        false
     }
 }
 
@@ -188,6 +214,19 @@ fn handle_transition(
                     Some(status)
                 }
             }
+            Transition::Cut(hex) => match status.zoom {
+                None => Some(status),
+                Some(zoom) => {
+                    setup_cut(window, &status.file, &hex, zoom.sample);
+                    Some(Status {
+                        zoom: Some(Zoom {
+                            cut: Some(hex),
+                            ..zoom
+                        }),
+                        ..status
+                    })
+                }
+            },
             Transition::Resolution(res) => match status.zoom {
                 None => Some(status),
                 Some(zoom) => Some(Status {
@@ -257,6 +296,14 @@ fn make_camera() -> kiss3d::camera::ArcBall {
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
     camera.set_dist_step(1.0);
     camera
+}
+
+fn hselection_to_hex(w: usize, h: usize, selection: (Point2<f32>, f32)) -> terrain::Hex {
+    let cx = ((selection.0.x + 0.5) * w as f32) as usize;
+    let cy = ((selection.0.y + 0.5) * h as f32) as usize;
+    let r = selection.1 * (w.max(h) as f32);
+    let half_height = (r / 2.0 * (3.0_f32).sqrt()) as usize;
+    terrain::Hex::new(cx, cy, half_height)
 }
 
 fn normalize_selection(size: Vector2<usize>, selection: &Selection) -> terrain::Coords {
@@ -336,7 +383,8 @@ widget_ids! {
         sample_less,
         sample_greater,
         export,
-        reset
+        reset,
+        cut
     }
 }
 
@@ -550,6 +598,22 @@ impl Statusable for Option<Status> {
                     .set(ids.reset, ui)
                 {
                     return Some(Transition::Reset);
+                }
+
+                if zoom.hselection.1 != 0.0 {
+                    for _press in widget::Button::new()
+                        .label("cut")
+                        .right_from(ids.reset, 10.0)
+                        .w(30.0)
+                        .h(HEIGHT)
+                        .set(ids.cut, ui)
+                    {
+                        return Some(Transition::Cut(hselection_to_hex(
+                            zoom.coords.w,
+                            zoom.coords.h,
+                            zoom.hselection,
+                        )));
+                    }
                 }
 
                 None
