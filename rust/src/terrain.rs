@@ -220,8 +220,7 @@ impl Terrain {
         full_width: usize,
         elevation_scale: f32,
     ) -> Self {
-        let (points, offsets, lengths) =
-            hex_points(&raster.data, hex, sample, full_width, elevation_scale);
+        let (points, offsets) = hex_points(&raster.data, hex, sample, full_width, elevation_scale);
         Terrain {
             points,
             faces: hex_faces(hex, sample, offsets),
@@ -306,7 +305,10 @@ impl Hex {
         // x = (y - b) / m
         let x = ((y as f32 - b) / m).floor() as isize;
         // println!(">> x: {}, y: {}, m: {}, b: {}", x, y, m, b);
-        ((self.half_width as isize + x) as usize, (self.half_width as isize - x) as usize)
+        (
+            (self.half_width as isize + x) as usize,
+            (self.half_width as isize - x) as usize,
+        )
     }
 
     pub fn width(&self) -> usize {
@@ -341,7 +343,7 @@ mod tests {
             }
             println!("");
         }
-        assert_eq!(1,1);
+        assert_eq!(1, 1);
     }
 
     #[test]
@@ -349,14 +351,8 @@ mod tests {
         // 20 x 10
         let heights = [0.0_f32; 200].to_vec();
         let hex = Hex::new(10, 5, 4);
-        let sample =1;
-        let (points, offsets, lengths) = hex_points(
-            &heights,
-            &hex,
-            sample,
-            20,
-            1.0,
-        );
+        let sample = 1;
+        let (points, offsets) = hex_points(&heights, &hex, sample, 20, 1.0);
         for (i, offset) in offsets.iter().enumerate() {
             println!("Offset for {}: {}", i, offset);
         }
@@ -398,7 +394,7 @@ fn hex_faces(
         // and the x_max is one too many
         // Ok now I fixed it (by the >= -> >) so that it's just
         // that the x_min is one too small....
-        for x in x_min / sample + 1  .. x_max / sample - 1 {
+        for x in x_min / sample + 1..x_max / sample - 1 {
             // let i = y * ww + x;
 
             faces.push(Point3::new(
@@ -427,8 +423,6 @@ fn hex_points(
     Vec<Point3<f32>>,
     // offsets by line
     Vec<usize>,
-    // line length by index
-    Vec<usize>,
 ) {
     let (x0, y0, w, h) = hex.bbox();
 
@@ -446,31 +440,15 @@ fn hex_points(
     let mut min = std::f32::INFINITY;
     let mut total_offset = 0;
     let mut offsets = Vec::with_capacity(hh);
-    let mut lengths = Vec::with_capacity(hh);
     for y in 0..hh {
-        let mut found = false;
-        let mut total = 0;
         let (x_min, x_max) = hex.intercepts(y * sample);
         // if y < 5 {
         //     println!("Intercepts for {}: {} - {}", y, x_min, x_max);
         // }
-        for x in 0..ww {
-            if !found {
-                // Here calculate if mx + b < y or something
-                if x * sample >= x_min {
-                    found = true;
-                    offsets.push(total_offset);
-                } else {
-                    total_offset += 1;
-                    continue;
-                }
-            }
-            if x * sample > x_max {
-                total_offset += ww - x;
-                break;
-            }
-            total += 1;
-
+        total_offset += x_min / sample;
+        offsets.push(total_offset);
+        total_offset += ww - (x_max / sample);
+        for x in x_min / sample..x_max / sample {
             let p = raster[(y0 + y * sample) * full_width + (x0 + x * sample)];
 
             if p > max {
@@ -486,7 +464,6 @@ fn hex_points(
                 p,
             ));
         }
-        lengths.push(total);
     }
     println!("Max {} min {}", max, min);
     profile!("Rescale things", {
@@ -494,7 +471,7 @@ fn hex_points(
             point.z = (point.z - min) * elevation_scale;
         }
     });
-    (coords, offsets, lengths)
+    (coords, offsets)
 }
 
 fn to_points(

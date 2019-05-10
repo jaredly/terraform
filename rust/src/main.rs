@@ -131,16 +131,6 @@ fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, samp
         mesh_node.set_color(0.0, 1.0, 0.0);
         mesh_node.enable_backface_culling(false);
 
-        // let mut pointer = window.add_cube(0.002, 0.002, 0.5);
-        // pointer.set_color(1.0, 0.0, 0.0);
-        // pointer.set_visible(false);
-
-        // let mut selection = window.add_trimesh(threed::make_hex(), Vector3::from_element(1.0));
-        // selection.set_local_scale(0.0, 0.0, 0.15);
-        // selection.enable_backface_culling(false);
-        // selection.set_color(0.0, 0.0, 1.0);
-        // selection.set_alpha(0.5);
-
         true
     } else {
         false
