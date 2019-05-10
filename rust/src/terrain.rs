@@ -129,6 +129,15 @@ impl File {
         self.get_hex_terrain(hex, sample).map(|t| t.to_mesh())
     }
 
+    pub fn to_hex_stl(
+        &self,
+        hex: &Hex,
+        sample: usize,
+    ) -> Option<stl::BinaryStlFile> {
+        self.get_hex_terrain(hex, sample)
+            .map(|m| m.to_stl())
+    }
+
     pub fn to_stl(
         &self,
         coords: &Coords,
@@ -271,6 +280,13 @@ impl Terrain {
     pub fn to_mesh(self) -> MeshCell {
         std::rc::Rc::new(std::cell::RefCell::new(self._to_mesh()))
     }
+}
+
+enum Border {
+    // horizontal displacement
+    One(f32),
+    // vertical of the first, horizontal of the second
+    Two(f32, f32)
 }
 
 #[derive(Clone, Copy)]
@@ -436,8 +452,8 @@ fn hex_points(
     let scaleh = hh as f32 / scaler;
 
     let mut coords = Vec::with_capacity(max);
-    let mut max = 0.0;
-    let mut min = std::f32::INFINITY;
+    let mut max: f32 = 0.0;
+    let mut min: f32 = std::f32::INFINITY;
     let mut total_offset = 0;
     let mut offsets = Vec::with_capacity(hh);
     for y in 0..hh + 1 {
@@ -448,12 +464,8 @@ fn hex_points(
         for x in x_min / sample..x_max / sample + 1 {
             let p = raster[(y0 + y * sample) * full_width + (x0 + x * sample)];
 
-            if p > max {
-                max = p
-            }
-            if p < min {
-                min = p
-            }
+            max = max.max(p);
+            min = min.min(p);
 
             coords.push(Point3::new(
                 x as f32 / scaler - scalew / 2.0,

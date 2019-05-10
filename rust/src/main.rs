@@ -131,8 +131,8 @@ fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, samp
         mesh_node.set_color(0.0, 1.0, 0.0);
         mesh_node.enable_backface_culling(false);
         // TODO expose this as a setting? Or a toggle, more likely
-        // mesh_node.set_lines_width(0.1);
-        // mesh_node.set_surface_rendering_activation(false);
+        mesh_node.set_lines_width(0.1);
+        mesh_node.set_surface_rendering_activation(false);
 
         true
     } else {
@@ -868,27 +868,27 @@ fn main() {
             ))
         ),
 
-        // 6 => {
-        //     let dataset = Dataset::open(Path::new(args[1].as_str())).unwrap();
-        //     let file = profile!(
-        //         "Load file",
-        //         terrain::File::from_dataset(&dataset, args[1].clone())
-        //     );
-        //     // let coords = normalize_selection(file.size, selection);
-        //     let coords = terrain::Coords {
-        //         x: args[2].parse().unwrap(),
-        //         y: args[3].parse().unwrap(),
-        //         w: args[4].parse().unwrap(),
-        //         h: args[5].parse().unwrap(),
-        //     };
-        //     match file.to_stl(&coords, 1, 1.0) {
-        //         None => println!("Failed to get stl"),
-        //         Some(stl) => {
-        //             let mut outfile = std::fs::File::create("./out.stl").unwrap();
-        //             profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
-        //         }
-        //     }
-        // }
+        7 if args[1].as_str() == "export" => {
+            let file_name = args[2].clone();
+            let hex = terrain::Hex::new(
+                args[3].parse().unwrap(),
+                args[4].parse().unwrap(),
+                args[5].parse().unwrap(),
+            );
+            let out_name = args[6].clone();
+            let dataset = Dataset::open(Path::new(file_name.as_str())).unwrap();
+            let file = profile!(
+                "Load file",
+                terrain::File::from_dataset(&dataset, file_name)
+            );
+            match file.to_hex_stl(&hex, 1) {
+                None => println!("Failed to get stl"),
+                Some(stl) => {
+                    let mut outfile = std::fs::File::create(out_name).unwrap();
+                    profile!("Writing file", stl::write_stl(&mut outfile, &stl).unwrap());
+                }
+            }
+        }
 
         _ => someui(None, None, None),
     };
