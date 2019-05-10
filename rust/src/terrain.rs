@@ -387,7 +387,7 @@ fn hex_faces(
     }
 
     let mut faces = Vec::with_capacity(max);
-    for y in 0..hh - 2 {
+    for y in 0..hh {
         let (x_min, x_max) = hex.intercepts(y);
         // For some reason, once we pass the line of y = half_height,
         // the x_min is one too few? Or something weird is happening.
@@ -440,15 +440,15 @@ fn hex_points(
     let mut min = std::f32::INFINITY;
     let mut total_offset = 0;
     let mut offsets = Vec::with_capacity(hh);
-    for y in 0..hh {
+    for y in 0..hh + 1 {
         let (x_min, x_max) = hex.intercepts(y * sample);
         // if y < 5 {
         //     println!("Intercepts for {}: {} - {}", y, x_min, x_max);
         // }
         total_offset += x_min / sample;
         offsets.push(total_offset);
-        total_offset += ww - (x_max / sample);
-        for x in x_min / sample..x_max / sample {
+        total_offset += ww - (x_max / sample + 1);
+        for x in x_min / sample..x_max / sample + 1 {
             let p = raster[(y0 + y * sample) * full_width + (x0 + x * sample)];
 
             if p > max {
