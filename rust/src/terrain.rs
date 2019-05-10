@@ -393,24 +393,23 @@ fn hex_faces(
     let mut faces = Vec::with_capacity(max);
     for y in 0..hh - 2 {
         let (x_min, x_max) = hex.intercepts(y);
-        for x in x_min / sample .. x_max / sample - 1 {
+        // For some reason, once we pass the line of y = half_height,
+        // the x_min is one too few? Or something weird is happening.
+        // and the x_max is one too many
+        // Ok now I fixed it (by the >= -> >) so that it's just
+        // that the x_min is one too small....
+        for x in x_min / sample + 1  .. x_max / sample - 1 {
             // let i = y * ww + x;
 
             faces.push(Point3::new(
                 at(ww, &offsets, x + 1, y + 1),
                 at(ww, &offsets, x, y),
                 at(ww, &offsets, x, y + 1),
-                // (i + ww + 1) as IndexNum,
-                // (i) as IndexNum,
-                // (i + ww) as IndexNum,
             ));
             faces.push(Point3::new(
                 at(ww, &offsets, x + 1, y + 1),
                 at(ww, &offsets, x + 1, y),
                 at(ww, &offsets, x, y),
-                // (i + ww + 1) as IndexNum,
-                // (i + 1) as IndexNum,
-                // (i) as IndexNum,
             ));
         }
     }
@@ -466,7 +465,7 @@ fn hex_points(
                     continue;
                 }
             }
-            if x * sample >= x_max {
+            if x * sample > x_max {
                 total_offset += ww - x;
                 break;
             }
