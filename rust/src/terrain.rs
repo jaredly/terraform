@@ -200,6 +200,8 @@ impl Coords {
     }
 }
 
+// use hex;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 impl Terrain {
@@ -224,28 +226,47 @@ impl Terrain {
         full_width: usize,
         elevation_scale: f32,
     ) -> Self {
-        let (mut points, offsets) =
-            hex_points(&raster.data, hex, sample, full_width, elevation_scale);
-        let mut faces = hex_faces(hex, sample, offsets);
-
-        {
-            let hex = hex.sample(sample);
-            let ln = points.len() as u32;
-            let (_, _, ww, _) = hex.bbox();
-            let ww = ww as f32;
-            let mut corners = hex
-                .corners()
-                // .to_vec()
-                .into_iter()
-                .map(|i| {
-                    println!("Corner {} {}", i.x, i.y);
-                    Point3::new(i.x / ww, i.y / ww, 0.0)
-                })
-                .collect::<Vec<Point3<f32>>>();
-            points.append(&mut corners);
-            faces.push(Point3::new(ln, ln + 1, ln + 2));
-            faces.push(Point3::new(ln + 3, ln + 4, ln + 5));
+        let get_z = |x: isize, y: isize| {
+            let y = -y * sample as isize + hex.cy as isize;
+            let x = x * sample as isize + hex.cx as isize;
+            raster.data[(y * full_width as isize + x) as usize]
+        };
+        let (mut points, coords) = hex::inner::points(hex.half_height / sample, &get_z);
+        let mut min = std::f32::INFINITY;
+        for &point in &points {
+            min = min.min(point.z);
         }
+
+        let flat_scale = (hex.half_height / sample * 2) as f32;
+        for point in &mut points {
+            point.x /= flat_scale;
+            point.y /= flat_scale;
+            point.z = (point.z - min) * elevation_scale;
+        }
+        use hex::CoordIdx;
+        let faces = hex::inner::faces(hex.half_height / sample, &|x: isize, y: isize| coords.coord(x, y));
+        // let (mut points, offsets) =
+        //     hex_points(&raster.data, hex, sample, full_width, elevation_scale);
+        // let mut faces = hex_faces(hex, sample, offsets);
+
+        // {
+        //     let hex = hex.sample(sample);
+        //     let ln = points.len() as u32;
+        //     let (_, _, ww, _) = hex.bbox();
+        //     let ww = ww as f32;
+        //     let mut corners = hex
+        //         .corners()
+        //         // .to_vec()
+        //         .into_iter()
+        //         .map(|i| {
+        //             println!("Corner {} {}", i.x, i.y);
+        //             Point3::new(i.x / ww, i.y / ww, 0.0)
+        //         })
+        //         .collect::<Vec<Point3<f32>>>();
+        //     points.append(&mut corners);
+        //     faces.push(Point3::new(ln, ln + 1, ln + 2));
+        //     faces.push(Point3::new(ln + 3, ln + 4, ln + 5));
+        // }
 
         Terrain { points, faces }
     }
@@ -399,6 +420,8 @@ fn extend_intercepts((border, min, max): (Border, usize, usize)) -> (usize, usiz
     }
     // (min, max)
 }
+
+use super::hex;
 
 #[cfg(test)]
 mod tests {

@@ -17,11 +17,12 @@ use na::{Point2, Point3, Rotation3, Translation3, UnitQuaternion, Vector2, Vecto
 use ncollide3d::procedural::{IndexBuffer, TriMesh};
 use std::time::SystemTime;
 
+mod hex;
+
 #[macro_use]
 mod profile;
 mod terrain;
 
-mod hex;
 mod threed;
 
 extern crate nfd;
@@ -132,8 +133,8 @@ fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, samp
         mesh_node.set_color(0.0, 1.0, 0.0);
         mesh_node.enable_backface_culling(false);
         // TODO expose this as a setting? Or a toggle, more likely
-        mesh_node.set_lines_width(0.1);
-        mesh_node.set_surface_rendering_activation(false);
+        // mesh_node.set_lines_width(0.1);
+        // mesh_node.set_surface_rendering_activation(false);
 
         true
     } else {

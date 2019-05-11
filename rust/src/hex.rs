@@ -80,7 +80,7 @@ struct Hex {
     half_height: usize,
 }
 
-mod inner {
+pub mod inner {
     use super::*;
 
     fn lerp(start: f32, finish: f32, amount: f32) -> f32 {
