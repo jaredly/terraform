@@ -244,29 +244,35 @@ impl Terrain {
             point.z = (point.z - min) * elevation_scale;
         }
         use hex::CoordIdx;
-        let faces = hex::inner::faces(hex.half_height / sample, &|x: isize, y: isize| coords.coord(x, y));
-        // let (mut points, offsets) =
-        //     hex_points(&raster.data, hex, sample, full_width, elevation_scale);
-        // let mut faces = hex_faces(hex, sample, offsets);
+        let (mut faces, edges) = hex::inner::faces(hex.half_height / sample, &|x: isize, y: isize| coords.coord(x, y));
 
-        // {
-        //     let hex = hex.sample(sample);
-        //     let ln = points.len() as u32;
-        //     let (_, _, ww, _) = hex.bbox();
-        //     let ww = ww as f32;
-        //     let mut corners = hex
-        //         .corners()
-        //         // .to_vec()
-        //         .into_iter()
-        //         .map(|i| {
-        //             println!("Corner {} {}", i.x, i.y);
-        //             Point3::new(i.x / ww, i.y / ww, 0.0)
-        //         })
-        //         .collect::<Vec<Point3<f32>>>();
-        //     points.append(&mut corners);
-        //     faces.push(Point3::new(ln, ln + 1, ln + 2));
-        //     faces.push(Point3::new(ln + 3, ln + 4, ln + 5));
-        // }
+        let mut idx = points.len();
+        let mut map = std::collections::HashMap::new();
+        let mut get = |top_idx: IndexNum| {
+            match map.get(&top_idx) {
+                Some(idx) => *idx,
+                None => {
+                    let p = points[top_idx as usize];
+                    points.push(Point3::new(
+                        p.x, p.y, -0.5
+                    ));
+                    map.insert(top_idx, idx);
+                    idx += 1;
+                    idx - 1
+                }
+            }
+        };
+        for edge in edges {
+            let b1 = get(edge.x) as IndexNum;
+            let b2 = get(edge.y) as IndexNum;
+            faces.push(Point3::new(
+                edge.x, edge.y, b1
+            ));
+            faces.push(Point3::new(
+                edge.y, b1, b2
+            ));
+        }
+
 
         Terrain { points, faces }
     }

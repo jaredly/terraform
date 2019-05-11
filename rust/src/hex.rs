@@ -107,9 +107,11 @@ pub mod inner {
         x.ceil() as usize
     }
 
-    pub fn faces(half_height: usize, point_at: &Fn(isize, isize) -> IndexNum) -> Vec<Point3<IndexNum>> {
+    pub fn faces(half_height: usize, point_at: &Fn(isize, isize) -> IndexNum) -> (Vec<Point3<IndexNum>>, Vec<Point2<IndexNum>>) {
         let hh = half_height as isize;
         let mut faces = vec![];
+        let mut edges = vec![];
+        let mut last_base = 0;
         for y0 in -hh..hh {
             let boxes = boxes_for_face_line(
                 half_height,
@@ -119,6 +121,45 @@ pub mod inner {
                     (-y0 - 1) as usize
                 },
             ) as isize;
+
+            edges.push(Point2::new(
+                point_at(boxes, y0),
+                point_at(boxes, y0 + 1),
+            ));
+            edges.push(Point2::new(
+                point_at(-boxes, y0),
+                point_at(-boxes, y0 + 1),
+            ));
+
+            if last_base < boxes {
+                for x0 in last_base..boxes {
+                    // left side
+                    edges.push(Point2::new(
+                        point_at(x0, y0),
+                        point_at(x0 + 1, y0),
+                    ));
+                    // right side
+                    edges.push(Point2::new(
+                        point_at(-x0, y0),
+                        point_at(-x0 - 1, y0),
+                    ));
+                }
+            } else if last_base > boxes {
+                for x0 in boxes..last_base {
+                    // left side
+                    edges.push(Point2::new(
+                        point_at(x0, y0 + 1),
+                        point_at(x0 + 1, y0 + 1),
+                    ));
+                    // right side
+                    edges.push(Point2::new(
+                        point_at(-x0, y0 + 1),
+                        point_at(-x0 - 1, y0 + 1),
+                    ));
+                }
+            }
+            // last_base = boxes;
+
             for x0 in -boxes..boxes {
                 faces.push(Point3::new(
                     point_at(x0, y0),
@@ -132,7 +173,7 @@ pub mod inner {
                 ));
             }
         }
-        faces
+        (faces, edges)
     }
 
     pub fn points(half_height: usize, z_at: &Fn(isize, isize) -> f32) -> (Vec<Point3<f32>>, Coords) {
