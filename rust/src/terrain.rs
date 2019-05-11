@@ -410,9 +410,12 @@ mod tests {
         let (x0, y0, w, h) = hex.bbox();
         for y in 0..h {
             let (border, x_min, x_max) = hex.intercepts(y);
+            let (emin, emax) = extend_intercepts((border, x_min, x_max));
             for x in 0..w {
                 if x >= x_min && x < x_max {
                     print!("X")
+                } else if x >= emin && x < emax {
+                    print!("-")
                 } else {
                     print!(".")
                 }

@@ -22,6 +22,7 @@ mod profile;
 mod terrain;
 
 mod threed;
+mod hex;
 
 extern crate nfd;
 
