@@ -41,11 +41,11 @@ struct Border {
     base: usize,
 }
 
-trait CoordIdx {
+pub trait CoordIdx {
     fn coord(&self, x: isize, y: isize) -> IndexNum;
 }
 
-struct Coords {
+pub struct Coords {
     map: std::collections::HashMap<(isize, isize), IndexNum>,
     idx: IndexNum,
 }
@@ -80,22 +80,15 @@ struct Hex {
     half_height: usize,
 }
 
-fn lerp(start: f32, finish: f32, amount: f32) -> f32 {
-    (finish - start) * amount + start
-}
+mod inner {
+    use super::*;
 
-impl Hex {
-    fn new(cx: usize, cy: usize, half_height: usize) -> Self {
-        Hex {
-            cx,
-            cy,
-            half_height,
-        }
+    fn lerp(start: f32, finish: f32, amount: f32) -> f32 {
+        (finish - start) * amount + start
     }
-
-    fn border_for_point_line(&self, y: usize) -> Border {
+    fn border_for_point_line(half_height: usize, y: usize) -> Border {
         let r3: f32 = -(3.0_f32).sqrt();
-        let b = (self.half_height * 2) as f32;
+        let b = (half_height * 2) as f32;
         let x = (y as f32 - b) / r3;
 
         let yi = r3 * x.ceil() + b;
@@ -109,20 +102,26 @@ impl Hex {
     }
 
     // line is 0-indexed, where 0 is "the line right above or below the middle"
-    fn boxes_for_face_line(&self, y: usize) -> usize {
+    fn boxes_for_face_line(half_height: usize, y: usize) -> usize {
         let r3: f32 = -(3.0_f32).sqrt();
-        let b = (self.half_height * 2) as f32;
+        let b = (half_height * 2) as f32;
         let x = (y as f32 - b) / r3;
 
         x.ceil() as usize
     }
 
-    fn faces(&self, point_at: &Fn(isize, isize) -> IndexNum) -> Vec<Point3<IndexNum>> {
-        let hh = self.half_height as isize;
+    pub fn faces(half_height: usize, point_at: &Fn(isize, isize) -> IndexNum) -> Vec<Point3<IndexNum>> {
+        let hh = half_height as isize;
         let mut faces = vec![];
         for y0 in -hh..hh {
-            let boxes = self.boxes_for_face_line(if y0 >= 0 { y0 as usize } else { (y0 + 1) as usize })
-                as isize;
+            let boxes = boxes_for_face_line(
+                half_height,
+                if y0 >= 0 {
+                    y0 as usize
+                } else {
+                    (-y0 - 1) as usize
+                },
+            ) as isize;
             for x0 in -boxes..boxes {
                 faces.push(Point3::new(
                     point_at(x0, y0),
@@ -139,21 +138,25 @@ impl Hex {
         faces
     }
 
-    fn points(&self, z_at: &Fn(isize, isize) -> f32) -> Vec<Point3<f32>> {
+    pub fn points(half_height: usize, z_at: &Fn(isize, isize) -> f32) -> (Vec<Point3<f32>>, Coords) {
         let mut points = vec![];
         let mut coords = Coords::new();
 
-        let hh = self.half_height as isize;
+        let hh = half_height as isize;
         for y in -hh..=hh {
-            let border = self.border_for_point_line(y.abs() as usize);
+            let border = border_for_point_line(half_height, y.abs() as usize);
+
+            let direction = if y > 0 { 1.0 } else { -1.0 };
+            let di = if y > 0 { 1_isize } else { -1_isize };
+
             let hw = border.base as isize;
 
             let z_prev = z_at(-hw - 1, y);
 
             if let Some(dy) = border.dy {
-                let z_down = z_at(-hw - 1, y + 1);
+                let z_down = z_at(-hw - 1, y + di);
                 let zy = lerp(z_prev, z_down, dy);
-                points.push(Point3::new(-hw as f32 - 1.0, y as f32 + dy, zy));
+                points.push(Point3::new(-hw as f32 - 1.0, y as f32 - dy * direction, zy));
                 coords.add(-hw - 2, y);
             }
 
@@ -175,14 +178,35 @@ impl Hex {
             coords.add(hw + 1, y);
 
             if let Some(dy) = border.dy {
-                let z_down = z_at(hw + 1, y + 1);
+                let z_down = z_at(hw + 1, y + di);
                 let zy = lerp(z_next, z_down, dy);
-                points.push(Point3::new(hw as f32 + 1.0, y as f32 + dy, zy));
+                points.push(Point3::new(hw as f32 + 1.0, y as f32 - dy * direction, zy));
                 coords.add(hw + 2, y);
             }
         }
 
-        points
+        (points, coords)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn boxes_for_line() {
+            assert_eq!(boxes_for_face_line(2, 0), 3);
+            assert_eq!(boxes_for_face_line(2, 1), 2);
+        }
+    }
+}
+
+impl Hex {
+    fn new(cx: usize, cy: usize, half_height: usize) -> Self {
+        Hex {
+            cx,
+            cy,
+            half_height,
+        }
     }
 }
 
@@ -190,11 +214,81 @@ impl Hex {
 mod tests {
     use super::*;
 
-    #[test]
-    fn boxes_for_line() {
-        let hex = Hex::new(50, 50, 2);
-        assert_eq!(hex.boxes_for_face_line(0), 3);
-        assert_eq!(hex.boxes_for_face_line(1), 2);
+    fn close_enough(p1: &Point3<f32>, p2: &Point3<f32>) -> bool {
+        (p1.x - p2.x).abs() <= 1.0 &&
+        (p1.y - p2.y).abs() <= 1.0
     }
 
+    fn to_svg(points: &Vec<Point3<f32>>, faces: &Vec<Point3<IndexNum>>) -> String {
+        let mut text = vec![r#"<svg width="190" height="160" xmlns="http://www.w3.org/2000/svg">"#.to_string()];
+
+        for p in faces {
+            let p1 = points[p.x as usize];
+            let p2 = points[p.y as usize];
+            let p3 = points[p.z as usize];
+            text.push(
+                format!(
+                    r#"
+                    <path d="M{} {} L {} {} L {} {} Z" stroke="black" fill="transparent" stroke-width="0.1" />
+                    "#,
+                    p1.x * 10.0, p1.y * 10.0,
+                    p2.x * 10.0, p2.y * 10.0,
+                    p3.x * 10.0, p3.y * 10.0
+                )
+            );
+        }
+
+        text.push("</svg>".to_string());
+        text.join("\n")
+    }
+
+    fn fixture(cx: usize, cy: usize, size: usize) -> (Vec<Point3<f32>>, Vec<Point3<IndexNum>>) {
+        let get_z = |x: isize, y: isize| (y as f32 / 100.0 + x as f32);
+        let hex = Hex::new(cx, cy, size);
+
+        let (points, coords) = inner::points(hex.half_height, &get_z);
+        let faces = inner::faces(hex.half_height, &|x: isize, y: isize| coords.coord(x, y));
+
+        (points, faces)
+    }
+
+    #[test]
+    fn full_run() {
+        let (points, faces) = fixture(2, 1, 1);
+
+        assert_eq!(faces.len(), 16);
+        assert_eq!(points.len(), 15);
+
+        // Uncomment to do a visual assessment
+        // for p in &points {
+        //     println!("assert_eq!(points[i], Point3::new({}, {}, {}))", p.x, p.y, p.z);
+        // }
+
+        for p in &faces {
+            let p1 = points[p.x as usize];
+            let p2 = points[p.y as usize];
+            let p3 = points[p.z as usize];
+            assert!(close_enough(&p1, &p2), "Close {:?} {:?}", p1, p2);
+            assert!(close_enough(&p1, &p3), "Close {:?} {:?}", p1, p3);
+            assert!(close_enough(&p3, &p2), "Close {:?} {:?}", p3, p2);
+        }
+
+        // std::fs::write(std::path::Path::new("hex.svg"), to_svg(&points, &faces).as_str()).unwrap();
+
+        // let (points, faces) = fixture(8, 2, 2);
+        // std::fs::write(std::path::Path::new("2hex.svg"), to_svg(&points, &faces).as_str()).unwrap();
+
+        let (points, faces) = fixture(30, 10, 10);
+
+        for p in &faces {
+            let p1 = points[p.x as usize];
+            let p2 = points[p.y as usize];
+            let p3 = points[p.z as usize];
+            assert!(close_enough(&p1, &p2), "Close {:?} {:?}", p1, p2);
+            assert!(close_enough(&p1, &p3), "Close {:?} {:?}", p1, p3);
+            assert!(close_enough(&p3, &p2), "Close {:?} {:?}", p3, p2);
+        }
+
+        // std::fs::write(std::path::Path::new("10hex.svg"), to_svg(&points, &faces).as_str()).unwrap();
+    }
 }
