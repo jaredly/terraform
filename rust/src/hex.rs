@@ -74,12 +74,6 @@ impl CoordIdx for Coords {
     }
 }
 
-struct Hex {
-    cx: usize,
-    cy: usize,
-    half_height: usize,
-}
-
 pub mod inner {
     use super::*;
 
@@ -200,16 +194,6 @@ pub mod inner {
     }
 }
 
-impl Hex {
-    fn new(cx: usize, cy: usize, half_height: usize) -> Self {
-        Hex {
-            cx,
-            cy,
-            half_height,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,10 +228,9 @@ mod tests {
 
     fn fixture(cx: usize, cy: usize, size: usize) -> (Vec<Point3<f32>>, Vec<Point3<IndexNum>>) {
         let get_z = |x: isize, y: isize| (y as f32 / 100.0 + x as f32);
-        let hex = Hex::new(cx, cy, size);
 
-        let (points, coords) = inner::points(hex.half_height, &get_z);
-        let faces = inner::faces(hex.half_height, &|x: isize, y: isize| coords.coord(x, y));
+        let (points, coords) = inner::points(size, &get_z);
+        let faces = inner::faces(size, &|x: isize, y: isize| coords.coord(x, y));
 
         (points, faces)
     }
@@ -260,6 +243,7 @@ mod tests {
         assert_eq!(points.len(), 15);
 
         // Uncomment to do a visual assessment
+
         // for p in &points {
         //     println!("assert_eq!(points[i], Point3::new({}, {}, {}))", p.x, p.y, p.z);
         // }
