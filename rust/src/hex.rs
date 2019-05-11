@@ -45,6 +45,9 @@ pub trait CoordIdx {
     fn coord(&self, x: isize, y: isize) -> IndexNum;
 }
 
+// TODO I could do this *much* more efficiently, by calculating the
+// length of each line & the offset, because the indices are quite regular.
+// ... but this works for now.
 pub struct Coords {
     map: std::collections::HashMap<(isize, isize), IndexNum>,
     idx: IndexNum,
