@@ -476,7 +476,7 @@ fn hex_faces(
         // and the x_max is one too many
         // Ok now I fixed it (by the >= -> >) so that it's just
         // that the x_min is one too small....
-        let min = if y < hh / 2 { x_min } else {x_min + 1};
+        let min = if y < hh / 2 { x_min } else { x_min + 1 };
         for x in min..x_max - 1 {
             // let i = y * ww + x;
 
@@ -535,7 +535,8 @@ fn hex_points(
         match border {
             Border::One(dx) => {
                 let x = x_min - 1;
-                let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
+                let p =
+                    raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
                 coords.push(Point3::new(
                     (x as f32 + dx) / scaler - scalew / 2.0,
                     -(y as f32 / scaler - scaleh / 2.0),
@@ -545,7 +546,8 @@ fn hex_points(
             Border::Two(dy, dx) => {
                 // the dy one
                 let x = x_min - 1;
-                let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
+                let p =
+                    raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
                 coords.push(Point3::new(
                     (x as f32) / scaler - scalew / 2.0,
                     -((y as f32 + dy) / scaler - scaleh / 2.0),
@@ -554,7 +556,8 @@ fn hex_points(
 
                 // the dx one
                 let x = x_min - 1;
-                let p = raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
+                let p =
+                    raster[(y0 * sample + y * sample) * full_width + (x0 * sample + x * sample)];
                 coords.push(Point3::new(
                     (x as f32 + dx) / scaler - scalew / 2.0,
                     -(y as f32 / scaler - scaleh / 2.0),

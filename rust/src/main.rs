@@ -21,8 +21,8 @@ use std::time::SystemTime;
 mod profile;
 mod terrain;
 
-mod threed;
 mod hex;
+mod threed;
 
 extern crate nfd;
 
