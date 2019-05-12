@@ -124,10 +124,12 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
     }
 }
 
-fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, sample: usize) -> bool {
+fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, sample: usize, reset_camera: bool) -> bool {
     if let Some(mesh) = file.get_hex(&hex, sample) {
         window.scene_mut().clear();
-        window.set_camera(make_camera());
+        if reset_camera {
+            window.set_camera(make_camera());
+        }
 
         let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
         mesh_node.set_color(0.0, 1.0, 0.0);
@@ -147,10 +149,13 @@ fn setup_small(
     file: &terrain::File,
     coords: &terrain::Coords,
     sample: usize,
+    reset_camera: bool,
 ) -> Option<(kiss3d::scene::SceneNode, kiss3d::scene::SceneNode)> {
     if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
         window.scene_mut().clear();
-        // window.set_camera(make_camera());
+        if reset_camera {
+            window.set_camera(make_camera());
+        }
 
         let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
         mesh_node.set_color(0.0, 1.0, 0.0);
@@ -193,7 +198,7 @@ fn handle_transition(
                 },
                 Transition::Select(coords, sample) => {
                     if let Some((pointer, selection_node)) =
-                        setup_small(window, &status.file, &coords, sample)
+                        setup_small(window, &status.file, &coords, sample, true)
                     {
                         Some(Status {
                             pointer,
@@ -214,7 +219,7 @@ fn handle_transition(
                     None => Some(status),
                     Some(zoom) => {
                         println!("To re-run at this setting: \n cargo run --release {} {} {} {} {} {} {} {}", status.file.name, zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h, hex.cx, hex.cy, hex.half_height);
-                        setup_cut(window, &status.file, &hex, zoom.sample);
+                        setup_cut(window, &status.file, &hex, zoom.sample, true);
                         Some(Status {
                             zoom: Some(Zoom {
                                 cut: Some(hex),
@@ -228,7 +233,7 @@ fn handle_transition(
                     None => Some(status),
                     Some(zoom) => match zoom.cut {
                         Some(cut) => {
-                            setup_cut(window, &status.file, &cut, res);
+                            setup_cut(window, &status.file, &cut, res, false);
                             Some(Status {
                                 zoom: Some(Zoom {
                                     sample: res,
@@ -240,7 +245,7 @@ fn handle_transition(
                         }
                         None => Some(Status {
                             zoom: if let Some((mut p_new, mut sel_new)) =
-                                setup_small(window, &status.file, &zoom.coords, res)
+                                setup_small(window, &status.file, &zoom.coords, res, false)
                             {
                                 sel_new.unlink();
                                 window.add_child(&status.selection_node);
@@ -275,7 +280,7 @@ fn handle_transition(
                         }
                         Some(cut) => {
                             if let Some((mut pointer, mut selection_node)) =
-                                setup_small(window, &status.file, &zoom.coords, zoom.sample)
+                                setup_small(window, &status.file, &zoom.coords, zoom.sample, true)
                             {
                                 Some(Status {
                                     zoom: Some(Zoom { cut: None, ..zoom }),
@@ -331,7 +336,7 @@ fn handle_transition(
 }
 
 fn make_camera() -> kiss3d::camera::ArcBall {
-    let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.0), Point3::origin());
+    let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.5), Point3::origin());
     camera.set_dist_step(1.0);
     camera
 }
@@ -415,6 +420,7 @@ widget_ids! {
         hlist,
         status_text,
         open_file,
+        help_text,
         selection_text,
         crop,
         sample_text,
@@ -479,7 +485,7 @@ impl Statusable for Option<Status> {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
-                    .w(60.0)
+                    .w(80.0)
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
@@ -506,7 +512,7 @@ impl Statusable for Option<Status> {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
-                    .w(60.0)
+                    .w(80.0)
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
@@ -550,6 +556,11 @@ impl Statusable for Option<Status> {
                         };
                         return Some(Transition::Select(coords, sample));
                     }
+                } else {
+                    widget::Text::new("Cmd-click & drag to select a region to crop to")
+                        .right_from(ids.open_file, 10.0)
+                        .set(ids.help_text, ui);
+
                 };
 
                 None
@@ -595,9 +606,9 @@ impl Statusable for Option<Status> {
                 .set(ids.sample_text, ui);
 
                 for _press in widget::Button::new()
-                    .label("-")
+                    .label("+ resolution")
                     .right_from(ids.open_file, 10.0)
-                    .w(30.0)
+                    .w(80.0)
                     .h(HEIGHT)
                     .set(ids.sample_less, ui)
                 {
@@ -607,9 +618,9 @@ impl Statusable for Option<Status> {
                 }
 
                 for _press in widget::Button::new()
-                    .label("+")
+                    .label("- resolution")
                     .right_from(ids.sample_less, 10.0)
-                    .w(30.0)
+                    .w(80.0)
                     .h(HEIGHT)
                     .set(ids.sample_greater, ui)
                 {
@@ -619,7 +630,7 @@ impl Statusable for Option<Status> {
                 }
 
                 for _press in widget::Button::new()
-                    .label("export")
+                    .label("Export")
                     .right_from(ids.sample_greater, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
@@ -629,7 +640,7 @@ impl Statusable for Option<Status> {
                 }
 
                 for _press in widget::Button::new()
-                    .label("reset")
+                    .label("Back")
                     .right_from(ids.export, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
@@ -651,6 +662,11 @@ impl Statusable for Option<Status> {
                             zoom.hselection,
                         )));
                     }
+                } else {
+                    widget::Text::new("Cmd-click & drag to select a hexagonal region for final cut")
+                        .right_from(ids.reset, 10.0)
+                        .set(ids.help_text, ui);
+
                 }
 
                 None
