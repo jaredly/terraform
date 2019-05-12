@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_imports)]
+use gdal::raster::dataset::Buffer;
 use gdal::raster::Dataset;
 use std::path::Path;
-use gdal::raster::dataset::Buffer;
 
 #[macro_use]
 extern crate kiss3d;
@@ -87,7 +87,7 @@ fn large_nodes(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNo
 
     let mut pointer = window.add_cube(0.002, 0.002, 0.5);
     pointer.set_color(1.0, 0.0, 0.0);
-    pointer.set_visible(false);
+    // pointer.set_visible(false);
 
     let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
     selection.set_local_scale(0.0, 0.0, 0.15);
@@ -123,7 +123,13 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
     }
 }
 
-fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, sample: usize, reset_camera: bool) -> bool {
+fn setup_cut(
+    window: &mut Window,
+    file: &terrain::File,
+    hex: &terrain::Hex,
+    sample: usize,
+    reset_camera: bool,
+) -> bool {
     if let Some(mesh) = file.get_hex(&hex, sample) {
         window.scene_mut().clear();
         if reset_camera {
@@ -162,7 +168,7 @@ fn setup_small(
 
         let mut pointer = window.add_cube(0.002, 0.002, 0.5);
         pointer.set_color(1.0, 0.0, 0.0);
-        pointer.set_visible(false);
+        // pointer.set_visible(false);
 
         let mut selection = window.add_trimesh(threed::make_hex(), Vector3::from_element(1.0));
         selection.set_local_scale(0.0, 0.0, 0.15);
@@ -337,6 +343,9 @@ fn handle_transition(
 fn make_camera() -> kiss3d::camera::ArcBall {
     let mut camera = kiss3d::camera::ArcBall::new(Point3::new(0.0, 0.0, 1.5), Point3::origin());
     camera.set_dist_step(1.0);
+    camera.set_drag_modifiers(Some(kiss3d::event::Modifiers::Shift));
+    camera.rebind_drag_button(Some(kiss3d::event::MouseButton::Button1));
+    camera.set_rotate_modifiers(Some(kiss3d::event::Modifiers::Control));
     camera
 }
 
@@ -559,7 +568,6 @@ impl Statusable for Option<Status> {
                     widget::Text::new("Cmd-click & drag to select a region to crop to")
                         .right_from(ids.open_file, 10.0)
                         .set(ids.help_text, ui);
-
                 };
 
                 None
@@ -664,10 +672,11 @@ impl Statusable for Option<Status> {
                         )));
                     }
                 } else {
-                    widget::Text::new("Cmd-click & drag to select a hexagonal region for final cut")
-                        .right_from(ids.reset, 10.0)
-                        .set(ids.help_text, ui);
-
+                    widget::Text::new(
+                        "Cmd-click & drag to select a hexagonal region for final cut",
+                    )
+                    .right_from(ids.reset, 10.0)
+                    .set(ids.help_text, ui);
                 }
 
                 None
@@ -681,34 +690,14 @@ impl Statusable for Option<Status> {
         event: &mut kiss3d::event::Event,
     ) -> Option<Transition> {
         match event.value {
-            WindowEvent::Key(Key::LWin, Action::Release, _)
-            | WindowEvent::Key(Key::RWin, Action::Release, _) => {
-                match self {
-                    Some(Status { pointer, .. }) => pointer.set_visible(false),
-                    _ => (),
-                };
-                None
-            }
-            WindowEvent::Key(Key::LWin, Action::Press, _)
-            | WindowEvent::Key(Key::RWin, Action::Press, _) => {
-                match self {
-                    Some(Status { pointer, .. }) => pointer.set_visible(true),
-                    _ => (),
-                };
-                None
-            }
-
-            WindowEvent::Key(Key::O, Action::Press, _) => match self {
-                None => match nfd::open_file_dialog(None, None) {
-                    Ok(nfd::Response::Okay(file_path)) => Some(Transition::Open(file_path)),
-                    _ => None,
-                },
-                _ => None,
-            },
-
             WindowEvent::MouseButton(MouseButton::Button1, Action::Press, modifiers)
-                if modifiers.contains(Modifiers::Super) =>
+                if modifiers.is_empty() =>
             {
+                if let Some((_, y)) = window.canvas().cursor_pos() {
+                    if y < 80.0 {
+                        return None;
+                    }
+                }
                 match self {
                     Some(Status {
                         zoom: Some(zoom), ..
@@ -746,18 +735,21 @@ impl Statusable for Option<Status> {
                     }
                     _ => (),
                 }
-                event.inhibited = true;
+                // event.inhibited = true;
                 None
             }
 
             WindowEvent::CursorPos(x, y, modifiers) => {
+                if y < 80.0 {
+                    return None;
+                }
                 match self {
                     Some(Status {
                         pointer,
                         selection_node,
                         zoom: Some(Zoom { hselection, .. }),
                         ..
-                    }) if modifiers.contains(Modifiers::Super) => {
+                    }) if modifiers.is_empty() => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
                             &Point2::new(x as f32, y as f32),
@@ -768,7 +760,7 @@ impl Statusable for Option<Status> {
                             pointer.set_local_translation(Translation3::from(Vector3::new(
                                 point.x, point.y, 0.0,
                             )));
-                            event.inhibited = true;
+                            // event.inhibited = true;
                             if window
                                 .canvas()
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
@@ -789,7 +781,7 @@ impl Statusable for Option<Status> {
                         pointer,
                         selection,
                         selection_node,
-                    }) if modifiers.contains(Modifiers::Super) => {
+                    }) if modifiers.is_empty() => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
                             &Point2::new(x as f32, y as f32),
@@ -800,7 +792,7 @@ impl Statusable for Option<Status> {
                             pointer.set_local_translation(Translation3::from(Vector3::new(
                                 point.x, point.y, 0.0,
                             )));
-                            event.inhibited = true;
+                            // event.inhibited = true;
                             if window
                                 .canvas()
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
@@ -867,10 +859,6 @@ impl State {
         let window_height = self.window.canvas().size().1;
         println!("Height {}", window_height);
         while self.window.render() {
-            let mut manager = self.window.events();
-            for mut event in manager.iter() {
-                self.handle_event(&mut event)
-            }
             let transition = {
                 let window_height = self.window.canvas().size().1 / 2;
                 let mut ui = self.window.conrod_ui_mut().set_widgets();
@@ -878,6 +866,12 @@ impl State {
             };
             if let Some(transition) = transition {
                 self.transition(transition);
+            }
+            let mut manager = self.window.events();
+            for mut event in manager.iter() {
+                if !event.inhibited {
+                    self.handle_event(&mut event)
+                }
             }
         }
     }
