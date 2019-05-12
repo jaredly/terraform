@@ -131,30 +131,17 @@ pub mod inner {
             // println!("Boxes at y0 {}: {}", y0, boxes);
 
             // left & right caps
-            edges.push(Point2::new(
-                point_at(boxes, y0 + 1),
-                point_at(boxes, y0),
-            ));
-            edges.push(Point2::new(
-                point_at(-boxes, y0),
-                 point_at(-boxes, y0 + 1),
-                ));
+            edges.push(Point2::new(point_at(boxes, y0 + 1), point_at(boxes, y0)));
+            edges.push(Point2::new(point_at(-boxes, y0), point_at(-boxes, y0 + 1)));
 
             if last_base < boxes {
                 // filling in the top
                 for x0 in last_base..boxes {
                     // println!("Top {}", x0);
                     // left side
-                    edges.push(Point2::new(
-                        point_at(x0 + 1, y0),
-                        point_at(x0, y0),
-                        ));
+                    edges.push(Point2::new(point_at(x0 + 1, y0), point_at(x0, y0)));
                     // right side
-                    edges.push(
-                        Point2::new(
-                            point_at(-x0, y0),
-                        point_at(-x0 - 1, y0),
-                        ));
+                    edges.push(Point2::new(point_at(-x0, y0), point_at(-x0 - 1, y0)));
                 }
             } else if last_base > boxes {
                 // filling in the bottom
@@ -163,10 +150,7 @@ pub mod inner {
                     // left side
                     edges.push(Point2::new(point_at(x0, y0), point_at(x0 + 1, y0)));
                     // right side
-                    edges.push(Point2::new(
-                        point_at(-x0 - 1, y0),
-                        point_at(-x0, y0),
-                        ));
+                    edges.push(Point2::new(point_at(-x0 - 1, y0), point_at(-x0, y0)));
                 }
             }
             last_base = boxes;
@@ -189,15 +173,9 @@ pub mod inner {
         // last at the bottom
         for x0 in 0..last_base {
             // left side
-            edges.push(Point2::new(
-                point_at(x0, hh),
-                point_at(x0 + 1, hh)
-                ));
+            edges.push(Point2::new(point_at(x0, hh), point_at(x0 + 1, hh)));
             // right side
-            edges.push(Point2::new(
-                point_at(-x0 - 1, hh),
-                point_at(-x0, hh),
-                ));
+            edges.push(Point2::new(point_at(-x0 - 1, hh), point_at(-x0, hh)));
         }
 
         (faces, edges)

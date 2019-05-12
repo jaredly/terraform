@@ -255,7 +255,7 @@ impl Terrain {
             Some(idx) => *idx,
             None => {
                 let p = points[top_idx as usize];
-                points.push(Point3::new(p.x, p.y, -0.5));
+                points.push(Point3::new(p.x, p.y, -0.1));
                 map.insert(top_idx, idx);
                 idx += 1;
                 idx - 1

@@ -273,7 +273,12 @@ fn handle_transition(
                 Transition::Export => match status.zoom {
                     None => Some(status),
                     Some(zoom) => {
-                        match status.file.to_stl(&zoom.coords, zoom.sample, 1.0) {
+                        let stl = match zoom.cut {
+                            Some(cut) => status.file.to_hex_stl(&cut, zoom.sample),
+                            None => status.file.to_stl(&zoom.coords, zoom.sample, 1.0),
+                        };
+
+                        match stl {
                             None => println!("Failed to get stl"),
                             Some(stl) => {
                                 if let Ok(nfd::Response::Okay(file_path)) =
@@ -290,7 +295,7 @@ fn handle_transition(
                                     println!("No file selected. Exiting");
                                 }
                             }
-                        };
+                        }
 
                         Some(Status {
                             zoom: Some(zoom),
