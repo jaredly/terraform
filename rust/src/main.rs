@@ -1,7 +1,6 @@
 #![allow(dead_code, unused_imports)]
 use gdal::raster::Dataset;
 use std::path::Path;
-// use gdal::raster::types::GdalType;
 use gdal::raster::dataset::Buffer;
 
 #[macro_use]
@@ -608,8 +607,9 @@ impl Statusable for Option<Status> {
                 for _press in widget::Button::new()
                     .label("+ resolution")
                     .right_from(ids.open_file, 10.0)
-                    .w(80.0)
+                    .w(90.0)
                     .h(HEIGHT)
+                    .enabled(zoom.sample > 1)
                     .set(ids.sample_less, ui)
                 {
                     if zoom.sample > 1 {
@@ -620,8 +620,9 @@ impl Statusable for Option<Status> {
                 for _press in widget::Button::new()
                     .label("- resolution")
                     .right_from(ids.sample_less, 10.0)
-                    .w(80.0)
+                    .w(90.0)
                     .h(HEIGHT)
+                    .enabled(zoom.sample < 100)
                     .set(ids.sample_greater, ui)
                 {
                     if zoom.sample < 100 {
@@ -651,7 +652,7 @@ impl Statusable for Option<Status> {
 
                 if zoom.hselection.1 != 0.0 && zoom.cut.is_none() {
                     for _press in widget::Button::new()
-                        .label("cut")
+                        .label("Cut")
                         .right_from(ids.reset, 10.0)
                         .w(30.0)
                         .h(HEIGHT)
