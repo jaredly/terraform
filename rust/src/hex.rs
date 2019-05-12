@@ -67,7 +67,10 @@ impl Coords {
     }
 
     fn get(&self, x: isize, y: isize) -> IndexNum {
-        *self.map.get(&(x, y)).expect(format!("Coordinate missing! {},{}", x, y).as_str())
+        *self
+            .map
+            .get(&(x, y))
+            .expect(format!("Coordinate missing! {},{}", x, y).as_str())
     }
 }
 
@@ -107,7 +110,10 @@ pub mod inner {
         x.ceil() as usize
     }
 
-    pub fn faces(half_height: usize, point_at: &Fn(isize, isize) -> IndexNum) -> (Vec<Point3<IndexNum>>, Vec<Point2<IndexNum>>) {
+    pub fn faces(
+        half_height: usize,
+        point_at: &Fn(isize, isize) -> IndexNum,
+    ) -> (Vec<Point3<IndexNum>>, Vec<Point2<IndexNum>>) {
         // println!("Faces for {}", half_height);
         let hh = half_height as isize;
         let mut faces = vec![];
@@ -126,43 +132,38 @@ pub mod inner {
 
             // left & right caps
             edges.push(Point2::new(
-                point_at(boxes, y0),
                 point_at(boxes, y0 + 1),
+                point_at(boxes, y0),
             ));
             edges.push(Point2::new(
                 point_at(-boxes, y0),
-                point_at(-boxes, y0 + 1),
-            ));
+                 point_at(-boxes, y0 + 1),
+                ));
 
             if last_base < boxes {
                 // filling in the top
                 for x0 in last_base..boxes {
                     // println!("Top {}", x0);
                     // left side
-                    edges.push(Point2::new(
-                        point_at(x0, y0),
-                        point_at(x0 + 1, y0),
-                    ));
+                    edges.push(Point2::new(point_at(x0, y0), point_at(x0 + 1, y0)));
                     // right side
-                    edges.push(Point2::new(
-                        point_at(-x0, y0),
+                    edges.push(
+                        Point2::new(
                         point_at(-x0 - 1, y0),
-                    ));
+                            point_at(-x0, y0),
+                        ));
                 }
             } else if last_base > boxes {
                 // filling in the bottom
                 for x0 in boxes..last_base {
                     // println!("Bottom {} - from {} to {}", x0, boxes, last_base);
                     // left side
-                    edges.push(Point2::new(
-                        point_at(x0, y0),
-                        point_at(x0 + 1, y0),
-                    ));
+                    edges.push(Point2::new(point_at(x0, y0), point_at(x0 + 1, y0)));
                     // right side
                     edges.push(Point2::new(
-                        point_at(-x0, y0),
                         point_at(-x0 - 1, y0),
-                    ));
+                        point_at(-x0, y0),
+                        ));
                 }
             }
             last_base = boxes;
@@ -187,20 +188,22 @@ pub mod inner {
             // left side
             edges.push(Point2::new(
                 point_at(x0, hh),
-                point_at(x0 + 1, hh),
-            ));
+                point_at(x0 + 1, hh)
+                ));
             // right side
             edges.push(Point2::new(
-                point_at(-x0, hh),
                 point_at(-x0 - 1, hh),
-            ));
-
+                point_at(-x0, hh),
+                ));
         }
 
         (faces, edges)
     }
 
-    pub fn points(half_height: usize, z_at: &Fn(isize, isize) -> f32) -> (Vec<Point3<f32>>, Coords) {
+    pub fn points(
+        half_height: usize,
+        z_at: &Fn(isize, isize) -> f32,
+    ) -> (Vec<Point3<f32>>, Coords) {
         let mut points = vec![];
         let mut coords = Coords::new();
 
@@ -267,12 +270,13 @@ mod tests {
     use super::*;
 
     fn close_enough(p1: &Point3<f32>, p2: &Point3<f32>) -> bool {
-        (p1.x - p2.x).abs() <= 1.0 &&
-        (p1.y - p2.y).abs() <= 1.0
+        (p1.x - p2.x).abs() <= 1.0 && (p1.y - p2.y).abs() <= 1.0
     }
 
     fn to_svg(points: &Vec<Point3<f32>>, faces: &Vec<Point3<IndexNum>>) -> String {
-        let mut text = vec![r#"<svg width="190" height="160" xmlns="http://www.w3.org/2000/svg">"#.to_string()];
+        let mut text = vec![
+            r#"<svg width="190" height="160" xmlns="http://www.w3.org/2000/svg">"#.to_string(),
+        ];
 
         for p in faces {
             let p1 = points[p.x as usize];
@@ -294,7 +298,15 @@ mod tests {
         text.join("\n")
     }
 
-    fn fixture(cx: usize, cy: usize, size: usize) -> (Vec<Point3<f32>>, Vec<Point3<IndexNum>>, Vec<Point2<IndexNum>>) {
+    fn fixture(
+        cx: usize,
+        cy: usize,
+        size: usize,
+    ) -> (
+        Vec<Point3<f32>>,
+        Vec<Point3<IndexNum>>,
+        Vec<Point2<IndexNum>>,
+    ) {
         let get_z = |x: isize, y: isize| (y as f32 / 100.0 + x as f32);
 
         let (points, coords) = inner::points(size, &get_z);

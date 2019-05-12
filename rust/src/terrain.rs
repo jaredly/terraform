@@ -244,35 +244,29 @@ impl Terrain {
             point.z = (point.z - min) * elevation_scale;
         }
         use hex::CoordIdx;
-        let (mut faces, edges) = hex::inner::faces(hex.half_height / sample, &|x: isize, y: isize| coords.coord(x, y));
+        let (mut faces, edges) =
+            hex::inner::faces(hex.half_height / sample, &|x: isize, y: isize| {
+                coords.coord(x, y)
+            });
 
         let mut idx = points.len();
         let mut map = std::collections::HashMap::new();
-        let mut get = |top_idx: IndexNum| {
-            match map.get(&top_idx) {
-                Some(idx) => *idx,
-                None => {
-                    let p = points[top_idx as usize];
-                    points.push(Point3::new(
-                        p.x, p.y, -0.5
-                    ));
-                    map.insert(top_idx, idx);
-                    idx += 1;
-                    idx - 1
-                }
+        let mut get = |top_idx: IndexNum| match map.get(&top_idx) {
+            Some(idx) => *idx,
+            None => {
+                let p = points[top_idx as usize];
+                points.push(Point3::new(p.x, p.y, -0.5));
+                map.insert(top_idx, idx);
+                idx += 1;
+                idx - 1
             }
         };
         for edge in edges {
             let b1 = get(edge.x) as IndexNum;
             let b2 = get(edge.y) as IndexNum;
-            faces.push(Point3::new(
-                edge.x, edge.y, b1
-            ));
-            faces.push(Point3::new(
-                edge.y, b1, b2
-            ));
+            faces.push(Point3::new(edge.x, edge.y, b1));
+            faces.push(Point3::new(b1, edge.y, b2));
         }
-
 
         Terrain { points, faces }
     }

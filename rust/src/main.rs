@@ -131,10 +131,10 @@ fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, samp
 
         let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
         mesh_node.set_color(0.0, 1.0, 0.0);
-        mesh_node.enable_backface_culling(false);
+        // mesh_node.enable_backface_culling(false);
         // TODO expose this as a setting? Or a toggle, more likely
-        mesh_node.set_lines_width(0.1);
-        mesh_node.set_surface_rendering_activation(false);
+        // mesh_node.set_lines_width(0.1);
+        // mesh_node.set_surface_rendering_activation(false);
 
         true
     } else {
