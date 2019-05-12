@@ -145,12 +145,15 @@ pub mod inner {
                 for x0 in last_base..boxes {
                     // println!("Top {}", x0);
                     // left side
-                    edges.push(Point2::new(point_at(x0, y0), point_at(x0 + 1, y0)));
+                    edges.push(Point2::new(
+                        point_at(x0 + 1, y0),
+                        point_at(x0, y0),
+                        ));
                     // right side
                     edges.push(
                         Point2::new(
-                        point_at(-x0 - 1, y0),
                             point_at(-x0, y0),
+                        point_at(-x0 - 1, y0),
                         ));
                 }
             } else if last_base > boxes {
