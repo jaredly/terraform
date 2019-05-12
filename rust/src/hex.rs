@@ -67,7 +67,7 @@ impl Coords {
     }
 
     fn get(&self, x: isize, y: isize) -> IndexNum {
-        *self.map.get(&(x, y)).expect("Coordinate missing!")
+        *self.map.get(&(x, y)).expect(format!("Coordinate missing! {},{}", x, y).as_str())
     }
 }
 
@@ -108,6 +108,7 @@ pub mod inner {
     }
 
     pub fn faces(half_height: usize, point_at: &Fn(isize, isize) -> IndexNum) -> (Vec<Point3<IndexNum>>, Vec<Point2<IndexNum>>) {
+        // println!("Faces for {}", half_height);
         let hh = half_height as isize;
         let mut faces = vec![];
         let mut edges = vec![];
@@ -121,7 +122,9 @@ pub mod inner {
                     (-y0 - 1) as usize
                 },
             ) as isize;
+            // println!("Boxes at y0 {}: {}", y0, boxes);
 
+            // left & right caps
             edges.push(Point2::new(
                 point_at(boxes, y0),
                 point_at(boxes, y0 + 1),
@@ -132,7 +135,9 @@ pub mod inner {
             ));
 
             if last_base < boxes {
+                // filling in the top
                 for x0 in last_base..boxes {
+                    // println!("Top {}", x0);
                     // left side
                     edges.push(Point2::new(
                         point_at(x0, y0),
@@ -145,20 +150,22 @@ pub mod inner {
                     ));
                 }
             } else if last_base > boxes {
+                // filling in the bottom
                 for x0 in boxes..last_base {
+                    // println!("Bottom {} - from {} to {}", x0, boxes, last_base);
                     // left side
                     edges.push(Point2::new(
-                        point_at(x0, y0 + 1),
-                        point_at(x0 + 1, y0 + 1),
+                        point_at(x0, y0),
+                        point_at(x0 + 1, y0),
                     ));
                     // right side
                     edges.push(Point2::new(
-                        point_at(-x0, y0 + 1),
-                        point_at(-x0 - 1, y0 + 1),
+                        point_at(-x0, y0),
+                        point_at(-x0 - 1, y0),
                     ));
                 }
             }
-            // last_base = boxes;
+            last_base = boxes;
 
             for x0 in -boxes..boxes {
                 faces.push(Point3::new(
@@ -173,6 +180,23 @@ pub mod inner {
                 ));
             }
         }
+
+        // println!("Last base for {}: {}", half_height, last_base);
+        // last at the bottom
+        for x0 in 0..last_base {
+            // left side
+            edges.push(Point2::new(
+                point_at(x0, hh),
+                point_at(x0 + 1, hh),
+            ));
+            // right side
+            edges.push(Point2::new(
+                point_at(-x0, hh),
+                point_at(-x0 - 1, hh),
+            ));
+
+        }
+
         (faces, edges)
     }
 
@@ -270,21 +294,22 @@ mod tests {
         text.join("\n")
     }
 
-    fn fixture(cx: usize, cy: usize, size: usize) -> (Vec<Point3<f32>>, Vec<Point3<IndexNum>>) {
+    fn fixture(cx: usize, cy: usize, size: usize) -> (Vec<Point3<f32>>, Vec<Point3<IndexNum>>, Vec<Point2<IndexNum>>) {
         let get_z = |x: isize, y: isize| (y as f32 / 100.0 + x as f32);
 
         let (points, coords) = inner::points(size, &get_z);
-        let faces = inner::faces(size, &|x: isize, y: isize| coords.coord(x, y));
+        let (faces, edges) = inner::faces(size, &|x: isize, y: isize| coords.coord(x, y));
 
-        (points, faces)
+        (points, faces, edges)
     }
 
     #[test]
     fn full_run() {
-        let (points, faces) = fixture(2, 1, 1);
+        let (points, faces, edges) = fixture(2, 1, 1);
 
         assert_eq!(faces.len(), 16);
         assert_eq!(points.len(), 15);
+        assert_eq!(edges.len(), 12);
 
         // Uncomment to do a visual assessment
 
@@ -303,10 +328,11 @@ mod tests {
 
         // std::fs::write(std::path::Path::new("hex.svg"), to_svg(&points, &faces).as_str()).unwrap();
 
-        // let (points, faces) = fixture(8, 2, 2);
+        let (_points, _faces, edges) = fixture(8, 2, 2);
+        assert_eq!(edges.len(), 20);
         // std::fs::write(std::path::Path::new("2hex.svg"), to_svg(&points, &faces).as_str()).unwrap();
 
-        let (points, faces) = fixture(30, 10, 10);
+        let (points, faces, _) = fixture(30, 10, 10);
 
         for p in &faces {
             let p1 = points[p.x as usize];
