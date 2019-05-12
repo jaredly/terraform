@@ -257,19 +257,41 @@ fn handle_transition(
                         }),
                     },
                 },
-                Transition::Reset => {
-                    let (pointer, selection_node) = large_nodes(&status.file, window);
-                    Some(Status {
-                        pointer,
-                        selection_node,
-                        selection: Selection {
-                            pos: Point2::new(0.0, 0.0),
-                            size: Vector2::new(0.0, 0.0),
-                        },
-                        zoom: None,
-                        ..status
-                    })
-                }
+                Transition::Reset => match status.zoom {
+                    None => Some(status),
+                    Some(zoom) => match zoom.cut {
+                        None => {
+                            let (pointer, selection_node) = large_nodes(&status.file, window);
+                            Some(Status {
+                                pointer,
+                                selection_node,
+                                selection: Selection {
+                                    pos: Point2::new(0.0, 0.0),
+                                    size: Vector2::new(0.0, 0.0),
+                                },
+                                zoom: None,
+                                ..status
+                            })
+                        }
+                        Some(cut) => {
+                            if let Some((mut pointer, mut selection_node)) =
+                                setup_small(window, &status.file, &zoom.coords, zoom.sample)
+                            {
+                                Some(Status {
+                                    zoom: Some(Zoom { cut: None, ..zoom }),
+                                    pointer,
+                                    selection_node,
+                                    ..status
+                                })
+                            } else {
+                                Some(Status {
+                                    zoom: Some(zoom),
+                                    ..status
+                                })
+                            }
+                        }
+                    },
+                },
                 Transition::Export => match status.zoom {
                     None => Some(status),
                     Some(zoom) => {
