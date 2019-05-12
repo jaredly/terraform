@@ -131,7 +131,7 @@ fn setup_cut(window: &mut Window, file: &terrain::File, hex: &terrain::Hex, samp
 
         let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
         mesh_node.set_color(0.0, 1.0, 0.0);
-        // mesh_node.enable_backface_culling(false);
+        mesh_node.enable_backface_culling(false);
         // TODO expose this as a setting? Or a toggle, more likely
         // mesh_node.set_lines_width(0.1);
         // mesh_node.set_surface_rendering_activation(false);
@@ -338,7 +338,7 @@ fn make_camera() -> kiss3d::camera::ArcBall {
 
 fn hselection_to_hex(coords: &terrain::Coords, selection: (Point2<f32>, f32)) -> terrain::Hex {
     let cx = ((selection.0.x + 0.5) * coords.w as f32) as usize;
-    let cy = ((selection.0.y + 0.5) * coords.h as f32) as usize;
+    let cy = ((1.0 - (selection.0.y + 0.5)) * coords.h as f32) as usize;
     let r = selection.1 * (coords.w.max(coords.h) as f32);
     let half_height = (r / 2.0 * (3.0_f32).sqrt()) as usize;
     terrain::Hex::new(coords.x + cx, coords.y + cy, half_height)
@@ -638,7 +638,7 @@ impl Statusable for Option<Status> {
                     return Some(Transition::Reset);
                 }
 
-                if zoom.hselection.1 != 0.0 {
+                if zoom.hselection.1 != 0.0 && zoom.cut.is_none() {
                     for _press in widget::Button::new()
                         .label("cut")
                         .right_from(ids.reset, 10.0)
