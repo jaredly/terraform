@@ -643,7 +643,8 @@ impl Window {
         event: &WindowEvent,
     ) {
         match *event {
-            WindowEvent::Key(Key::Escape, Action::Release, _) | WindowEvent::Close => {
+            // WindowEvent::Key(Key::Escape, Action::Release, _) |
+            WindowEvent::Close => {
                 self.close();
             }
             WindowEvent::FramebufferSize(w, h) => {

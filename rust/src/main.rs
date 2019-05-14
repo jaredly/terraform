@@ -501,7 +501,7 @@ impl Statusable for Option<Status> {
                         Ok(nfd::Response::Okay(file_path)) => {
                             return Some(Transition::Open(file_path))
                         }
-                        _ => (),
+                        _ => return None,
                     }
                 }
 
@@ -565,7 +565,7 @@ impl Statusable for Option<Status> {
                         return Some(Transition::Select(coords, sample));
                     }
                 } else {
-                    widget::Text::new("Cmd-click & drag to select a region to crop to")
+                    widget::Text::new("Click & drag to select a crop region. Shift-click to pan & ctrl-click to rotate")
                         .right_from(ids.open_file, 10.0)
                         .set(ids.help_text, ui);
                 };
@@ -580,7 +580,7 @@ impl Statusable for Option<Status> {
                 for _press in widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.canvas)
-                    .w(60.0)
+                    .w(80.0)
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
@@ -673,9 +673,9 @@ impl Statusable for Option<Status> {
                     }
                 } else {
                     widget::Text::new(
-                        "Cmd-click & drag to select a hexagonal region for final cut",
+                        "Click & drag to select a hexagonal region for final cut",
                     )
-                    .right_from(ids.reset, 10.0)
+                    .down_from(ids.open_file, 10.0)
                     .set(ids.help_text, ui);
                 }
 
@@ -749,7 +749,7 @@ impl Statusable for Option<Status> {
                         selection_node,
                         zoom: Some(Zoom { hselection, .. }),
                         ..
-                    }) if modifiers.is_empty() => {
+                    }) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
                             &Point2::new(x as f32, y as f32),
@@ -764,7 +764,7 @@ impl Statusable for Option<Status> {
                             if window
                                 .canvas()
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
-                                == Action::Press
+                                == Action::Press && modifiers.is_empty()
                             {
                                 hselection.1 = (point - hselection.0).norm();
                                 selection_node.set_local_scale(hselection.1, hselection.1, 0.15);
@@ -781,7 +781,7 @@ impl Statusable for Option<Status> {
                         pointer,
                         selection,
                         selection_node,
-                    }) if modifiers.is_empty() => {
+                    }) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
                             &Point2::new(x as f32, y as f32),
@@ -796,7 +796,7 @@ impl Statusable for Option<Status> {
                             if window
                                 .canvas()
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
-                                == Action::Press
+                                == Action::Press && modifiers.is_empty()
                             {
                                 // selection.pos = point;
                                 selection.size = point - selection.pos;
