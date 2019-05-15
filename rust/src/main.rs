@@ -915,9 +915,32 @@ impl State {
     }
 
     fn run(&mut self) {
+        let assets_dir = {
+            match std::env::args().next() {
+                None => Path::new("./assets").to_owned(),
+                Some(me) => {
+                    let me = Path::new(&me).to_owned();
+                    match me.parent() {
+                        None => Path::new("./assets").to_owned(),
+                        Some(parent) => {
+                            let assets = parent.join(Path::new("assets"));
+                            if assets.exists() {
+                                assets
+                            } else {
+                                Path::new("./assets").to_owned()
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        if !assets_dir.exists() {
+            panic!("No assets dir found, either at the binary location or the current directory")
+        }
+
         let window_height = self.window.canvas().size().1;
         self.window.add_texture(
-            &Path::new("./assets/background.png"),
+            &assets_dir.join(Path::new("background.png")),
             "background",
         );
         let background = self.window.conrod_texture_id("background").unwrap();
