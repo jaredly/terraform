@@ -314,7 +314,7 @@ fn handle_transition(
                             None => println!("Failed to get stl"),
                             Some(stl) => {
                                 if let Ok(nfd::Response::Okay(file_path)) =
-                                    nfd::open_save_dialog(None, None)
+                                    nfd::open_save_dialog(Some("stl"), None)
                                 {
                                     let mut outfile =
                                         std::fs::File::create(file_path.as_str()).unwrap();
@@ -542,7 +542,7 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT * 2.0)
                     .set(ids.open_file, ui)
                 {
-                    match nfd::open_file_dialog(None, None) {
+                    match nfd::open_file_dialog(Some("adf,tif"), None) {
                         Ok(nfd::Response::Okay(file_path)) => {
                             return Some(Transition::Open(file_path))
                         }
@@ -565,7 +565,7 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
-                    match nfd::open_file_dialog(None, None) {
+                    match nfd::open_file_dialog(Some("adf,tif"), None) {
                         Ok(nfd::Response::Okay(file_path)) => {
                             return Some(Transition::Open(file_path))
                         }
@@ -625,7 +625,7 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
-                    match nfd::open_file_dialog(None, None) {
+                    match nfd::open_file_dialog(Some("adf,tif"), None) {
                         Ok(nfd::Response::Okay(file_path)) => {
                             return Some(Transition::Open(file_path))
                         }
