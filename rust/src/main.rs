@@ -598,7 +598,25 @@ impl Statusable for Option<Status> {
                     .mid_left_of(ids.bottom_canvas)
                     .set(ids.status_text, ui);
 
-                let points = (zoom.coords.w / zoom.sample) * (zoom.coords.h / zoom.sample);
+                let points = {
+                    match zoom.cut {
+                        None => if zoom.hselection.1 == 0.0 {
+                            (zoom.coords.w / zoom.sample) * (zoom.coords.h / zoom.sample)
+                        } else {
+                            let hex = hselection_to_hex(&zoom.coords, zoom.hselection);
+                            let height = hex.half_height * 2;
+                            let width = (height as f32 / (3.0_f32).sqrt() * 2.0) as usize;
+                            let count = height / zoom.sample * width / zoom.sample * 3 / 4;
+                            count
+                        },
+                        Some(hex) => {
+                            let height = hex.half_height * 2;
+                            let width = (height as f32 / (3.0_f32).sqrt() * 2.0) as usize;
+                            let count = height / zoom.sample * width / zoom.sample * 3 / 4;
+                            count
+                        }
+                    }
+                };
                 widget::Text::new(
                     format!(
                         "{} triangles, {}mb file size. Sample: {}",
