@@ -1,3 +1,7 @@
 .venv
 raw_data
 outputs
+target
+*.stl
+*.xml
+docs
