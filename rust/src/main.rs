@@ -730,7 +730,7 @@ impl Statusable for Option<Status> {
                             zoom.hselection,
                         )));
                     }
-                } else {
+                } else if zoom.cut.is_none() {
                     widget::Text::new(
                         "Click & drag to select a hexagonal region for final cut",
                     )
