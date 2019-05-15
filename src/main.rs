@@ -80,7 +80,7 @@ fn large_nodes(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNo
     window.scene_mut().clear();
     window.set_camera(make_camera());
 
-    let mesh = profile!("Make mesh", file.full_mesh(5, 2.0));
+    let mesh = profile!("Make mesh", file.full_mesh(10, 2.0));
     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
     mesh_node.set_color(0.0, 1.0, 0.0);
     mesh_node.enable_backface_culling(false);
