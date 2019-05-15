@@ -405,6 +405,7 @@ pub fn theme() -> kiss3d::conrod::Theme {
         x_position: Position::Relative(Relative::Direction(Direction::Forwards, 10.0), None),
         y_position: Position::Relative(Relative::Align(Align::Middle), None),
         background_color: conrod::color::TRANSPARENT,
+        // background_color: conrod::color::BLUE,
         shape_color: conrod::color::LIGHT_CHARCOAL,
         border_color: conrod::color::BLACK,
         border_width: 0.0,
@@ -424,6 +425,7 @@ widget_ids! {
     pub struct Ids {
         // The scrollable canvas.
         canvas,
+        top_canvas,
         bottom_canvas,
         hlist,
         status_text,
@@ -436,7 +438,8 @@ widget_ids! {
         sample_greater,
         export,
         reset,
-        cut
+        cut,
+        image
     }
 }
 
@@ -445,6 +448,7 @@ trait Statusable {
         &mut self,
         window_height: u32,
         ui: &mut kiss3d::conrod::UiCell,
+        image: kiss3d::conrod::image::Id,
         ids: &Ids,
     ) -> Option<Transition>;
 
@@ -460,12 +464,14 @@ impl Statusable for Option<Status> {
         &mut self,
         window_height: u32,
         ui: &mut kiss3d::conrod::UiCell,
+        image: kiss3d::conrod::image::Id,
         ids: &Ids,
     ) -> Option<Transition> {
+        use kiss3d::conrod;
         use kiss3d::conrod::{widget, Colorable, Labelable, Positionable, Sizeable, Widget};
         use std::iter::once;
 
-        const MARGIN: conrod::Scalar = 30.0;
+        const MARGIN: conrod::Scalar = 10.0;
         const SHAPE_GAP: conrod::Scalar = 50.0;
         const TITLE_SIZE: conrod::FontSize = 42;
         const SUBTITLE_SIZE: conrod::FontSize = 32;
@@ -475,7 +481,7 @@ impl Statusable for Option<Status> {
             .pad(MARGIN)
             .align_top()
             .h(40.0)
-            .set(ids.canvas, ui);
+            .set(ids.top_canvas, ui);
 
         widget::Canvas::new()
             .pad(MARGIN)
@@ -490,11 +496,50 @@ impl Statusable for Option<Status> {
 
         match self {
             None => {
+                widget::Canvas::new()
+                    .pad(MARGIN)
+                    // .align_bottom()
+                    // .h(40.0)
+                    .set(ids.canvas, ui);
+
+                // widget::Canvas::new()
+                //     .pad(MARGIN)
+                //     // .align_top()
+                //     // .h(40.0)
+                //     .set(ids.canvas, ui);
+
+                widget::Image::new(image)
+                    .middle_of(ids.canvas)
+                    .w_h(400.0, 400.0)
+                    // .kid_area_wh_of(ids.canvas)
+                    // .x(100.0)
+                    // .y(-(window_height as f64) / 4.0 + 100.0)
+                    .set(ids.image, ui);
+
+                widget::Text::new("Terraform")
+                    .up_from(ids.image, 20.0)
+                    // .align_top()
+                    // .y(0.0)
+                    // .h(20.0)
+                    .align_middle_x()
+                    // .mid_top_of(ids.canvas)
+                    // .align_left()
+                    // .down_from(ids.canvas, 0.0)
+                    // .down(50.0)
+                    .font_size(64)
+                    .set(ids.status_text, ui);
+
                 for _press in widget::Button::new()
                     .label("Open File")
-                    .mid_left_of(ids.canvas)
-                    .w(80.0)
-                    .h(HEIGHT)
+                    .down_from(ids.image, 20.0)
+                    .with_style(conrod::widget::button::Style {
+                        label_font_size: Some(24),
+                        ..conrod::widget::button::Style::default()
+                    })
+                    .align_middle_x()
+                    // .mid_left_of(ids.canvas)
+                    .w(80.0 * 2.0)
+                    .h(HEIGHT * 2.0)
                     .set(ids.open_file, ui)
                 {
                     match nfd::open_file_dialog(None, None) {
@@ -504,10 +549,6 @@ impl Statusable for Option<Status> {
                         _ => return None,
                     }
                 }
-
-                widget::Text::new("No file loaded")
-                    .mid_left_of(ids.bottom_canvas)
-                    .set(ids.status_text, ui);
 
                 return None;
             }
@@ -519,7 +560,7 @@ impl Statusable for Option<Status> {
             }) => {
                 for _press in widget::Button::new()
                     .label("Open File")
-                    .mid_left_of(ids.canvas)
+                    .mid_left_of(ids.top_canvas)
                     .w(80.0)
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
@@ -579,7 +620,7 @@ impl Statusable for Option<Status> {
             }) => {
                 for _press in widget::Button::new()
                     .label("Open File")
-                    .mid_left_of(ids.canvas)
+                    .mid_left_of(ids.top_canvas)
                     .w(80.0)
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
@@ -875,12 +916,17 @@ impl State {
 
     fn run(&mut self) {
         let window_height = self.window.canvas().size().1;
+        self.window.add_texture(
+            &Path::new("./assets/background.png"),
+            "background",
+        );
+        let background = self.window.conrod_texture_id("background").unwrap();
         println!("Height {}", window_height);
         while self.window.render() {
             let transition = {
                 let window_height = self.window.canvas().size().1 / 2;
                 let mut ui = self.window.conrod_ui_mut().set_widgets();
-                self.status.ui(window_height, &mut ui, &self.ids)
+                self.status.ui(window_height, &mut ui, background, &self.ids)
             };
             if let Some(transition) = transition {
                 self.transition(transition);
