@@ -605,11 +605,11 @@ impl Statusable for Option<Status> {
                         };
                         return Some(Transition::Select(coords, sample));
                     }
-                } else {
-                    widget::Text::new("Click & drag to select a crop region. Shift-click to pan & ctrl-click to rotate")
-                        .right_from(ids.open_file, 10.0)
-                        .set(ids.help_text, ui);
                 };
+                
+                widget::Text::new("Click & drag to select a crop region. Shift-click to pan & ctrl-click to rotate")
+                    .down_from(ids.open_file, 10.0)
+                    .set(ids.help_text, ui);
 
                 None
             }
@@ -730,13 +730,19 @@ impl Statusable for Option<Status> {
                             zoom.hselection,
                         )));
                     }
-                } else if zoom.cut.is_none() {
+                }
+
+                if zoom.cut.is_none() {
                     widget::Text::new(
                         "Click & drag to select a hexagonal region for final cut",
                     )
                     .down_from(ids.open_file, 10.0)
                     .set(ids.help_text, ui);
                 }
+                
+                widget::Text::new("Shift-click to pan & ctrl-click to rotate")
+                    .down_from(ids.open_file, 10.0)
+                    .set(ids.help_text, ui);
 
                 None
             }
