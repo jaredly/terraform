@@ -227,9 +227,20 @@ impl Terrain {
         elevation_scale: f32,
     ) -> Self {
         let get_z = |x: isize, y: isize| {
-            let y = -y * sample as isize + hex.cy as isize;
-            let x = x * sample as isize + hex.cx as isize;
-            raster.data[(y * full_width as isize + x) as usize]
+            let mut z = 0.0;
+            let mut by = 0.0;
+            for dx in 0..sample {
+                for dy in 0..sample {
+                    let y = -y * sample as isize + hex.cy as isize + dy as isize;
+                    let x = x * sample as isize + hex.cx as isize + dx as isize;
+                    z += raster.data[(y * full_width as isize + x) as usize];
+                    by += 1.0;
+                }
+            }
+            z / by
+            // let y = -y * sample as isize + hex.cy as isize;
+            // let x = x * sample as isize + hex.cx as isize;
+            // raster.data[(y * full_width as isize + x) as usize]
         };
         let (mut points, coords) = hex::inner::points(hex.half_height / sample, &get_z);
         let mut min = std::f32::INFINITY;
