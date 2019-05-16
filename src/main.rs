@@ -606,7 +606,7 @@ impl Statusable for Option<Status> {
                         return Some(Transition::Select(coords, sample));
                     }
                 };
-                
+
                 widget::Text::new("Click & drag to select a crop region. Shift-click to pan & ctrl-click to rotate")
                     .down_from(ids.open_file, 10.0)
                     .set(ids.help_text, ui);
@@ -641,15 +641,17 @@ impl Statusable for Option<Status> {
 
                 let points = {
                     match zoom.cut {
-                        None => if zoom.hselection.1 == 0.0 {
-                            (zoom.coords.w / zoom.sample) * (zoom.coords.h / zoom.sample)
-                        } else {
-                            let hex = hselection_to_hex(&zoom.coords, zoom.hselection);
-                            let height = hex.half_height * 2;
-                            let width = (height as f32 / (3.0_f32).sqrt() * 2.0) as usize;
-                            let count = height / zoom.sample * width / zoom.sample * 3 / 4;
-                            count
-                        },
+                        None => {
+                            if zoom.hselection.1 == 0.0 {
+                                (zoom.coords.w / zoom.sample) * (zoom.coords.h / zoom.sample)
+                            } else {
+                                let hex = hselection_to_hex(&zoom.coords, zoom.hselection);
+                                let height = hex.half_height * 2;
+                                let width = (height as f32 / (3.0_f32).sqrt() * 2.0) as usize;
+                                let count = height / zoom.sample * width / zoom.sample * 3 / 4;
+                                count
+                            }
+                        }
                         Some(hex) => {
                             let height = hex.half_height * 2 / zoom.sample;
                             let width = (height as f32 / (3.0_f32).sqrt() * 2.0) as usize;
@@ -734,13 +736,11 @@ impl Statusable for Option<Status> {
                 }
 
                 if zoom.cut.is_none() {
-                    widget::Text::new(
-                        "Click & drag to select a hexagonal region for final cut",
-                    )
-                    .down_from(ids.open_file, 10.0)
-                    .set(ids.help_text, ui);
+                    widget::Text::new("Click & drag to select a hexagonal region for final cut")
+                        .down_from(ids.open_file, 10.0)
+                        .set(ids.help_text, ui);
                 }
-                
+
                 widget::Text::new("Shift-click to pan & ctrl-click to rotate")
                     .down_from(ids.open_file, 10.0)
                     .set(ids.help_text, ui);
@@ -830,7 +830,8 @@ impl Statusable for Option<Status> {
                             if window
                                 .canvas()
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
-                                == Action::Press && modifiers.is_empty()
+                                == Action::Press
+                                && modifiers.is_empty()
                             {
                                 hselection.1 = (point - hselection.0).norm();
                                 selection_node.set_local_scale(hselection.1, hselection.1, 0.15);
@@ -862,7 +863,8 @@ impl Statusable for Option<Status> {
                             if window
                                 .canvas()
                                 .get_mouse_button(kiss3d::event::MouseButton::Button1)
-                                == Action::Press && modifiers.is_empty()
+                                == Action::Press
+                                && modifiers.is_empty()
                             {
                                 // selection.pos = point;
                                 selection.size = point - selection.pos;
@@ -946,17 +948,16 @@ impl State {
         }
 
         let window_height = self.window.canvas().size().1;
-        self.window.add_texture(
-            &assets_dir.join(Path::new("background.png")),
-            "background",
-        );
+        self.window
+            .add_texture(&assets_dir.join(Path::new("background.png")), "background");
         let background = self.window.conrod_texture_id("background").unwrap();
         println!("Height {}", window_height);
         while self.window.render() {
             let transition = {
                 let window_height = self.window.canvas().size().1 / 2;
                 let mut ui = self.window.conrod_ui_mut().set_widgets();
-                self.status.ui(window_height, &mut ui, background, &self.ids)
+                self.status
+                    .ui(window_height, &mut ui, background, &self.ids)
             };
             if let Some(transition) = transition {
                 self.transition(transition);

@@ -45,7 +45,7 @@ impl Border {
     fn full(&self) -> usize {
         match self.dy {
             None => self.base + 1,
-            Some(_) => self.base + 2
+            Some(_) => self.base + 2,
         }
     }
 }
@@ -67,14 +67,12 @@ impl NCoords {
             hh: hh as isize,
             current_offset: 0,
             offsets: vec![],
-        // lengths: vec![]
+            // lengths: vec![]
         }
     }
 
     fn add_line(&mut self, y: isize, line: usize) {
-        self.offsets.push(
-            line + self.current_offset
-        );
+        self.offsets.push(line + self.current_offset);
         self.current_offset += line * 2 + 1;
     }
 }
@@ -162,7 +160,6 @@ pub mod inner {
             last_base = boxes;
 
             for x0 in -boxes..boxes {
-
                 if (x0 % 2 == 0) == (y0 % 2 == 0) {
                     faces.push(Point3::new(
                         point_at(x0, y0),
