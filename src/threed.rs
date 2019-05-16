@@ -9,12 +9,12 @@ use ncollide3d::procedural::{IndexBuffer, TriMesh};
 use std::time::SystemTime;
 
 pub fn get_unprojected_coords(
-    point: &Point2<f32>,
-    size: &Vector2<f32>,
+    point: Point2<f32>,
+    size: Vector2<f32>,
     window: &Window,
 ) -> Option<Point2<f32>> {
     use ncollide3d::query::ray_internal::ray::RayCast;
-    let (point, dir) = window.unproject(point, size);
+    let (point, dir) = window.unproject(&point, &size);
     let ray = ncollide3d::query::Ray::new(point, dir);
     let v: na::Unit<Vector3<f32>> = na::Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0));
     let plane = ncollide3d::shape::Plane::new(v);

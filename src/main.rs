@@ -318,9 +318,7 @@ fn handle_transition(
                                 {
                                     let mut outfile =
                                         std::fs::File::create(file_path.as_str()).unwrap();
-                                    if let Err(_) =
-                                        profile!("Write file", stl::write_stl(&mut outfile, &stl))
-                                    {
+                                    if profile!("Write file", stl::write_stl(&mut outfile, &stl)).is_err() {
                                         println!("Failed to write :'(");
                                     }
                                 } else {
@@ -487,7 +485,7 @@ impl Statusable for Option<Status> {
             .pad(MARGIN)
             .align_bottom()
             .x(0.0)
-            .y(-(window_height as f64) / 2.0)
+            .y(-(f64::from(window_height)) / 2.0)
             // .y(-200.0)
             // .y(window_height as f64 - 400.0)
             // .y(100.0)
@@ -546,11 +544,11 @@ impl Statusable for Option<Status> {
                         Ok(nfd::Response::Okay(file_path)) => {
                             return Some(Transition::Open(file_path))
                         }
-                        _ => return None,
+                        _ => (),
                     }
                 }
 
-                return None;
+                None
             }
             Some(Status {
                 file,
@@ -565,11 +563,8 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
-                    match nfd::open_file_dialog(Some("adf,tif"), None) {
-                        Ok(nfd::Response::Okay(file_path)) => {
-                            return Some(Transition::Open(file_path))
-                        }
-                        _ => (),
+                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
+                        return Some(Transition::Open(file_path))
                     }
                 }
 
@@ -625,11 +620,8 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
-                    match nfd::open_file_dialog(Some("adf,tif"), None) {
-                        Ok(nfd::Response::Okay(file_path)) => {
-                            return Some(Transition::Open(file_path))
-                        }
-                        _ => (),
+                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
+                        return Some(Transition::Open(file_path))
                     }
                 }
 
@@ -772,8 +764,8 @@ impl Statusable for Option<Status> {
                         if let Some((x, y)) = window.canvas().cursor_pos() {
                             // println!("Super down {}, {}", cursor.x, cursor.y);
                             if let Some(point) = threed::get_unprojected_coords(
-                                &Point2::new(x as f32, y as f32),
-                                &Vector2::new(w as f32, h as f32),
+                                Point2::new(x as f32, y as f32),
+                                Vector2::new(w as f32, h as f32),
                                 &window,
                             ) {
                                 zoom.hselection.0 = point;
@@ -790,8 +782,8 @@ impl Statusable for Option<Status> {
                         if let Some((x, y)) = window.canvas().cursor_pos() {
                             // println!("Super down {}, {}", cursor.x, cursor.y);
                             if let Some(point) = threed::get_unprojected_coords(
-                                &Point2::new(x as f32, y as f32),
-                                &Vector2::new(w as f32, h as f32),
+                                Point2::new(x as f32, y as f32),
+                                Vector2::new(w as f32, h as f32),
                                 &window,
                             ) {
                                 selection.pos = point;
@@ -818,8 +810,8 @@ impl Statusable for Option<Status> {
                     }) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
-                            &Point2::new(x as f32, y as f32),
-                            &Vector2::new(w as f32, h as f32),
+                            Point2::new(x as f32, y as f32),
+                            Vector2::new(w as f32, h as f32),
                             &window,
                         ) {
                             // cursor = point;
@@ -851,8 +843,8 @@ impl Statusable for Option<Status> {
                     }) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
-                            &Point2::new(x as f32, y as f32),
-                            &Vector2::new(w as f32, h as f32),
+                            Point2::new(x as f32, y as f32),
+                            Vector2::new(w as f32, h as f32),
                             &window,
                         ) {
                             // cursor = point;

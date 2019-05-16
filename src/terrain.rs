@@ -126,11 +126,11 @@ impl File {
     }
 
     pub fn get_hex(&self, hex: &Hex, sample: usize) -> Option<MeshCell> {
-        self.get_hex_terrain(hex, sample).map(|t| t.to_mesh())
+        self.get_hex_terrain(hex, sample).map(Terrain::to_mesh)
     }
 
     pub fn to_hex_stl(&self, hex: &Hex, sample: usize) -> Option<stl::BinaryStlFile> {
-        self.get_hex_terrain(hex, sample).map(|m| m.to_stl())
+        self.get_hex_terrain(hex, sample).map(Terrain::to_stl)
     }
 
     pub fn to_stl(
@@ -140,7 +140,7 @@ impl File {
         elevation_boost: f32,
     ) -> Option<stl::BinaryStlFile> {
         self.get_terrain(coords, sample, elevation_boost)
-            .map(|m| m.to_stl())
+            .map(Terrain::to_stl)
     }
 
     pub fn get_mesh(
@@ -150,7 +150,7 @@ impl File {
         elevation_boost: f32,
     ) -> Option<MeshCell> {
         self.get_terrain(coords, sample, elevation_boost)
-            .map(|t| t.to_mesh())
+            .map(Terrain::to_mesh)
     }
 
     pub fn full_mesh(&self, sample: usize, elevation_boost: f32) -> MeshCell {
@@ -271,7 +271,7 @@ impl Terrain {
         Terrain { points, faces }
     }
 
-    pub fn to_stl(self) -> stl::BinaryStlFile {
+    pub fn to_stl(/* */self) -> stl::BinaryStlFile {
         let mut header_80 = [0u8; 80];
         header_80[0] = 'r' as u8;
         header_80[0] = 'u' as u8;
@@ -304,8 +304,7 @@ impl Terrain {
                 attr_byte_count: 0u16,
             });
         }
-        let file = stl::BinaryStlFile { header, triangles };
-        file
+        stl::BinaryStlFile { header, triangles }
     }
 
     fn _to_mesh(self) -> Mesh {
