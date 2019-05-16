@@ -41,42 +41,48 @@ struct Border {
     base: usize,
 }
 
+impl Border {
+    fn full(&self) -> usize {
+        match self.dy {
+            None => self.base + 1,
+            Some(_) => self.base + 2
+        }
+    }
+}
+
 pub trait CoordIdx {
     fn coord(&self, x: isize, y: isize) -> IndexNum;
 }
 
-// TODO I could do this *much* more efficiently, by calculating the
-// length of each line & the offset, because the indices are quite regular.
-// ... but this works for now.
-pub struct Coords {
-    map: std::collections::HashMap<(isize, isize), IndexNum>,
-    idx: IndexNum,
+pub struct NCoords {
+    hh: isize,
+    // lengths: Vec<usize>,
+    current_offset: usize,
+    offsets: Vec<usize>,
 }
 
-impl Coords {
-    fn new() -> Self {
-        Coords {
-            map: std::collections::HashMap::new(),
-            idx: 0,
+impl NCoords {
+    fn new(hh: usize) -> Self {
+        NCoords {
+            hh: hh as isize,
+            current_offset: 0,
+            offsets: vec![],
+        // lengths: vec![]
         }
     }
 
-    fn add(&mut self, x: isize, y: isize) {
-        self.map.insert((x, y), self.idx);
-        self.idx += 1;
-    }
-
-    fn get(&self, x: isize, y: isize) -> IndexNum {
-        *self
-            .map
-            .get(&(x, y))
-            .expect(format!("Coordinate missing! {},{}", x, y).as_str())
+    fn add_line(&mut self, y: isize, line: usize) {
+        self.offsets.push(
+            line + self.current_offset
+        );
+        self.current_offset += line * 2 + 1;
     }
 }
 
-impl CoordIdx for Coords {
+impl CoordIdx for NCoords {
     fn coord(&self, x: isize, y: isize) -> IndexNum {
-        self.get(x, y)
+        let offset = self.offsets[(y + self.hh) as usize] as isize;
+        (offset + x) as IndexNum
     }
 }
 
@@ -198,11 +204,12 @@ pub mod inner {
     pub fn points(
         half_height: usize,
         z_at: &Fn(isize, isize) -> f32,
-    ) -> (Vec<Point3<f32>>, Coords) {
+    ) -> (Vec<Point3<f32>>, NCoords) {
         let mut points = vec![];
-        let mut coords = Coords::new();
 
         let hh = half_height as isize;
+        let mut coords = NCoords::new(half_height);
+
         for y in -hh..=hh {
             let border = border_for_point_line(half_height, y.abs() as usize);
 
@@ -211,37 +218,34 @@ pub mod inner {
 
             let hw = border.base as isize;
 
+            coords.add_line(y, border.full());
+
             let z_prev = z_at(-hw - 1, y);
 
             if let Some(dy) = border.dy {
                 let z_down = z_at(-hw - 1, y + di);
                 let zy = lerp(z_prev, z_down, dy);
                 points.push(Point3::new(-hw as f32 - 1.0, y as f32 - dy * direction, zy));
-                coords.add(-hw - 2, y);
             }
 
             let z_now = z_at(-hw, y);
             let zx = lerp(z_now, z_prev, border.dx);
             points.push(Point3::new(-hw as f32 - border.dx, y as f32, zx));
-            coords.add(-hw - 1, y);
 
             for x in -hw..=hw {
                 let z = z_at(x, y);
                 points.push(Point3::new(x as f32, y as f32, z));
-                coords.add(x, y);
             }
 
             let z_next = z_at(hw + 1, y);
             let z_now = z_at(hw, y);
             let zx = lerp(z_now, z_next, border.dx);
             points.push(Point3::new(hw as f32 + border.dx, y as f32, zx));
-            coords.add(hw + 1, y);
 
             if let Some(dy) = border.dy {
                 let z_down = z_at(hw + 1, y + di);
                 let zy = lerp(z_next, z_down, dy);
                 points.push(Point3::new(hw as f32 + 1.0, y as f32 - dy * direction, zy));
-                coords.add(hw + 2, y);
             }
         }
 

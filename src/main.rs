@@ -1030,7 +1030,8 @@ fn main() {
                 "Load file",
                 terrain::File::from_dataset(&dataset, file_name)
             );
-            match file.to_hex_stl(&hex, 1) {
+            let hex = profile!("Make hex", file.to_hex_stl(&hex, 1));
+            match hex {
                 None => println!("Failed to get stl"),
                 Some(stl) => {
                     let mut outfile = std::fs::File::create(out_name).unwrap();
