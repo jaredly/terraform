@@ -540,11 +540,8 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT * 2.0)
                     .set(ids.open_file, ui)
                 {
-                    match nfd::open_file_dialog(Some("adf,tif"), None) {
-                        Ok(nfd::Response::Okay(file_path)) => {
-                            return Some(Transition::Open(file_path))
-                        }
-                        _ => (),
+                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
+                        return Some(Transition::Open(file_path))
                     }
                 }
 
