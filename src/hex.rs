@@ -71,7 +71,7 @@ impl NCoords {
         }
     }
 
-    fn add_line(&mut self, y: isize, line: usize) {
+    fn add_line(&mut self, _y: isize, line: usize) {
         self.offsets.push(line + self.current_offset);
         self.current_offset += line * 2 + 1;
     }
@@ -295,8 +295,8 @@ mod tests {
     }
 
     fn fixture(
-        cx: usize,
-        cy: usize,
+        _cx: usize,
+        _cy: usize,
         size: usize,
     ) -> (
         Vec<Point3<f32>>,

@@ -283,8 +283,8 @@ fn handle_transition(
                                 ..status
                             })
                         }
-                        Some(cut) => {
-                            if let Some((mut pointer, mut selection_node)) =
+                        Some(_cut) => {
+                            if let Some((pointer, selection_node)) =
                                 setup_small(window, &status.file, &zoom.coords, zoom.sample, true)
                             {
                                 Some(Status {
