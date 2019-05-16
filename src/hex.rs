@@ -156,16 +156,30 @@ pub mod inner {
             last_base = boxes;
 
             for x0 in -boxes..boxes {
-                faces.push(Point3::new(
-                    point_at(x0, y0),
-                    point_at(x0 + 1, y0),
-                    point_at(x0 + 1, y0 + 1),
-                ));
-                faces.push(Point3::new(
-                    point_at(x0, y0),
-                    point_at(x0 + 1, y0 + 1),
-                    point_at(x0, y0 + 1),
-                ));
+
+                if (x0 % 2 == 0) == (y0 % 2 == 0) {
+                    faces.push(Point3::new(
+                        point_at(x0, y0),
+                        point_at(x0 + 1, y0),
+                        point_at(x0 + 1, y0 + 1),
+                    ));
+                    faces.push(Point3::new(
+                        point_at(x0, y0),
+                        point_at(x0 + 1, y0 + 1),
+                        point_at(x0, y0 + 1),
+                    ));
+                } else {
+                    faces.push(Point3::new(
+                        point_at(x0, y0),
+                        point_at(x0 + 1, y0),
+                        point_at(x0, y0 + 1),
+                    ));
+                    faces.push(Point3::new(
+                        point_at(x0 + 1, y0),
+                        point_at(x0 + 1, y0 + 1),
+                        point_at(x0, y0 + 1),
+                    ));
+                }
             }
         }
 

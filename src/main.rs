@@ -651,10 +651,11 @@ impl Statusable for Option<Status> {
                             count
                         },
                         Some(hex) => {
-                            let height = hex.half_height * 2;
+                            let height = hex.half_height * 2 / zoom.sample;
                             let width = (height as f32 / (3.0_f32).sqrt() * 2.0) as usize;
-                            let count = height / zoom.sample * width / zoom.sample * 3 / 4;
-                            count
+                            let count = height * width * 3 / 4;
+                            let sides = height * 2 + width * 2;
+                            count + sides
                         }
                     }
                 };
