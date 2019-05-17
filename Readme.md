@@ -51,7 +51,7 @@ Cropping to a smaller rectangle than the full initial file allows Terraform to r
 
 ### Cut to a hexagon
 
-Currently terraform only supports hexagons for the final cut, but I could imagine supporting cylindars, rectangles and triangles in the future.
+Currently terraform only supports hexagons for the final cut, but I could imagine supporting cylinders, rectangles and triangles in the future.
 
 ### Export!
 
