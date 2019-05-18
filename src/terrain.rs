@@ -126,21 +126,21 @@ impl File {
     }
 
     pub fn get_hex(&self, hex: &Hex, sample: usize) -> Option<MeshCell> {
-        self.get_hex_terrain(hex, sample).map(Terrain::to_mesh)
+        self.get_hex_terrain(hex, sample).map(Terrain::into_mesh)
     }
 
     pub fn to_hex_stl(&self, hex: &Hex, sample: usize) -> Option<stl::BinaryStlFile> {
-        self.get_hex_terrain(hex, sample).map(Terrain::to_stl)
+        self.get_hex_terrain(hex, sample).map(Terrain::into_stl)
     }
 
-    pub fn to_stl(
+    pub fn into_stl(
         &self,
         coords: &Coords,
         sample: usize,
         elevation_boost: f32,
     ) -> Option<stl::BinaryStlFile> {
         self.get_terrain(coords, sample, elevation_boost)
-            .map(Terrain::to_stl)
+            .map(Terrain::into_stl)
     }
 
     pub fn get_mesh(
@@ -150,7 +150,7 @@ impl File {
         elevation_boost: f32,
     ) -> Option<MeshCell> {
         self.get_terrain(coords, sample, elevation_boost)
-            .map(Terrain::to_mesh)
+            .map(Terrain::into_mesh)
     }
 
     pub fn full_mesh(&self, sample: usize, elevation_boost: f32) -> MeshCell {
@@ -238,9 +238,6 @@ impl Terrain {
                 }
             }
             z / by
-            // let y = -y * sample as isize + hex.cy as isize;
-            // let x = x * sample as isize + hex.cx as isize;
-            // raster.data[(y * full_width as isize + x) as usize]
         };
         let (mut points, coords) = hex::inner::points(hex.half_height / sample, &get_z);
         let mut min = std::f32::INFINITY;
@@ -282,7 +279,7 @@ impl Terrain {
         Terrain { points, faces }
     }
 
-    pub fn to_stl(/* */self) -> stl::BinaryStlFile {
+    pub fn into_stl(self) -> stl::BinaryStlFile {
         let mut header_80 = [0u8; 80];
         header_80[0] = 'r' as u8;
         header_80[0] = 'u' as u8;
@@ -322,7 +319,7 @@ impl Terrain {
         Mesh::new(self.points, self.faces, None, None, false)
     }
 
-    pub fn to_mesh(self) -> MeshCell {
+    pub fn into_mesh(self) -> MeshCell {
         std::rc::Rc::new(std::cell::RefCell::new(self._to_mesh()))
     }
 }

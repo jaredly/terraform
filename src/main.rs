@@ -307,7 +307,7 @@ fn handle_transition(
                     Some(zoom) => {
                         let stl = match zoom.cut {
                             Some(cut) => status.file.to_hex_stl(&cut, zoom.sample),
-                            None => status.file.to_stl(&zoom.coords, zoom.sample, 1.0),
+                            None => status.file.into_stl(&zoom.coords, zoom.sample, 1.0),
                         };
 
                         match stl {
@@ -527,7 +527,7 @@ impl Statusable for Option<Status> {
                     .font_size(64)
                     .set(ids.status_text, ui);
 
-                for _press in widget::Button::new()
+                if let Some(_press) = widget::Button::new()
                     .label("Open File")
                     .down_from(ids.image, 20.0)
                     .with_style(conrod::widget::button::Style {
@@ -535,11 +535,9 @@ impl Statusable for Option<Status> {
                         ..conrod::widget::button::Style::default()
                     })
                     .align_middle_x()
-                    // .mid_left_of(ids.canvas)
                     .w(80.0 * 2.0)
                     .h(HEIGHT * 2.0)
-                    .set(ids.open_file, ui)
-                {
+                    .set(ids.open_file, ui).next() {
                     if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
                         return Some(Transition::Open(file_path))
                     }
@@ -581,12 +579,13 @@ impl Statusable for Option<Status> {
                         .right_from(ids.status_text, 10.0)
                         .set(ids.selection_text, ui);
 
-                    for _press in widget::Button::new()
+                    if let Some(_press) = widget::Button::new()
                         .label("Crop")
                         .right_from(ids.open_file, 10.0)
                         .h(HEIGHT)
                         .w(50.0)
                         .set(ids.crop, ui)
+                        .into_iter().next()
                     {
                         let total = coords.w * coords.h;
                         let max_points = 10_000_000;
@@ -610,12 +609,14 @@ impl Statusable for Option<Status> {
                 zoom: Some(zoom),
                 ..
             }) => {
-                for _press in widget::Button::new()
+                if let Some(_press) = widget::Button::new()
                     .label("Open File")
                     .mid_left_of(ids.top_canvas)
                     .w(80.0)
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
+                    .into_iter()
+                    .next()
                 {
                     if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
                         return Some(Transition::Open(file_path))
@@ -663,59 +664,61 @@ impl Statusable for Option<Status> {
                 .right_from(ids.status_text, 10.0)
                 .set(ids.sample_text, ui);
 
-                for _press in widget::Button::new()
+                if let Some(_press) = widget::Button::new()
                     .label("+ resolution")
                     .right_from(ids.open_file, 10.0)
                     .w(90.0)
                     .h(HEIGHT)
                     .enabled(zoom.sample > 1)
                     .set(ids.sample_less, ui)
+                    .into_iter()
+                    .next()
                 {
                     if zoom.sample > 1 {
                         return Some(Transition::Resolution(zoom.sample - 1));
                     }
                 }
 
-                for _press in widget::Button::new()
+                if let Some(_press) = widget::Button::new()
                     .label("- resolution")
                     .right_from(ids.sample_less, 10.0)
                     .w(90.0)
                     .h(HEIGHT)
                     .enabled(zoom.sample < 100)
-                    .set(ids.sample_greater, ui)
+                    .set(ids.sample_greater, ui).into_iter().next()
                 {
                     if zoom.sample < 100 {
                         return Some(Transition::Resolution(zoom.sample + 1));
                     }
                 }
 
-                for _press in widget::Button::new()
+                if let Some(_press) = widget::Button::new()
                     .label("Export")
                     .right_from(ids.sample_greater, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.export, ui)
+                    .set(ids.export, ui).into_iter().next()
                 {
                     return Some(Transition::Export);
                 }
 
-                for _press in widget::Button::new()
+                if let Some(_press) = widget::Button::new()
                     .label("Back")
                     .right_from(ids.export, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.reset, ui)
+                    .set(ids.reset, ui).into_iter().next()
                 {
                     return Some(Transition::Reset);
                 }
 
                 if zoom.hselection.1 != 0.0 && zoom.cut.is_none() {
-                    for _press in widget::Button::new()
+                    if let Some(_press) = widget::Button::new()
                         .label("Cut")
                         .right_from(ids.reset, 10.0)
                         .w(30.0)
                         .h(HEIGHT)
-                        .set(ids.cut, ui)
+                        .set(ids.cut, ui).into_iter().next()
                     {
                         return Some(Transition::Cut(hselection_to_hex(
                             &zoom.coords,
