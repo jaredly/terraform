@@ -133,7 +133,7 @@ impl File {
         self.get_hex_terrain(hex, sample).map(Terrain::into_stl)
     }
 
-    pub fn into_stl(
+    pub fn to_stl(
         &self,
         coords: &Coords,
         sample: usize,

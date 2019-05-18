@@ -307,7 +307,7 @@ fn handle_transition(
                     Some(zoom) => {
                         let stl = match zoom.cut {
                             Some(cut) => status.file.to_hex_stl(&cut, zoom.sample),
-                            None => status.file.into_stl(&zoom.coords, zoom.sample, 1.0),
+                            None => status.file.to_stl(&zoom.coords, zoom.sample, 1.0),
                         };
 
                         match stl {
@@ -585,7 +585,7 @@ impl Statusable for Option<Status> {
                         .h(HEIGHT)
                         .w(50.0)
                         .set(ids.crop, ui)
-                        .into_iter().next()
+                        .next()
                     {
                         let total = coords.w * coords.h;
                         let max_points = 10_000_000;
@@ -615,7 +615,6 @@ impl Statusable for Option<Status> {
                     .w(80.0)
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
-                    .into_iter()
                     .next()
                 {
                     if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
@@ -671,7 +670,6 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .enabled(zoom.sample > 1)
                     .set(ids.sample_less, ui)
-                    .into_iter()
                     .next()
                 {
                     if zoom.sample > 1 {
@@ -685,7 +683,7 @@ impl Statusable for Option<Status> {
                     .w(90.0)
                     .h(HEIGHT)
                     .enabled(zoom.sample < 100)
-                    .set(ids.sample_greater, ui).into_iter().next()
+                    .set(ids.sample_greater, ui).next()
                 {
                     if zoom.sample < 100 {
                         return Some(Transition::Resolution(zoom.sample + 1));
@@ -697,7 +695,7 @@ impl Statusable for Option<Status> {
                     .right_from(ids.sample_greater, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.export, ui).into_iter().next()
+                    .set(ids.export, ui).next()
                 {
                     return Some(Transition::Export);
                 }
@@ -707,7 +705,7 @@ impl Statusable for Option<Status> {
                     .right_from(ids.export, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.reset, ui).into_iter().next()
+                    .set(ids.reset, ui).next()
                 {
                     return Some(Transition::Reset);
                 }
@@ -718,7 +716,7 @@ impl Statusable for Option<Status> {
                         .right_from(ids.reset, 10.0)
                         .w(30.0)
                         .h(HEIGHT)
-                        .set(ids.cut, ui).into_iter().next()
+                        .set(ids.cut, ui).next()
                     {
                         return Some(Transition::Cut(hselection_to_hex(
                             &zoom.coords,
