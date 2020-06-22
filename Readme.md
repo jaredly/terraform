@@ -10,7 +10,7 @@
 
 ## Building
 
-`cargo run --release` should do the trick.
+`env GDAL_LIB_DIR=/usr/local/opt/gdal/lib/ cargo run --release` should do the trick.
 
 Note that because of the intensive numerical processing involved, doing a debug build will only result in sadness.
 

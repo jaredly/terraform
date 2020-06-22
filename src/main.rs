@@ -15,6 +15,8 @@ use kiss3d::window::Window;
 use na::{Point2, Point3, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3};
 use ncollide3d::procedural::{IndexBuffer, TriMesh};
 use std::time::SystemTime;
+use std::fs::File;
+use std::io::prelude::*;
 
 mod hex;
 
@@ -70,6 +72,7 @@ enum Transition {
     Select(terrain::Coords, usize),
     Resolution(usize),
     Export,
+    ExportCSV,
     Reset,
     Cut(terrain::Hex),
 }
@@ -302,6 +305,38 @@ fn handle_transition(
                         }
                     },
                 },
+                Transition::ExportCSV => match status.zoom {
+                    None => Some(status),
+                    Some(zoom) => {
+                        let csv = status.file.get_csv(&zoom.coords, zoom.sample, 1.0);
+
+                        match csv {
+                            None => println!("Failed to get stl"),
+                            Some(csv) => {
+                                if let Ok(nfd::Response::Okay(file_path)) =
+                                    nfd::open_save_dialog(Some("csv"), None)
+                                {
+                                    let mut outfile =
+                                        std::fs::File::create(file_path.as_str()).unwrap();
+                                    // let mut file = File::create("foo.txt")?;
+                                    // file.write_all(b"Hello, world!")?;
+                                    if profile!("Write file", outfile.write_all(
+                                        csv.iter().map(|row| row.iter().map(|item| item.to_string()).collect::<Vec<String>>().join(",")).collect::<Vec<String>>().join("\n").as_bytes()
+                                    )).is_err() {
+                                        println!("Failed to write :'(");
+                                    }
+                                } else {
+                                    println!("No file selected. Exiting");
+                                }
+                            }
+                        }
+
+                        Some(Status {
+                            zoom: Some(zoom),
+                            ..status
+                        })
+                    }
+                },
                 Transition::Export => match status.zoom {
                     None => Some(status),
                     Some(zoom) => {
@@ -435,6 +470,7 @@ widget_ids! {
         sample_less,
         sample_greater,
         export,
+        export_csv,
         reset,
         cut,
         image
@@ -701,8 +737,18 @@ impl Statusable for Option<Status> {
                 }
 
                 if let Some(_press) = widget::Button::new()
-                    .label("Back")
+                    .label("Export csv")
                     .right_from(ids.export, 10.0)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.export_csv, ui).next()
+                {
+                    return Some(Transition::ExportCSV);
+                }
+
+                if let Some(_press) = widget::Button::new()
+                    .label("Back")
+                    .right_from(ids.export_csv, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
                     .set(ids.reset, ui).next()

@@ -86,6 +86,25 @@ impl File {
         }
     }
 
+    pub fn get_csv(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Vec<Vec<f32>>> {
+        if coords.validate(self) {
+            let elevation_scale = if self.size.x >= self.size.y {
+                self.size.x as f32 / coords.w as f32 * 1.0 / self.longest_dim_in_meters
+            } else {
+                self.size.y as f32 / coords.h as f32 * 1.0 / self.longest_dim_in_meters
+            };
+            Some(to_csv(
+                &self.raster,
+                &coords,
+                sample,
+                self.size.x,
+                elevation_scale * elevation_boost,
+            ))
+        } else {
+            None
+        }
+    }
+
     fn get_terrain(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Terrain> {
         if coords.validate(self) {
             let elevation_scale = if self.size.x >= self.size.y {
@@ -370,6 +389,48 @@ impl Hex {
 }
 
 use super::hex;
+
+fn to_csv(
+    raster: &Buffer<f32>,
+    Coords { x: x0, y: y0, w, h }: &Coords,
+    sample: usize,
+    full_width: usize,
+    elevation_scale: f32,
+) -> Vec<Vec<f32>> {
+    let ww = w / sample;
+    let hh = h / sample;
+    let total = ww * hh;
+
+    let scaler = if ww > hh { ww as f32 } else { hh as f32 };
+    let scalew = ww as f32 / scaler;
+    let scaleh = hh as f32 / scaler;
+
+    // let mut coords = Vec::with_capacity(total);
+    println!("Total points: {}", total);
+    let mut max = 0.0;
+    let mut min = std::f32::INFINITY;
+
+    for y in 0..hh {
+        // let mut row = vec![];
+        for x in 0..ww {
+            let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
+            if p > max { max = p }
+            if p < min { min = p }
+        }
+    }
+
+    let mut rows = vec![];
+    for y in 0..hh {
+        let mut row = vec![];
+        for x in 0..ww {
+            let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
+            row.push((p - min) * elevation_scale);
+        }
+        rows.push(row);
+    }
+    println!("Max {} min {}", max, min);
+    rows
+}
 
 fn to_points(
     raster: &Buffer<f32>,
