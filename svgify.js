@@ -1,3 +1,4 @@
+const simplify = require('simplify-js');
 const fs = require('fs');
 const [_, __, fname, layersRaw, outfile = 'out.csv'] = process.argv;
 const layers = layersRaw ? parseInt(layersRaw) : 5;
@@ -168,33 +169,31 @@ const organizeLevel = (segments) => {
             }
             waiting.unshift(current);
         } else if (p.length === 4) {
-            console.log('4p');
-            const find = (at) =>
-                p.find((m) => {
-                    const point = m.start
-                        ? paths[m.i][1]
-                        : paths[m.i][paths[m.i].length - 2];
-                    if (point[0] === at[0] && point[1] === at[1]) {
-                        return m;
-                    }
-                    // console.log(m, point, at);
-                });
-
-            console.log('sides of', p2);
-            const top = find([p2[0], p2[1] - 2]);
-            const left = find([p2[0] - 2, p2[1]]);
-            const bottom = find([p2[0], p2[1] + 2]);
-            const right = find([p2[0] + 2, p2[1]]);
-            console.log(top, left, bottom, right);
-            if (top.i === left.i || bottom.i === right.i) {
-                // join top to right
-                // join bottom to left
-            } else {
-                // the other one
-            }
-
-            waiting.unshift(current);
-
+            // console.log('4p');
+            // const find = (at) =>
+            //     p.find((m) => {
+            //         const point = m.start
+            //             ? paths[m.i][1]
+            //             : paths[m.i][paths[m.i].length - 2];
+            //         if (point[0] === at[0] && point[1] === at[1]) {
+            //             return m;
+            //         }
+            //         // console.log(m, point, at);
+            //     });
+            // // console.log('sides of', p2);
+            // const top = find([p2[0], p2[1] - 2]);
+            // const left = find([p2[0] - 2, p2[1]]);
+            // const bottom = find([p2[0], p2[1] + 2]);
+            // const right = find([p2[0] + 2, p2[1]]);
+            // console.log(top, left, bottom, right);
+            // STOPHSIP START HERE
+            // if (top.i === left.i || bottom.i === right.i) {
+            //     // join top to right
+            //     // join bottom to left
+            // } else {
+            //     // the other one
+            // }
+            // waiting.unshift(current);
             // Two options:
             // top and left should connect, bottom and right should connect
             // top and right should connect, bottom and left should connect
@@ -206,12 +205,51 @@ const organizeLevel = (segments) => {
     return Object.keys(paths).map((k) => paths[k]);
 };
 
+const midPoint = ([a, b], [c, d]) => [(a + c) / 2, (b + d) / 2];
+const midPoints = ([a, b], [c, d]) => [
+    [
+        a + ((c - a) / 3) * Math.random() * 0.9,
+        b + ((d - b) / 3) * Math.random() * 0.9,
+    ],
+    [
+        a + ((c - a) / 3) * (1.1 + Math.random() * 0.9),
+        b + ((d - b) * (1.1 + Math.random() * 0.9)) / 3,
+    ],
+];
+
+const simplifyPath = (points) =>
+    simplify(
+        points.map(([x, y]) => ({ x, y })),
+        2,
+        true,
+    ).map((p) => [p.x, p.y]);
+
+const smoothPath = (points) => {
+    const newPoints = [points[0]];
+    points.forEach((p, i) => {
+        if (i === 0) return;
+        const prev = points[i - 1];
+        // const mid = midPoint(prev, p);
+        // newPoints.push(mid);
+        if (Math.random() < 0.5) {
+            newPoints.push(...midPoints(prev, p));
+        } else {
+            newPoints.push(midPoint(prev, p));
+        }
+    });
+    newPoints.push(points[points.length - 1]);
+    return newPoints;
+};
+
 const paths = {};
 Object.keys(segments).forEach(
     (level) =>
         (paths[level] = organizeLevel(
             organizeLevel(segments[level]).map((points) => points.reverse()),
-        )),
+        )
+            // .map(smoothPath)
+            .map(smoothPath)
+            .map(simplifyPath)),
 );
 
 let total = 0;
@@ -221,8 +259,38 @@ console.log(`All paths: ${total}`);
 const colors = 'red,green,blue,orange,purple,black,pink,magenta'.split(',');
 const getColor = (i) => colors[i % colors.length];
 
+const s = ([x, y]) => `${x} ${y}`;
+
+const spaths = (rest) => {
+    let i = 0;
+    const parts = [];
+    for (; i < rest.length - 2; i += 2) {
+        parts.push(`S ${s(rest[i])}, ${s(rest[i + 1])}`);
+    }
+    if (i < rest.length - 1) {
+        parts.push(`L ${s(rest[rest.length - 1])}`);
+    }
+    return parts.join(' ');
+};
+
+// const pathSmoothD = ([p0, ...rest]) =>
+//     `M${s(p0)} ` + rest.map((p) => 'T ' + s(p)).join(' ');
+// const pathSmoothD = ([p0, p1, p2, ...rest]) =>
+//     `M${s(p0)} C ${s(p0)}, ${s(p1)}, ${s(p2)} ${spaths(rest)}`;
+
+const pathSmoothD = (points) => {
+    const parts = [`M${s(points[0])}`];
+    for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const mid = midPoint(prev, points[i]);
+        parts.push(`Q ${s(prev)} ${s(mid)}`);
+    }
+    parts.push(`L ${s(points[points.length - 1])}`);
+    return parts.join(' ');
+};
+
 const pathD = ([p0, ...rest]) =>
-    `M${p0[0]} ${p0[1]} ${rest.map((p) => `L${p[0]} ${p[1]}`).join(' ')}`;
+    `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
 
 const showPaths = (paths) => {
     return `
@@ -235,11 +303,18 @@ viewBox="0 0 ${stepped[0].length * 2} ${stepped.length * 2}"
 ${Object.keys(paths)
     .map((k, i) =>
         paths[k]
+            .filter((points) => points.length >= 3)
             .map(
                 (points) =>
-                    `<path d="${pathD(points)}"
+                    // <path d="${pathD(points)}"
+                    //     fill="none"
+                    //     style="stroke-width: 1; opacity: 0.5"
+                    //     stroke="${getColor(i)}"
+                    // />
+                    `
+                    <path d="${pathSmoothD(points)}"
                         fill="none"
-                        style="stroke-width: 0.1"
+                        style="stroke-width: 1"
                         stroke="${getColor(i)}"
                     />
     ${
