@@ -103,9 +103,9 @@ const organizeLevel = (segments) => {
         if (!byEndPoint[k]) {
             byEndPoint[k] = [];
         }
-        if (!byEndPoint[k].includes(i)) {
-            byEndPoint[k].push(i);
-        }
+        // if (!byEndPoint[k].includes(i)) {
+        byEndPoint[k].push(i);
+        // }
     };
     segments.forEach((points, i) => {
         add(i, points[0]);
@@ -124,7 +124,7 @@ const organizeLevel = (segments) => {
             console.log(current, p);
             throw new Error('Current not in p');
         }
-        if (p.length === 2) {
+        if (p.length === 2 && !p.every((i) => i == current)) {
             const other = p.filter((i) => i != current)[0];
             const otherPoints = paths[other];
             if (!otherPoints) {
@@ -159,18 +159,20 @@ const organizeLevel = (segments) => {
             // join up
             if (pointKey(o1) === pointKey(p2)) {
                 points.push(...otherPoints.slice(1));
-                if (!byEndPoint[pointKey(o2)].includes(current)) {
-                    byEndPoint[pointKey(o2)].push(current);
-                }
+                // if (!byEndPoint[pointKey(o2)].includes(current)) {
+                byEndPoint[pointKey(o2)].push(current);
+                // }
             } else if (pointKey(o2) === pointKey(p2)) {
                 points.push(...otherPoints.slice(0, -1).reverse());
-                if (!byEndPoint[pointKey(o1)].includes(current)) {
-                    byEndPoint[pointKey(o1)].push(current);
-                }
+                // if (!byEndPoint[pointKey(o1)].includes(current)) {
+                byEndPoint[pointKey(o1)].push(current);
+                // }
             } else {
                 throw new Error('other end point not matching p2');
             }
             waiting.unshift(current);
+        } else if (p.length === 4) {
+            console.log('4p');
         } else {
             // can't join it, sorry
         }
