@@ -180,7 +180,10 @@ const organizeLevel = (segments) => {
 
 const paths = {};
 Object.keys(segments).forEach(
-    (level) => (paths[level] = organizeLevel(organizeLevel(segments[level]))),
+    (level) =>
+        (paths[level] = organizeLevel(
+            organizeLevel(segments[level]).map((points) => points.reverse()),
+        )),
 );
 
 let total = 0;
@@ -207,19 +210,23 @@ ${Object.keys(paths)
             .map(
                 (points) =>
                     `<path d="${pathD(points)}"
-                    fill="none"
-    style="stroke-width: 0.1"
-    stroke="${getColor(i)}"
-    />
+                        fill="none"
+                        style="stroke-width: 0.1"
+                        stroke="${getColor(i)}"
+                    />
     ${
         pointKey(points[0]) !== pointKey(points[points.length - 1])
             ? `<circle cx="${points[0][0]}" cy="${points[0][1]}"
-     r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-    <circle cx="${points[points.length - 1][0]}" cy="${
+                    r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
+                <circle cx="${points[points.length - 1][0]}" cy="${
                   points[points.length - 1][1]
               }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
                     `
-            : ''
+            : `
+                <circle cx="${points[points.length - 1][0]}" cy="${
+                  points[points.length - 1][1]
+              }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
+            `
     }
     `,
             )
