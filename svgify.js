@@ -98,18 +98,18 @@ const organizeLevel = (segments) => {
     console.log('level', segments.length, segments[0].length);
     const paths = {};
     const byEndPoint = {};
-    const add = (i, p) => {
+    const add = (i, p, start) => {
         const k = pointKey(p);
         if (!byEndPoint[k]) {
             byEndPoint[k] = [];
         }
         // if (!byEndPoint[k].includes(i)) {
-        byEndPoint[k].push(i);
+        byEndPoint[k].push({ i, start });
         // }
     };
     segments.forEach((points, i) => {
-        add(i, points[0]);
-        add(i, points[points.length - 1]);
+        add(i, points[0], true);
+        add(i, points[points.length - 1], false);
         paths[i] = points;
     });
     const waiting = Object.keys(segments).slice();
@@ -120,12 +120,12 @@ const organizeLevel = (segments) => {
         const points = paths[current];
         const p2 = points[points.length - 1];
         const p = byEndPoint[pointKey(p2)];
-        if (!p.includes(current)) {
+        if (!p.some((i) => i.i == current)) {
             console.log(current, p);
             throw new Error('Current not in p');
         }
-        if (p.length === 2 && !p.every((i) => i == current)) {
-            const other = p.filter((i) => i != current)[0];
+        if (p.length === 2 && !p.every((i) => i.i == current)) {
+            const other = p.filter((i) => i.i != current)[0].i;
             const otherPoints = paths[other];
             if (!otherPoints) {
                 throw new Error(
@@ -139,16 +139,16 @@ const organizeLevel = (segments) => {
 
             // move this end point
             byEndPoint[pointKey(p2)] = byEndPoint[pointKey(p2)].filter(
-                (i) => i !== current,
+                (i) => i.i !== current,
             );
 
             // remove other
             // console.log('Remvoe', other);
             byEndPoint[pointKey(o1)] = byEndPoint[pointKey(o1)].filter(
-                (i) => i !== other,
+                (i) => i.i !== other,
             );
             byEndPoint[pointKey(o2)] = byEndPoint[pointKey(o2)].filter(
-                (i) => i !== other,
+                (i) => i.i !== other,
             );
             delete paths[other];
             const idx = waiting.indexOf(other + '');
@@ -160,12 +160,12 @@ const organizeLevel = (segments) => {
             if (pointKey(o1) === pointKey(p2)) {
                 points.push(...otherPoints.slice(1));
                 // if (!byEndPoint[pointKey(o2)].includes(current)) {
-                byEndPoint[pointKey(o2)].push(current);
+                byEndPoint[pointKey(o2)].push({ i: current, start: false });
                 // }
             } else if (pointKey(o2) === pointKey(p2)) {
                 points.push(...otherPoints.slice(0, -1).reverse());
                 // if (!byEndPoint[pointKey(o1)].includes(current)) {
-                byEndPoint[pointKey(o1)].push(current);
+                byEndPoint[pointKey(o1)].push({ i: current, start: false });
                 // }
             } else {
                 throw new Error('other end point not matching p2');
@@ -173,6 +173,11 @@ const organizeLevel = (segments) => {
             waiting.unshift(current);
         } else if (p.length === 4) {
             console.log('4p');
+
+            // Two options:
+            // top and left should connect, bottom and right should connect
+            // top and right should connect, bottom and left should connect
+            // How to distinguish? Whichever doesn't form a cycle. If top and left are same, then split them.
         } else {
             // can't join it, sorry
         }
