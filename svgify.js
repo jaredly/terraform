@@ -159,20 +159,41 @@ const organizeLevel = (segments) => {
             // join up
             if (pointKey(o1) === pointKey(p2)) {
                 points.push(...otherPoints.slice(1));
-                // if (!byEndPoint[pointKey(o2)].includes(current)) {
                 byEndPoint[pointKey(o2)].push({ i: current, start: false });
-                // }
             } else if (pointKey(o2) === pointKey(p2)) {
                 points.push(...otherPoints.slice(0, -1).reverse());
-                // if (!byEndPoint[pointKey(o1)].includes(current)) {
                 byEndPoint[pointKey(o1)].push({ i: current, start: false });
-                // }
             } else {
                 throw new Error('other end point not matching p2');
             }
             waiting.unshift(current);
         } else if (p.length === 4) {
             console.log('4p');
+            const find = (at) =>
+                p.find((m) => {
+                    const point = m.start
+                        ? paths[m.i][1]
+                        : paths[m.i][paths[m.i].length - 2];
+                    if (point[0] === at[0] && point[1] === at[1]) {
+                        return m;
+                    }
+                    // console.log(m, point, at);
+                });
+
+            console.log('sides of', p2);
+            const top = find([p2[0], p2[1] - 2]);
+            const left = find([p2[0] - 2, p2[1]]);
+            const bottom = find([p2[0], p2[1] + 2]);
+            const right = find([p2[0] + 2, p2[1]]);
+            console.log(top, left, bottom, right);
+            if (top.i === left.i || bottom.i === right.i) {
+                // join top to right
+                // join bottom to left
+            } else {
+                // the other one
+            }
+
+            waiting.unshift(current);
 
             // Two options:
             // top and left should connect, bottom and right should connect
