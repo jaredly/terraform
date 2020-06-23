@@ -1,32 +1,12 @@
-const simplify = require('simplify-js');
-const fs = require('fs');
-const [_, __, fname, layersRaw, outfile = 'out.csv'] = process.argv;
-const layers = layersRaw ? parseInt(layersRaw) : 5;
+// const simplify = require('simplify-js');
+// const fs = require('fs');
+// const [_, __, fname, layersRaw, outfile = 'out.csv'] = process.argv;
 
-const csv = fs
-    .readFileSync(fname, 'utf8')
-    .split('\n')
-    .map((line) => line.split(',').map((item) => parseFloat(item)));
-let min = Infinity;
-let max = -Infinity;
-
-csv.forEach((line) =>
-    line.forEach((item) => {
-        min = Math.min(min, item);
-        max = Math.max(max, item);
-    }),
-);
-
-const step = (max - min) / layers;
-const stepped = csv.map((line) =>
-    line.map((item) => parseInt((item - min) / step)),
-);
-
-fs.writeFileSync(
-    outfile,
-    stepped.map((line) => line.map((x) => x + '').join(',')).join('\n'),
-    'utf8',
-);
+// fs.writeFileSync(
+//     outfile,
+//     stepped.map((line) => line.map((x) => x + '').join(',')).join('\n'),
+//     'utf8',
+// );
 
 const borders = [
     [-1, 0],
@@ -35,7 +15,7 @@ const borders = [
     [0, 1],
 ];
 
-const isValid = (x, y) =>
+const isValid = (stepped, x, y) =>
     x > 0 && y > 0 && x < stepped[0].length && y < stepped.length;
 
 const segmentFor = (x, y, dx, dy) => {
@@ -63,40 +43,11 @@ const segmentFor = (x, y, dx, dy) => {
     ];
 };
 
-const segments = {};
-stepped.forEach((line, y) => {
-    line.forEach((cell, x) => {
-        borders.forEach(([dx, dy]) => {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (isValid(nx, ny)) {
-                const adjacent = stepped[ny][nx];
-                if (adjacent > cell) {
-                    if (!segments[cell]) {
-                        segments[cell] = [];
-                    }
-                    segments[cell].push(segmentFor(x, y, dx, dy));
-                }
-            }
-        });
-    });
-});
-
-const canon = ([[x1, y1], [x2, y2]]) =>
-    x1 < x2 || (x1 === x2 && y1 < y2)
-        ? [
-              [x1, y1],
-              [x2, y2],
-          ]
-        : [
-              [x2, y2],
-              [x1, y1],
-          ];
 const toKey = ([[x1, y1], [x2, y2]]) => `${x1}:${y1}:${x2}:${y2}`;
 const pointKey = ([x, y]) => `${x}:${y}`;
 
 const organizeLevel = (segments) => {
-    console.log('level', segments.length, segments[0].length);
+    // console.log('level', segments.length, segments[0].length);
     const paths = {};
     const byEndPoint = {};
     const add = (i, p, start) => {
@@ -104,9 +55,7 @@ const organizeLevel = (segments) => {
         if (!byEndPoint[k]) {
             byEndPoint[k] = [];
         }
-        // if (!byEndPoint[k].includes(i)) {
         byEndPoint[k].push({ i, start });
-        // }
     };
     segments.forEach((points, i) => {
         add(i, points[0], true);
@@ -117,7 +66,6 @@ const organizeLevel = (segments) => {
     // To simplify, we only add to the end
     while (waiting.length) {
         const current = +waiting.shift();
-        // console.log('Looking at', current);
         const points = paths[current];
         const p2 = points[points.length - 1];
         const p = byEndPoint[pointKey(p2)];
@@ -144,7 +92,6 @@ const organizeLevel = (segments) => {
             );
 
             // remove other
-            // console.log('Remvoe', other);
             byEndPoint[pointKey(o1)] = byEndPoint[pointKey(o1)].filter(
                 (i) => i.i !== other,
             );
@@ -185,8 +132,8 @@ const organizeLevel = (segments) => {
             // const left = find([p2[0] - 2, p2[1]]);
             // const bottom = find([p2[0], p2[1] + 2]);
             // const right = find([p2[0] + 2, p2[1]]);
-            // console.log(top, left, bottom, right);
-            // STOPHSIP START HERE
+            // // console.log(top, left, bottom, right);
+            // // STOPHSIP START HERE
             // if (top.i === left.i || bottom.i === right.i) {
             //     // join top to right
             //     // join bottom to left
@@ -229,8 +176,6 @@ const smoothPath = (points) => {
     points.forEach((p, i) => {
         if (i === 0) return;
         const prev = points[i - 1];
-        // const mid = midPoint(prev, p);
-        // newPoints.push(mid);
         if (Math.random() < 0.5) {
             newPoints.push(...midPoints(prev, p));
         } else {
@@ -240,21 +185,6 @@ const smoothPath = (points) => {
     newPoints.push(points[points.length - 1]);
     return newPoints;
 };
-
-const paths = {};
-Object.keys(segments).forEach(
-    (level) =>
-        (paths[level] = organizeLevel(
-            organizeLevel(segments[level]).map((points) => points.reverse()),
-        )
-            // .map(smoothPath)
-            .map(smoothPath)
-            .map(simplifyPath)),
-);
-
-let total = 0;
-Object.keys(paths).forEach((k) => (total += paths[k].length));
-console.log(`All paths: ${total}`);
 
 const colors = 'red,green,blue,orange,purple,black,pink,magenta'.split(',');
 const getColor = (i) => colors[i % colors.length];
@@ -277,6 +207,19 @@ const spaths = (rest) => {
 //     `M${s(p0)} ` + rest.map((p) => 'T ' + s(p)).join(' ');
 // const pathSmoothD = ([p0, p1, p2, ...rest]) =>
 //     `M${s(p0)} C ${s(p0)}, ${s(p1)}, ${s(p2)} ${spaths(rest)}`;
+
+// const pathSmoothD = (points) => {
+//     const parts = [`M${s(points[0])}`];
+//     for (let i = 2; i < points.length; i++) {
+//         const p0 = points[i - 2];
+//         const prev = points[i - 1];
+//         const m0 = midPoint(p0, prev);
+//         const mid = midPoint(prev, points[i]);
+//         parts.push(`Q ${s(prev)} ${s(mid)}`);
+//     }
+//     parts.push(`L ${s(points[points.length - 1])}`);
+//     return parts.join(' ');
+// };
 
 const pathSmoothD = (points) => {
     const parts = [`M${s(points[0])}`];
@@ -306,11 +249,12 @@ ${Object.keys(paths)
             .filter((points) => points.length >= 3)
             .map(
                 (points) =>
-                    // <path d="${pathD(points)}"
+                    // `<path d="${pathD(points)}"
                     //     fill="none"
                     //     style="stroke-width: 1; opacity: 0.5"
+                    //     stroke-dasharray="2 1"
                     //     stroke="${getColor(i)}"
-                    // />
+                    // />` +
                     `
                     <path d="${pathSmoothD(points)}"
                         fill="none"
@@ -371,5 +315,86 @@ ${Object.keys(segments)
 `;
 };
 
+const container = document.createElement('div');
+document.body.appendChild(container);
+
+const layers = 9;
+const csv = window.data
+    .split('\n')
+    .map((line) => line.split(',').map((item) => parseFloat(item)));
+
+// const csv = fs
+//     .readFileSync(fname, 'utf8')
+//     .split('\n')
+//     .map((line) => line.split(',').map((item) => parseFloat(item)));
+let min = Infinity;
+let max = -Infinity;
+
+csv.forEach((line) =>
+    line.forEach((item) => {
+        min = Math.min(min, item);
+        max = Math.max(max, item);
+    }),
+);
+
+const step = (max - min) / layers;
+const stepped = csv.map((line) =>
+    line.map((item) => parseInt((item - min) / step)),
+);
+
+const segments = {};
+stepped.forEach((line, y) => {
+    line.forEach((cell, x) => {
+        borders.forEach(([dx, dy]) => {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (isValid(stepped, nx, ny)) {
+                const adjacent = stepped[ny][nx];
+                if (adjacent > cell) {
+                    if (!segments[cell]) {
+                        segments[cell] = [];
+                    }
+                    segments[cell].push(segmentFor(x, y, dx, dy));
+                }
+            }
+        });
+    });
+});
+
+const process = (paths) => {
+    paths = organizeLevel(paths);
+    paths = organizeLevel(paths.map((points) => points.reverse()));
+    paths = paths.filter(
+        (points) =>
+            points.length > 10 ||
+            pointKey(points[0]) !== pointKey(points[points.length - 1]),
+    );
+    // .map(smoothPath)
+    // paths = paths.map(smoothPath);
+    paths = paths.map(simplifyPath);
+    paths = paths.filter(
+        (points) =>
+            points.length > 10 ||
+            pointKey(points[0]) !== pointKey(points[points.length - 1]),
+    );
+    paths = organizeLevel(paths);
+    paths = paths.filter(
+        (points) =>
+            points.length > 10 ||
+            pointKey(points[0]) !== pointKey(points[points.length - 1]),
+    );
+    return paths;
+};
+
+const paths = {};
+Object.keys(segments).forEach(
+    (level) => (paths[level] = process(segments[level])),
+);
+
+let total = 0;
+Object.keys(paths).forEach((k) => (total += paths[k].length));
+console.log(`All paths: ${total}`);
+
+container.innerHTML = showPaths(paths);
 // fs.writeFileSync('./out.svg', showBasic(segments));
-fs.writeFileSync('./out.svg', showPaths(paths));
+// fs.writeFileSync('./out.svg', showPaths(paths));

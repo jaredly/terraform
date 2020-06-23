@@ -5,3 +5,4 @@ target
 *.stl
 *.xml
 docs
+*.csv
