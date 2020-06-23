@@ -235,7 +235,7 @@ const pathSmoothD = (points) => {
 const pathD = ([p0, ...rest]) =>
     `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
 
-const showPaths = (paths) => {
+const showPaths = (stepped, paths) => {
     return `
 <svg
 xmlns="http://www.w3.org/2000/svg"
@@ -315,86 +315,91 @@ ${Object.keys(segments)
 `;
 };
 
-const container = document.createElement('div');
-document.body.appendChild(container);
+const createImage = (rawData, layers = 9) => {
+    const csv = rawData
+        .split('\n')
+        .map((line) => line.split(',').map((item) => parseFloat(item)));
 
-const layers = 9;
-const csv = window.data
-    .split('\n')
-    .map((line) => line.split(',').map((item) => parseFloat(item)));
+    // const csv = fs
+    //     .readFileSync(fname, 'utf8')
+    //     .split('\n')
+    //     .map((line) => line.split(',').map((item) => parseFloat(item)));
+    let min = Infinity;
+    let max = -Infinity;
 
-// const csv = fs
-//     .readFileSync(fname, 'utf8')
-//     .split('\n')
-//     .map((line) => line.split(',').map((item) => parseFloat(item)));
-let min = Infinity;
-let max = -Infinity;
+    csv.forEach((line) =>
+        line.forEach((item) => {
+            min = Math.min(min, item);
+            max = Math.max(max, item);
+        }),
+    );
 
-csv.forEach((line) =>
-    line.forEach((item) => {
-        min = Math.min(min, item);
-        max = Math.max(max, item);
-    }),
-);
+    const step = (max - min) / layers;
+    const stepped = csv.map((line) =>
+        line.map((item) => parseInt((item - min) / step)),
+    );
 
-const step = (max - min) / layers;
-const stepped = csv.map((line) =>
-    line.map((item) => parseInt((item - min) / step)),
-);
-
-const segments = {};
-stepped.forEach((line, y) => {
-    line.forEach((cell, x) => {
-        borders.forEach(([dx, dy]) => {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (isValid(stepped, nx, ny)) {
-                const adjacent = stepped[ny][nx];
-                if (adjacent > cell) {
-                    if (!segments[cell]) {
-                        segments[cell] = [];
+    const segments = {};
+    stepped.forEach((line, y) => {
+        line.forEach((cell, x) => {
+            borders.forEach(([dx, dy]) => {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (isValid(stepped, nx, ny)) {
+                    const adjacent = stepped[ny][nx];
+                    if (adjacent > cell) {
+                        if (!segments[cell]) {
+                            segments[cell] = [];
+                        }
+                        segments[cell].push(segmentFor(x, y, dx, dy));
                     }
-                    segments[cell].push(segmentFor(x, y, dx, dy));
                 }
-            }
+            });
         });
     });
-});
 
-const process = (paths) => {
-    paths = organizeLevel(paths);
-    paths = organizeLevel(paths.map((points) => points.reverse()));
-    paths = paths.filter(
-        (points) =>
-            points.length > 10 ||
-            pointKey(points[0]) !== pointKey(points[points.length - 1]),
+    const process = (paths) => {
+        paths = organizeLevel(paths);
+        paths = organizeLevel(paths.map((points) => points.reverse()));
+        paths = paths.filter(
+            (points) =>
+                points.length > 10 ||
+                pointKey(points[0]) !== pointKey(points[points.length - 1]),
+        );
+        // .map(smoothPath)
+        // paths = paths.map(smoothPath);
+        paths = paths.map(simplifyPath);
+        paths = paths.filter(
+            (points) =>
+                points.length > 10 ||
+                pointKey(points[0]) !== pointKey(points[points.length - 1]),
+        );
+        paths = organizeLevel(paths);
+        paths = paths.filter(
+            (points) =>
+                points.length > 10 ||
+                pointKey(points[0]) !== pointKey(points[points.length - 1]),
+        );
+        return paths;
+    };
+
+    const paths = {};
+    Object.keys(segments).forEach(
+        (level) => (paths[level] = process(segments[level])),
     );
-    // .map(smoothPath)
-    // paths = paths.map(smoothPath);
-    paths = paths.map(simplifyPath);
-    paths = paths.filter(
-        (points) =>
-            points.length > 10 ||
-            pointKey(points[0]) !== pointKey(points[points.length - 1]),
-    );
-    paths = organizeLevel(paths);
-    paths = paths.filter(
-        (points) =>
-            points.length > 10 ||
-            pointKey(points[0]) !== pointKey(points[points.length - 1]),
-    );
-    return paths;
+
+    let total = 0;
+    Object.keys(paths).forEach((k) => (total += paths[k].length));
+    console.log(`All paths: ${total}`);
+    return showPaths(stepped, paths);
 };
 
-const paths = {};
-Object.keys(segments).forEach(
-    (level) => (paths[level] = process(segments[level])),
-);
-
-let total = 0;
-Object.keys(paths).forEach((k) => (total += paths[k].length));
-console.log(`All paths: ${total}`);
-
-container.innerHTML = showPaths(paths);
+const image = createImage(window.data);
+const container = document.createElement('div');
+document.body.appendChild(container);
+container.innerHTML = image;
+const img = document.createElement('img');
+img.src = `data:image/svg+xml,` + image;
+document.body.appendChild(img);
 // fs.writeFileSync('./out.svg', showBasic(segments));
 // fs.writeFileSync('./out.svg', showPaths(paths));
