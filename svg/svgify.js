@@ -395,14 +395,140 @@ const createImage = (rawData, getColor, layers = 9, width = 1000) => {
     return showPaths(width, stepped, paths, getColor);
 };
 
+// My little framework
+const node = (name, attrs, children) => {
+    const add = (child) => {
+        if (child == null) {
+            return;
+        } else if (Array.isArray(child)) {
+            child.forEach(add);
+        } else if (
+            typeof child === 'string' ||
+            typeof child === 'number' ||
+            typeof child === 'boolean'
+        ) {
+            node.appendChild(document.createTextNode('' + child));
+        } else {
+            // TODO check, and warn otherwise
+            node.appendChild(child);
+        }
+    };
+    const node = document.createElement(name);
+    if (attrs) {
+        Object.keys(attrs).forEach((k) => {
+            if (k === 'style') {
+                Object.assign(node.style, attrs[k]);
+            } else if (typeof attrs[k] === 'function') {
+                node[k] = function () {
+                    attrs[k].call(node, arguments);
+                }; // todo addeventlistener maybe?
+            } else {
+                node.setAttribute(k, attrs[k]);
+            }
+        });
+    }
+    add(children);
+    return node;
+};
+const named = (name) => (attrs, children) => node(name, attrs, children);
+const div = named('div');
+const span = named('span');
+const button = named('button');
+const render = (dest, node) => {
+    dest.innerHTML = '';
+    dest.appendChild(node);
+};
+// done with framework
+
+const root = document.createElement('div');
+document.body.appendChild(root);
+
 const getFirstColor = (i) => (i % 2 == 0 ? 'red' : 'blue');
 const getSecondColor = (i) => (i % 2 == 1 ? 'red' : 'blue');
-const image = createImage(window.data, getFirstColor, 7, 500);
-const container = document.createElement('div');
-document.body.appendChild(container);
-container.innerHTML = image;
-const img = document.createElement('img');
-img.src = `data:image/svg+xml,` + image;
-document.body.appendChild(img);
+
+const defaultSettings = {
+    color: false,
+    data: 20,
+    layers: 7,
+    size: 500,
+};
+
+const update = (settings) => {
+    window.location.hash = JSON.stringify(settings);
+    app(settings);
+};
+
+const app = (settings) => {
+    const canvas = div({});
+    const image = createImage(
+        window.data[settings.data],
+        settings.color ? getFirstColor : getColor,
+        settings.layers,
+        settings.size,
+    );
+    canvas.innerHTML = image;
+    render(
+        root,
+        div({}, [
+            button(
+                {
+                    onclick: () =>
+                        update({ ...settings, color: !settings.color }),
+                },
+                settings.color ? 'Multicolor' : 'Laser colors',
+            ),
+            canvas,
+            div({}, [
+                button(
+                    {
+                        onclick: () =>
+                            update({
+                                ...settings,
+                                layers: settings.layers - 1,
+                            }),
+                    },
+                    '- layer',
+                ),
+                settings.layers,
+                button(
+                    {
+                        onclick: () =>
+                            update({
+                                ...settings,
+                                layers: settings.layers + 1,
+                            }),
+                    },
+                    '+ layer',
+                ),
+                button({ onclick: () => update(settings) }, 'Re-run'),
+                [5, 20, 30, 50].map((num) =>
+                    button(
+                        {
+                            onclick: () => {
+                                update({ ...settings, data: num });
+                            },
+                        },
+                        `Load data ${num}`,
+                    ),
+                ),
+            ]),
+            node('img', { src: `data:image/svg+xml,` + image }),
+        ]),
+    );
+};
+
+app(
+    window.location.hash.length
+        ? JSON.parse(window.location.hash.slice(1))
+        : defaultSettings,
+);
+
+// const image = createImage(window.data, getFirstColor, 7, 500);
+// const container = document.createElement('div');
+// document.body.appendChild(container);
+// container.innerHTML = image;
+// const img = document.createElement('img');
+// img.src = `data:image/svg+xml,` + image;
+// document.body.appendChild(img);
 // fs.writeFileSync('./out.svg', showBasic(segments));
 // fs.writeFileSync('./out.svg', showPaths(paths));
