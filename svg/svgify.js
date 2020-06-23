@@ -235,12 +235,13 @@ const pathSmoothD = (points) => {
 const pathD = ([p0, ...rest]) =>
     `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
 
-const showPaths = (stepped, paths) => {
+const showPaths = (width, stepped, paths, getColor) => {
+    const scale = width / stepped[0].length;
     return `
 <svg
 xmlns="http://www.w3.org/2000/svg"
-width="${1000}"
-height="${(1000 / stepped[0].length) * stepped.length}"
+width="${width}"
+height="${scale * stepped.length}"
 viewBox="0 0 ${stepped[0].length * 2} ${stepped.length * 2}"
 >
 ${Object.keys(paths)
@@ -258,24 +259,24 @@ ${Object.keys(paths)
                     `
                     <path d="${pathSmoothD(points)}"
                         fill="none"
-                        style="stroke-width: 1"
+                        style="stroke-width: ${2 / scale.toFixed(2)}"
                         stroke="${getColor(i)}"
                     />
-    ${
-        pointKey(points[0]) !== pointKey(points[points.length - 1])
-            ? `<circle cx="${points[0][0]}" cy="${points[0][1]}"
-                    r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                <circle cx="${points[points.length - 1][0]}" cy="${
-                  points[points.length - 1][1]
-              }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                    `
-            : `
-                <circle cx="${points[points.length - 1][0]}" cy="${
-                  points[points.length - 1][1]
-              }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
-            `
-    }
     `,
+                // ${
+                //     pointKey(points[0]) !== pointKey(points[points.length - 1])
+                //         ? `<circle cx="${points[0][0]}" cy="${points[0][1]}"
+                //                 r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
+                //             <circle cx="${points[points.length - 1][0]}" cy="${
+                //               points[points.length - 1][1]
+                //           }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
+                //                 `
+                //         : `
+                //             <circle cx="${points[points.length - 1][0]}" cy="${
+                //               points[points.length - 1][1]
+                //           }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
+                //         `
+                // }
             )
 
             .join('\n'),
@@ -315,7 +316,7 @@ ${Object.keys(segments)
 `;
 };
 
-const createImage = (rawData, layers = 9) => {
+const createImage = (rawData, getColor, layers = 9, width = 1000) => {
     const csv = rawData
         .split('\n')
         .map((line) => line.split(',').map((item) => parseFloat(item)));
@@ -391,10 +392,12 @@ const createImage = (rawData, layers = 9) => {
     let total = 0;
     Object.keys(paths).forEach((k) => (total += paths[k].length));
     console.log(`All paths: ${total}`);
-    return showPaths(stepped, paths);
+    return showPaths(width, stepped, paths, getColor);
 };
 
-const image = createImage(window.data);
+const getFirstColor = (i) => (i % 2 == 0 ? 'red' : 'blue');
+const getSecondColor = (i) => (i % 2 == 1 ? 'red' : 'blue');
+const image = createImage(window.data, getFirstColor, 7, 500);
 const container = document.createElement('div');
 document.body.appendChild(container);
 container.innerHTML = image;
