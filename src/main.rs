@@ -65,10 +65,12 @@ struct Status {
     selection_node: kiss3d::scene::SceneNode,
     selection: Selection,
     zoom: Option<Zoom>,
+    trail: Option<Vec<(f32,f32)>>,
 }
 
 enum Transition {
     Open(String),
+    OpenTrail(String),
     Select(terrain::Coords, usize),
     Resolution(usize),
     Export,
@@ -79,7 +81,32 @@ enum Transition {
 
 use kiss3d::scene::SceneNode;
 
-fn large_nodes(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNode) {
+/*
+Ok, so there are fundamentally 3 scenes to render.
+
+Scene_0_Home - nothing is loaded, just show an "open file" button and a screenshot
+Scene_1_Tile - loaded a tile of GIS data
+Scene_2_Crop - cropped down to a smaller thing, loading full data, with resolution control
+Scene_3_Hex - cropped down to a hex
+
+*/
+
+fn load_trail_file(file_name: String) -> std::io::Result<Vec<(f32,f32)>> {
+    let mut file = File::open("foo.txt")?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    Ok(contents.split('\n').collect::<Vec<&str>>().iter().skip(1).map(|line| {
+        let parts: Vec<&str> = line.split(',').collect();
+        if (parts.len() < 3) {
+            panic!("Bad line");
+        }
+        let x: f32 = parts[0].parse().unwrap();
+        let y: f32 = parts[1].parse().unwrap();
+        (x, y)
+    }).collect())
+}
+
+fn render_scene_1_tile(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNode) {
     window.scene_mut().clear();
     window.set_camera(make_camera());
 
@@ -101,14 +128,14 @@ fn large_nodes(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNo
     (pointer, selection)
 }
 
-fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
+fn load_file_and_render(window: &mut Window, file_name: String) -> Option<Status> {
     if let Ok(dataset) = Dataset::open(Path::new(file_name.as_str())) {
         let file = profile!(
             "Load file",
             terrain::File::from_dataset(&dataset, file_name)
         );
 
-        let (pointer, selection) = large_nodes(&file, window);
+        let (pointer, selection) = render_scene_1_tile(&file, window);
 
         Some(Status {
             file,
@@ -119,6 +146,7 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
                 size: Vector2::new(0.0, 0.0),
             },
             zoom: None,
+            trail: None,
         })
     } else {
         println!("Reset");
@@ -126,7 +154,7 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
     }
 }
 
-fn setup_cut(
+fn render_scene_3_hex(
     window: &mut Window,
     file: &terrain::File,
     hex: &terrain::Hex,
@@ -152,7 +180,7 @@ fn setup_cut(
     }
 }
 
-fn setup_small(
+fn render_scene_2_crop(
     window: &mut Window,
     file: &terrain::File,
     coords: &terrain::Coords,
@@ -192,7 +220,7 @@ fn handle_transition(
 ) -> Option<Status> {
     match current {
         None => match transition {
-            Transition::Open(file_name) => match make_large(window, file_name) {
+            Transition::Open(file_name) => match load_file_and_render(window, file_name) {
                 Some(status) => Some(status),
                 None => None,
             },
@@ -200,13 +228,17 @@ fn handle_transition(
         },
         Some(status) => {
             match transition {
-                Transition::Open(file_name) => match make_large(window, file_name) {
+                Transition::Open(file_name) => match load_file_and_render(window, file_name) {
                     Some(status) => Some(status),
                     None => Some(status),
                 },
+                Transition::OpenTrail(file_name) => match load_trail_file(file_name) {
+                    Ok(trail) => Some(Status {trail: Some(trail), ..status}),
+                    _ => Some(status),
+                },
                 Transition::Select(coords, sample) => {
                     if let Some((pointer, selection_node)) =
-                        setup_small(window, &status.file, &coords, sample, true)
+                        render_scene_2_crop(window, &status.file, &coords, sample, true)
                     {
                         Some(Status {
                             pointer,
@@ -227,7 +259,7 @@ fn handle_transition(
                     None => Some(status),
                     Some(zoom) => {
                         println!("To re-run at this setting: \n cargo run --release {} {} {} {} {} {} {} {}", status.file.name, zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h, hex.cx, hex.cy, hex.half_height);
-                        setup_cut(window, &status.file, &hex, zoom.sample, true);
+                        render_scene_3_hex(window, &status.file, &hex, zoom.sample, true);
                         Some(Status {
                             zoom: Some(Zoom {
                                 cut: Some(hex),
@@ -241,7 +273,7 @@ fn handle_transition(
                     None => Some(status),
                     Some(zoom) => match zoom.cut {
                         Some(cut) => {
-                            setup_cut(window, &status.file, &cut, res, false);
+                            render_scene_3_hex(window, &status.file, &cut, res, false);
                             Some(Status {
                                 zoom: Some(Zoom {
                                     sample: res,
@@ -253,7 +285,7 @@ fn handle_transition(
                         }
                         None => Some(Status {
                             zoom: if let Some((mut p_new, mut sel_new)) =
-                                setup_small(window, &status.file, &zoom.coords, res, false)
+                                render_scene_2_crop(window, &status.file, &zoom.coords, res, false)
                             {
                                 sel_new.unlink();
                                 window.add_child(&status.selection_node);
@@ -274,7 +306,7 @@ fn handle_transition(
                     None => Some(status),
                     Some(zoom) => match zoom.cut {
                         None => {
-                            let (pointer, selection_node) = large_nodes(&status.file, window);
+                            let (pointer, selection_node) = render_scene_1_tile(&status.file, window);
                             Some(Status {
                                 pointer,
                                 selection_node,
@@ -288,7 +320,7 @@ fn handle_transition(
                         }
                         Some(_cut) => {
                             if let Some((pointer, selection_node)) =
-                                setup_small(window, &status.file, &zoom.coords, zoom.sample, true)
+                                render_scene_2_crop(window, &status.file, &zoom.coords, zoom.sample, true)
                             {
                                 Some(Status {
                                     zoom: Some(Zoom { cut: None, ..zoom }),
@@ -321,10 +353,14 @@ fn handle_transition(
                                     // let mut file = File::create("foo.txt")?;
                                     // file.write_all(b"Hello, world!")?;
                                     let data = format!(
-                                        "window.data[\"{}\"] = {{x: {:2}, y: {:2}, rows: [[{}]]}}",
+                                        "window.data[\"{}\"] = {{x: {:2}, y: {:2}, w: {:2}, h: {:2}, ow: {:2}, oh: {:2}, rows: [[{}]]}}",
                                         file_path,
                                         &zoom.coords.x,
                                         &zoom.coords.y,
+                                        &zoom.coords.w,
+                                        &zoom.coords.h,
+                                        &status.file.size.x,
+                                        &status.file.size.y,
                                         json.iter().map(|row| row.iter().map(
                                             |item| item.to_string()
                                         ).collect::<Vec<String>>().join(",")).collect::<Vec<String>>().join("],\n[")
@@ -472,6 +508,7 @@ widget_ids! {
         hlist,
         status_text,
         open_file,
+        open_trail,
         help_text,
         selection_text,
         crop,
@@ -608,6 +645,18 @@ impl Statusable for Option<Status> {
                     }
                 }
 
+                for _press in widget::Button::new()
+                    .label("Open Trail CSV")
+                    .right_from(ids.open_file, 10.0)
+                    .w(80.0)
+                    .h(HEIGHT)
+                    .set(ids.open_trail, ui)
+                {
+                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("csv"), None) {
+                        return Some(Transition::OpenTrail(file_path))
+                    }
+                }
+
                 let name = file.name[0.max(file.name.len() - 20)..].to_string();
                 let label_text = format!("File: {}", name);
                 widget::Text::new(label_text.as_str())
@@ -626,7 +675,7 @@ impl Statusable for Option<Status> {
 
                     if let Some(_press) = widget::Button::new()
                         .label("Crop")
-                        .right_from(ids.open_file, 10.0)
+                        .right_from(ids.open_trail, 10.0)
                         .h(HEIGHT)
                         .w(50.0)
                         .set(ids.crop, ui)
@@ -893,6 +942,7 @@ impl Statusable for Option<Status> {
                         pointer,
                         selection,
                         selection_node,
+                        trail: _,
                     }) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
