@@ -86,7 +86,7 @@ impl File {
         }
     }
 
-    pub fn get_json(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Vec<Vec<f32>>> {
+    pub fn to_json(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Vec<Vec<f32>>> {
         if coords.validate(self) {
             let elevation_scale = if self.size.x >= self.size.y {
                 self.size.x as f32 / coords.w as f32 * 1.0 / self.longest_dim_in_meters
@@ -99,6 +99,26 @@ impl File {
                 sample,
                 self.size.x,
                 elevation_scale * elevation_boost,
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub fn to_hex_json(&self, hex: &Hex, sample: usize) -> Option<Vec<Vec<f32>>> {
+        if true {
+            let (x, y, w, h) = hex.bbox();
+            let elevation_scale = if self.size.x >= self.size.y {
+                self.size.x as f32 / w as f32 * 1.0 / self.longest_dim_in_meters
+            } else {
+                self.size.y as f32 / h as f32 * 1.0 / self.longest_dim_in_meters
+            };
+            Some(to_json(
+                &self.raster,
+                Coords {x, y, w, h},
+                sample,
+                self.size.x,
+                elevation_scale,
             ))
         } else {
             None
@@ -397,6 +417,7 @@ fn to_json(
     full_width: usize,
     elevation_scale: f32,
 ) -> Vec<Vec<f32>> {
+
     let ww = w / sample;
     let hh = h / sample;
     let total = ww * hh;
@@ -405,13 +426,11 @@ fn to_json(
     let scalew = ww as f32 / scaler;
     let scaleh = hh as f32 / scaler;
 
-    // let mut coords = Vec::with_capacity(total);
     println!("Total points: {}", total);
     let mut max = 0.0;
     let mut min = std::f32::INFINITY;
 
     for y in 0..hh {
-        // let mut row = vec![];
         for x in 0..ww {
             let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
             if p > max { max = p }

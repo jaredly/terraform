@@ -340,7 +340,11 @@ fn handle_transition(
                 Transition::ExportJSON => match status.zoom {
                     None => Some(status),
                     Some(zoom) => {
-                        let json = status.file.get_json(&zoom.coords, zoom.sample, 1.0);
+                        // let json = status.file.get_json(&zoom.coords, zoom.sample, 1.0);
+                        let json = match zoom.cut {
+                            Some(cut) => status.file.to_hex_json(&cut, zoom.sample),
+                            None => status.file.to_json(&zoom.coords, zoom.sample, 1.0),
+                        };
 
                         match json {
                             None => println!("Failed to get stl"),
@@ -353,7 +357,7 @@ fn handle_transition(
                                     // let mut file = File::create("foo.txt")?;
                                     // file.write_all(b"Hello, world!")?;
                                     let data = format!(
-                                        "window.data[\"{}\"] = {{x: {:2}, y: {:2}, w: {:2}, h: {:2}, ow: {:2}, oh: {:2}, rows: [[{}]]}}",
+                                        "window.data[\"{}\"] = {{x: {:2}, y: {:2}, w: {:2}, h: {:2}, ow: {:2}, oh: {:2}, rows: [{}]}}",
                                         file_path,
                                         &zoom.coords.x,
                                         &zoom.coords.y,
@@ -361,9 +365,13 @@ fn handle_transition(
                                         &zoom.coords.h,
                                         &status.file.size.x,
                                         &status.file.size.y,
-                                        json.iter().map(|row| row.iter().map(
+                                        json.iter()
+                                        .map(|row|
+                                        format!("[{}]", offset, row.iter().map(
                                             |item| item.to_string()
-                                        ).collect::<Vec<String>>().join(",")).collect::<Vec<String>>().join("],\n[")
+                                        ).collect::<Vec<String>>().join(",")
+                                    ))
+                                        .collect::<Vec<String>>().join(",\n")
                                     );
                                     if profile!("Write file", outfile.write_all(
                                         data.as_bytes()
