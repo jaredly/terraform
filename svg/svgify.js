@@ -442,8 +442,10 @@ const node = (name, attrs, children) => {
                 Object.assign(node.style, attrs[k]);
             } else if (typeof attrs[k] === 'function') {
                 node[k] = function () {
-                    attrs[k].call(node, arguments);
+                    attrs[k].apply(node, arguments);
                 }; // todo addeventlistener maybe?
+            } else if (['checked'].includes(k)) {
+                node[k] = attrs[k];
             } else {
                 node.setAttribute(k, attrs[k]);
             }
@@ -473,18 +475,35 @@ const defaultSettings = {
     data: Object.keys(window.data)[0],
     layers: 7,
     size: 500,
+    sub: 4,
+    first: true,
+};
+
+const getSubColor = (num, first, fn) => (i) => {
+    let band = parseInt(i / num);
+    let off = i % num;
+    if (off == 0) {
+        return fn(band);
+    } else if (band % 2 !== (first ? 0 : 1)) {
+        return fn(band + 1);
+        // return 'rgba(0,0,0,0.1)';
+    }
 };
 
 const update = (settings) => {
     window.location.hash = JSON.stringify(settings);
-    app(settings);
+    app({ ...defaultSettings, ...settings });
 };
 
 const app = (settings) => {
     const canvas = div({});
     const image = createImage(
         window.data[settings.data],
-        settings.color ? getFirstColor : getColor,
+        getSubColor(
+            settings.sub || 3,
+            settings.first,
+            settings.color ? getFirstColor : getColor,
+        ),
         settings.layers,
         settings.size,
     );
@@ -492,15 +511,14 @@ const app = (settings) => {
     render(
         root,
         div({}, [
-            button(
-                {
-                    onclick: () =>
-                        update({ ...settings, color: !settings.color }),
-                },
-                settings.color ? 'Multicolor' : 'Laser colors',
-            ),
-            canvas,
             div({}, [
+                button(
+                    {
+                        onclick: () =>
+                            update({ ...settings, color: !settings.color }),
+                    },
+                    settings.color ? 'Multicolor' : 'Laser colors',
+                ),
                 button(
                     {
                         onclick: () =>
@@ -511,7 +529,16 @@ const app = (settings) => {
                     },
                     '- layer',
                 ),
-                settings.layers,
+                node('input', {
+                    type: 'checkbox',
+                    checked: settings.first,
+                    onchange: (evt) =>
+                        update({ ...settings, first: evt.target.checked }),
+                }),
+                'first',
+                blurInput(settings.layers, (layers) =>
+                    update({ ...settings, layers }),
+                ),
                 button(
                     {
                         onclick: () =>
@@ -523,20 +550,35 @@ const app = (settings) => {
                     '+ layer',
                 ),
                 button({ onclick: () => update(settings) }, 'Re-run'),
-                Object.keys(window.data).map((num) =>
-                    button(
-                        {
-                            onclick: () => {
-                                update({ ...settings, data: num });
+            ]),
+            canvas,
+            div({}, [
+                div(
+                    {},
+                    Object.keys(window.data).map((num) =>
+                        button(
+                            {
+                                onclick: () => {
+                                    update({ ...settings, data: num });
+                                },
                             },
-                        },
-                        `Load data ${num}`,
+                            `Load data ${num}`,
+                        ),
                     ),
                 ),
             ]),
             node('img', { src: `data:image/svg+xml,` + image }),
         ]),
     );
+};
+
+const blurInput = (value, onChange) => {
+    const dom = node('input', {
+        style: { width: '20px' },
+        onchange: () => onChange(dom.value),
+        value,
+    });
+    return dom;
 };
 
 app(
