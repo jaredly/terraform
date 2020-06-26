@@ -448,7 +448,7 @@ const getSecondColor = (i) => (i % 2 == 1 ? 'red' : 'blue');
 
 const defaultSettings = {
     color: false,
-    data: 20,
+    data: Object.keys(window.data)[0],
     layers: 7,
     size: 500,
 };
@@ -501,7 +501,7 @@ const app = (settings) => {
                     '+ layer',
                 ),
                 button({ onclick: () => update(settings) }, 'Re-run'),
-                [5, 20, 30, 50].map((num) =>
+                Object.keys(window.data).map((num) =>
                     button(
                         {
                             onclick: () => {
