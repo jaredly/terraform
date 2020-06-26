@@ -86,14 +86,14 @@ impl File {
         }
     }
 
-    pub fn get_csv(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Vec<Vec<f32>>> {
+    pub fn get_json(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Vec<Vec<f32>>> {
         if coords.validate(self) {
             let elevation_scale = if self.size.x >= self.size.y {
                 self.size.x as f32 / coords.w as f32 * 1.0 / self.longest_dim_in_meters
             } else {
                 self.size.y as f32 / coords.h as f32 * 1.0 / self.longest_dim_in_meters
             };
-            Some(to_csv(
+            Some(to_json(
                 &self.raster,
                 &coords,
                 sample,
@@ -390,7 +390,7 @@ impl Hex {
 
 use super::hex;
 
-fn to_csv(
+fn to_json(
     raster: &Buffer<f32>,
     Coords { x: x0, y: y0, w, h }: &Coords,
     sample: usize,

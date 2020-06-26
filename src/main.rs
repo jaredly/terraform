@@ -72,7 +72,7 @@ enum Transition {
     Select(terrain::Coords, usize),
     Resolution(usize),
     Export,
-    ExportCSV,
+    ExportJSON,
     Reset,
     Cut(terrain::Hex),
 }
@@ -305,23 +305,32 @@ fn handle_transition(
                         }
                     },
                 },
-                Transition::ExportCSV => match status.zoom {
+                Transition::ExportJSON => match status.zoom {
                     None => Some(status),
                     Some(zoom) => {
-                        let csv = status.file.get_csv(&zoom.coords, zoom.sample, 1.0);
+                        let json = status.file.get_json(&zoom.coords, zoom.sample, 1.0);
 
-                        match csv {
+                        match json {
                             None => println!("Failed to get stl"),
-                            Some(csv) => {
+                            Some(json) => {
                                 if let Ok(nfd::Response::Okay(file_path)) =
-                                    nfd::open_save_dialog(Some("csv"), None)
+                                    nfd::open_save_dialog(Some("js"), None)
                                 {
                                     let mut outfile =
                                         std::fs::File::create(file_path.as_str()).unwrap();
                                     // let mut file = File::create("foo.txt")?;
                                     // file.write_all(b"Hello, world!")?;
+                                    let data = format!(
+                                        "window.data[\"{}\"] = {{x: {:2}, y: {:2}, rows: [[{}]]}}",
+                                        file_path,
+                                        &zoom.coords.x,
+                                        &zoom.coords.y,
+                                        json.iter().map(|row| row.iter().map(
+                                            |item| item.to_string()
+                                        ).collect::<Vec<String>>().join(",")).collect::<Vec<String>>().join("],\n[")
+                                    );
                                     if profile!("Write file", outfile.write_all(
-                                        csv.iter().map(|row| row.iter().map(|item| item.to_string()).collect::<Vec<String>>().join(",")).collect::<Vec<String>>().join("\n").as_bytes()
+                                        data.as_bytes()
                                     )).is_err() {
                                         println!("Failed to write :'(");
                                     }
@@ -470,7 +479,7 @@ widget_ids! {
         sample_less,
         sample_greater,
         export,
-        export_csv,
+        export_json,
         reset,
         cut,
         image
@@ -737,18 +746,18 @@ impl Statusable for Option<Status> {
                 }
 
                 if let Some(_press) = widget::Button::new()
-                    .label("Export csv")
+                    .label("Export json")
                     .right_from(ids.export, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.export_csv, ui).next()
+                    .set(ids.export_json, ui).next()
                 {
-                    return Some(Transition::ExportCSV);
+                    return Some(Transition::ExportJSON);
                 }
 
                 if let Some(_press) = widget::Button::new()
                     .label("Back")
-                    .right_from(ids.export_csv, 10.0)
+                    .right_from(ids.export_json, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
                     .set(ids.reset, ui).next()

@@ -317,9 +317,11 @@ ${Object.keys(segments)
 };
 
 const createImage = (rawData, getColor, layers = 9, width = 1000) => {
-    const csv = rawData
-        .split('\n')
-        .map((line) => line.split(',').map((item) => parseFloat(item)));
+    const csv = rawData.rows
+        ? rawData.rows
+        : rawData
+              .split('\n')
+              .map((line) => line.split(',').map((item) => parseFloat(item)));
 
     // const csv = fs
     //     .readFileSync(fname, 'utf8')
@@ -519,7 +521,7 @@ const app = (settings) => {
 
 app(
     window.location.hash.length
-        ? JSON.parse(window.location.hash.slice(1))
+        ? JSON.parse(decodeURIComponent(window.location.hash.slice(1)))
         : defaultSettings,
 );
 
