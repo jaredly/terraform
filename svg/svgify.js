@@ -8,6 +8,8 @@
 //     'utf8',
 // );
 
+const trail_bounds = { x: -112, y: 41, w: 1, h: -1 }; // 41 to 40, -112 to -111
+
 const borders = [
     [-1, 0],
     [0, -1],
@@ -203,24 +205,6 @@ const spaths = (rest) => {
     return parts.join(' ');
 };
 
-// const pathSmoothD = ([p0, ...rest]) =>
-//     `M${s(p0)} ` + rest.map((p) => 'T ' + s(p)).join(' ');
-// const pathSmoothD = ([p0, p1, p2, ...rest]) =>
-//     `M${s(p0)} C ${s(p0)}, ${s(p1)}, ${s(p2)} ${spaths(rest)}`;
-
-// const pathSmoothD = (points) => {
-//     const parts = [`M${s(points[0])}`];
-//     for (let i = 2; i < points.length; i++) {
-//         const p0 = points[i - 2];
-//         const prev = points[i - 1];
-//         const m0 = midPoint(p0, prev);
-//         const mid = midPoint(prev, points[i]);
-//         parts.push(`Q ${s(prev)} ${s(mid)}`);
-//     }
-//     parts.push(`L ${s(points[points.length - 1])}`);
-//     return parts.join(' ');
-// };
-
 const pathSmoothD = (points) => {
     const parts = [`M${s(points[0])}`];
     for (let i = 1; i < points.length; i++) {
@@ -235,7 +219,7 @@ const pathSmoothD = (points) => {
 const pathD = ([p0, ...rest]) =>
     `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
 
-const showPaths = (width, stepped, paths, getColor) => {
+const showPaths = (width, stepped, paths, getColor, rawData) => {
     const scale = width / stepped[0].length;
     return `
 <svg
@@ -259,7 +243,7 @@ ${Object.keys(paths)
                     `
                     <path d="${pathSmoothD(points)}"
                         fill="none"
-                        style="stroke-width: ${2 / scale.toFixed(2)}"
+                        style="stroke-width: ${(2 / scale).toFixed(2)}"
                         stroke="${getColor(i)}"
                     />
     `,
@@ -282,8 +266,44 @@ ${Object.keys(paths)
             .join('\n'),
     )
     .join('\n')}
+    <path d="M 0 0 ${showTrail(trail, rawData, stepped)}"
+    fill="none"
+    style="stroke-width: ${(4 / scale).toFixed(2)}"
+    stroke="red"
+    />
 </svg>
 `;
+};
+
+const showTrail = (trail, rawData, stepped) => {
+    // const trailSimple = simplify(
+    //     trail.data.trackData[0].map((item) => ({ x: item.lon, y: item.lat })),
+    //     2,
+    //     true,
+    // ).map((p) => [p.x, p.y]);
+    let points = trail.data.trackData[0].map((item) => {
+        let innerBounds = {
+            x: trail_bounds.x + (rawData.x / rawData.ow) * trail_bounds.w,
+            y: trail_bounds.y + (rawData.y / rawData.oh) * trail_bounds.h,
+            w: (rawData.h / rawData.ow) * trail_bounds.w,
+            h: (rawData.w / rawData.ow) * trail_bounds.h,
+        };
+        // console.log(rawData.x, rawData.ow, rawData.y, rawData.oh);
+        // console.log(innerBounds);
+        let x =
+            ((item.lon - innerBounds.x) / innerBounds.w) *
+            stepped[0].length *
+            2;
+        let y =
+            ((item.lat - innerBounds.y) / innerBounds.h) * stepped.length * 2;
+        return { x, y };
+    });
+    points = simplify(points, stepped[0].length / 400, true);
+    return pathSmoothD(points.map((p) => [p.x, p.y]));
+    // return (
+    //     `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)} ` +
+    //     points.map(({ x, y }) => `L ${x.toFixed(2)} ${y.toFixed(2)}`).join(' ')
+    // );
 };
 
 const showBasic = (segments) => {
@@ -317,11 +337,11 @@ ${Object.keys(segments)
 };
 
 const createImage = (rawData, getColor, layers = 9, width = 1000) => {
-    const csv = rawData.rows
-        ? rawData.rows
-        : rawData
-              .split('\n')
-              .map((line) => line.split(',').map((item) => parseFloat(item)));
+    const csv = rawData.rows;
+    // ? rawData.rows
+    // : rawData
+    //       .split('\n')
+    //       .map((line) => line.split(',').map((item) => parseFloat(item)));
 
     // const csv = fs
     //     .readFileSync(fname, 'utf8')
@@ -394,7 +414,7 @@ const createImage = (rawData, getColor, layers = 9, width = 1000) => {
     let total = 0;
     Object.keys(paths).forEach((k) => (total += paths[k].length));
     console.log(`All paths: ${total}`);
-    return showPaths(width, stepped, paths, getColor);
+    return showPaths(width, stepped, paths, getColor, rawData);
 };
 
 // My little framework
