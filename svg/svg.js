@@ -28,6 +28,7 @@ const pathD = ([p0, ...rest]) =>
 
 const showPaths = (width, stepped, paths, getColor, rawData) => {
     const scale = width / stepped[0].length;
+    const showEndPoints = true;
     return `
 <svg
 xmlns="http://www.w3.org/2000/svg"
@@ -41,33 +42,29 @@ ${Object.keys(paths)
             .filter((points) => points.length >= 3)
             .map(
                 (points) =>
-                    // `<path d="${pathD(points)}"
-                    //     fill="none"
-                    //     style="stroke-width: 1; opacity: 0.5"
-                    //     stroke-dasharray="2 1"
-                    //     stroke="${getColor(i)}"
-                    // />` +
-                    `
-                    <path d="${pathSmoothD(points)}"
+                    `<path d="${pathSmoothD(points)}"
                         fill="none"
                         style="stroke-width: ${(2 / scale).toFixed(2)}"
                         stroke="${getColor(i)}"
                     />
+                ${
+                    showEndPoints
+                        ? pointKey(points[0]) !==
+                          pointKey(points[points.length - 1])
+                            ? `<circle cx="${points[0][0]}" cy="${points[0][1]}"
+                                r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
+                            <circle cx="${points[points.length - 1][0]}" cy="${
+                                  points[points.length - 1][1]
+                              }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
+                                `
+                            : `
+                            <circle cx="${points[points.length - 1][0]}" cy="${
+                                  points[points.length - 1][1]
+                              }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
+                        `
+                        : ''
+                }
     `,
-                // ${
-                //     pointKey(points[0]) !== pointKey(points[points.length - 1])
-                //         ? `<circle cx="${points[0][0]}" cy="${points[0][1]}"
-                //                 r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                //             <circle cx="${points[points.length - 1][0]}" cy="${
-                //               points[points.length - 1][1]
-                //           }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                //                 `
-                //         : `
-                //             <circle cx="${points[points.length - 1][0]}" cy="${
-                //               points[points.length - 1][1]
-                //           }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
-                //         `
-                // }
             )
 
             .join('\n'),
