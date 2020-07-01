@@ -26,7 +26,7 @@ const pathSmoothD = (points) => {
 const pathD = ([p0, ...rest]) =>
     `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
 
-const showPaths = (width, stepped, paths, getColor, rawData) => {
+const showPaths = (width, stepped, paths, getColor, rawData, boundaryPaths) => {
     const scale = width / stepped[0].length;
     const showEndPoints = true;
     return `
@@ -75,6 +75,16 @@ ${Object.keys(paths)
     style="stroke-width: ${(4 / scale).toFixed(2)}"
     stroke="red"
     />
+    ${boundaryPaths
+        .map(
+            (path) =>
+                `<path d="${pathD(path.map(toArr))}" 
+            fill="none"
+            style="stroke-width: ${(3 / scale).toFixed(2)}"
+            stroke="red"
+            />`,
+        )
+        .join('\n')}
 </svg>
 `;
 };

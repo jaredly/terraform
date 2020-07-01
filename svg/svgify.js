@@ -118,7 +118,8 @@ const colors = 'red,green,blue,orange,purple,black,pink,magenta'.split(',');
 const getColor = (i) => colors[i % colors.length];
 
 // STOPSHIP get this from the xml file or something, don't hard-code
-const tileBounds = { x: -112, y: 41, w: 1, h: -1 }; // 41 to 40, -112 to -111
+// const tileBounds = { x: -112, y: 41, w: 1, h: -1 }; // 41 to 40, -112 to -111
+const tileBounds = { x: -113, y: 37, w: 1, h: -1 }; // 41 to 40, -112 to -111
 
 const showTrail = (trail, rawData, stepped) => {
     const innerBounds = {
@@ -170,6 +171,30 @@ const segmentFor = (x, y, dx, dy) => {
         [x * 2 - 1, y * 2 + 1],
         [x * 2 + 1, y * 2 + 1],
     ];
+};
+
+const boundaryPolygon = (stepped, shape) => {
+    const w = stepped[0].length * 2;
+    const h = stepped.length * 2;
+    if (shape === 'hex') {
+        const hh = h / 2;
+        const indent = w / 4;
+        return [
+            { x: indent, y: 0 },
+            { x: w - indent, y: 0 },
+            { x: w, y: hh },
+            { x: w - indent, y: h },
+            { x: indent, y: h },
+            { x: 0, y: hh },
+        ];
+    } else {
+        return [
+            { x: 0, y: 0 },
+            { x: w, y: 0 },
+            { x: w, y: h },
+            { x: 0, y: h },
+        ];
+    }
 };
 
 const isValid = (stepped, x, y, shape) => {
@@ -255,6 +280,158 @@ const getSubColor = (num, first, skip) => (i) => {
     }
 };
 
+const generic = (p1, p2) => {
+    const m = (p2.y - p1.y) / (p2.x - p1.x);
+    const b = p1.y - m * p1.x;
+    return [m, b];
+};
+
+const dist = (a, b) =>
+    Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+const angleTo = (p0, p1) => Math.atan2(p1.y - p0.y, p1.x - p0.x);
+
+const lineToLine = (ap1, ap2, bp1, bp2) => {
+    let [m1, b1] = generic(ap1, ap2);
+    let av = Math.abs(ap1.x - ap2.x) < 0.001;
+    let [m2, b2] = generic(bp1, bp2);
+    let bv = Math.abs(bp1.x - bp2.x) < 0.001;
+    if (av && bv) {
+        return null;
+    } else if (av) {
+        return { x: ap2.x, y: ap2.x * m2 + b2 };
+    } else if (bv) {
+        return { x: bp1.x, y: bp1.x * m1 + b1 };
+    } else if (m1 == m2) {
+        return null;
+    } else {
+        let x = (b2 - b1) / (m1 - m2);
+        let y = m1 * x + b1;
+        return { x, y };
+    }
+};
+
+const push = (p, t, m) => ({
+    x: p.x + Math.cos(t) * m,
+    y: p.y + Math.sin(t) * m,
+});
+
+const toObj = ([x, y]) => ({ x, y });
+const toArr = ({ x, y }) => [x, y];
+
+const lineToPoint = (p0, p1, p2) => {
+    const theta = angleTo(p0, p1);
+    // console.log(theta, p2);
+    const p3 = push(p2, theta + Math.PI / 2, 10);
+    // console.log(p2, p3);
+    const p = lineToLine(p0, p1, p2, p3);
+    if (p) {
+        return dist(p2, p);
+    } else {
+        return Infinity;
+    }
+};
+
+const minDist = 2;
+
+const getBoundaryPoints = (paths, polygon) => {
+    const pointsAlongBoundary = [];
+    polygon.forEach((point, i) => {
+        pointsAlongBoundary.push({ point, corner: true });
+        const next = polygon[i === polygon.length - 1 ? 0 : i + 1];
+        const closeEnough = [];
+        Object.keys(paths).forEach((k, ki) => {
+            paths[k].forEach((path, i) => {
+                const first = toObj(path[0]);
+                const last = toObj(path[path.length - 1]);
+                const d1 = lineToPoint(point, next, first);
+                if (d1 < minDist) {
+                    closeEnough.push({
+                        point: first,
+                        k: ki,
+                        i,
+                        dist: dist(point, first),
+                    });
+                } else {
+                    // console.log(d1, first);
+                }
+                const d2 = lineToPoint(point, next, last);
+                if (d2 < minDist) {
+                    closeEnough.push({
+                        point: last,
+                        k: ki,
+                        i,
+                        dist: dist(point, last),
+                    });
+                } else {
+                    // console.log(d2, last);
+                }
+                // console.log(d1, d2);
+            });
+        });
+        closeEnough.sort((a, b) => a.dist - b.dist);
+        pointsAlongBoundary.push(...closeEnough);
+    });
+
+    return pointsAlongBoundary;
+};
+
+const makeBoundary = (paths, polygon, firstCut) => {
+    const pointsAlongBoundary = getBoundaryPoints(paths, polygon);
+    // console.log(pointsAlongBoundary);
+    // ok, so what we want is: "spans of firstCut to firstCut, and whether there are other things in between them."
+    const spans = [];
+    let initialPoint = null;
+    let current = null;
+    // let firstPoint = null
+    // let hasOthers = false
+    // console.log(firstCut);
+    pointsAlongBoundary.forEach((point) => {
+        if (point.k == firstCut) {
+            if (!initialPoint) {
+                initialPoint = point;
+            }
+            if (current && current.hasOthers) {
+                spans.push(current.path.concat([point.point]));
+            }
+            current = { path: [point.point], hasOthers: false };
+            return;
+        }
+        if (point.corner) {
+            if (current) {
+                current.path.push(point.point);
+            }
+            return;
+        }
+        if (current && +point.k > firstCut) {
+            current.hasOthers = true;
+        }
+    });
+
+    if (current) {
+        pointsAlongBoundary.some((point) => {
+            if (point.k == firstCut) {
+                if (current && current.hasOthers) {
+                    spans.push(current.path.concat([point.point]));
+                }
+                current = { path: [point.point], hasOthers: false };
+                return true;
+            }
+            if (point.corner) {
+                if (current) {
+                    current.path.push(point.point);
+                }
+                return;
+            }
+            if (current && +point.k > firstCut) {
+                current.hasOthers = true;
+            }
+        });
+    }
+
+    // console.log(spans);
+    return spans;
+};
+
 const createImage = (
     rawData,
     sub,
@@ -294,5 +471,14 @@ const createImage = (
         paths,
         getSubColor(sub, first, minStep),
         rawData,
+        first
+            ? makeBoundary(
+                  paths,
+                  boundaryPolygon(stepped, rawData.shape),
+                  sub * 2,
+              )
+            : [closePath(boundaryPolygon(stepped, rawData.shape))],
     );
 };
+
+const closePath = (path) => path.concat([path[0]]);
