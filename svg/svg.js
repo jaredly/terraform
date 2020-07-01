@@ -26,61 +26,91 @@ const pathSmoothD = (points) => {
 const pathD = ([p0, ...rest]) =>
     `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
 
-const showPaths = (width, stepped, paths, getColor, rawData, boundaryPaths) => {
-    const scale = width / stepped[0].length;
+const showPaths = (
+    trail,
+    width,
+    stepped,
+    paths,
+    getColor,
+    rawData,
+    boundaryPaths,
+) => {
+    width = parseInt(width);
+    const ow = stepped[0].length * 2;
+    const oh = stepped.length * 2;
+    const height = (width / stepped[0].length) * stepped.length;
+    const scale = width / ow;
     const showEndPoints = true;
     return `
 <svg
 xmlns="http://www.w3.org/2000/svg"
-width="${width}"
-height="${scale * stepped.length}"
-viewBox="0 0 ${stepped[0].length * 2} ${stepped.length * 2}"
+width="${width}mm"
+height="${height.toFixed(2)}mm"
+viewBox="0 0 ${width} ${height}"
 >
 ${Object.keys(paths)
     .map((k, i) =>
         paths[k]
             .filter((points) => points.length >= 3)
-            .map(
-                (points) =>
-                    `<path d="${pathSmoothD(points)}"
+            .map((points) => {
+                const color = getColor(i);
+                if (!color) {
+                    return '';
+                }
+
+                return `<path d="${pathSmoothD(
+                    points.map(([x, y]) => [x * scale, y * scale]),
+                )}"
                         fill="none"
-                        style="stroke-width: ${(2 / scale).toFixed(2)}"
-                        stroke="${getColor(i)}"
+                        style="stroke-width: 0.1"
+                        stroke="${color}"
                     />
                 ${
                     showEndPoints
                         ? pointKey(points[0]) !==
                           pointKey(points[points.length - 1])
-                            ? `<circle cx="${points[0][0]}" cy="${points[0][1]}"
+                            ? `<circle cx="${points[0][0] * scale}" cy="${
+                                  points[0][1] * scale
+                              }"
                                 r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                            <circle cx="${points[points.length - 1][0]}" cy="${
-                                  points[points.length - 1][1]
+                            <circle cx="${
+                                points[points.length - 1][0] * scale
+                            }" cy="${
+                                  points[points.length - 1][1] * scale
                               }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
                                 `
                             : `
-                            <circle cx="${points[points.length - 1][0]}" cy="${
-                                  points[points.length - 1][1]
+                            <circle cx="${
+                                points[points.length - 1][0] * scale
+                            }" cy="${
+                                  points[points.length - 1][1] * scale
                               }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
                         `
                         : ''
                 }
-    `,
-            )
+    `;
+            })
 
             .join('\n'),
     )
     .join('\n')}
-    <path d="M 0 0 ${showTrail(trail, rawData, stepped)}"
+    ${
+        trail
+            ? `<path d="${showTrail(trail, rawData, stepped, scale)}"
     fill="none"
-    style="stroke-width: ${(4 / scale).toFixed(2)}"
+    style="stroke-width: 0.5"
     stroke="red"
-    />
+    />`
+            : ''
+    }
     ${boundaryPaths
         .map(
             (path) =>
-                `<path d="${pathD(path.map(toArr))}" 
+                `<path d="${pathD(
+                    path.map(({ x, y }) => [x * scale, y * scale]),
+                )}" 
             fill="none"
-            style="stroke-width: ${(3 / scale).toFixed(2)}"
+            style="stroke-width: 0.1"
             stroke="red"
             />`,
         )

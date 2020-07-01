@@ -117,11 +117,15 @@ const simplifyPath = (points) =>
 const colors = 'red,green,blue,orange,purple,black,pink,magenta'.split(',');
 const getColor = (i) => colors[i % colors.length];
 
-// STOPSHIP get this from the xml file or something, don't hard-code
-// const tileBounds = { x: -112, y: 41, w: 1, h: -1 }; // 41 to 40, -112 to -111
-const tileBounds = { x: -113, y: 37, w: 1, h: -1 }; // 41 to 40, -112 to -111
-
-const showTrail = (trail, rawData, stepped) => {
+const showTrail = (trail, rawData, stepped, scale) => {
+    // TODO this won't work if a trail spans multiple tiles ....
+    // But it works for now
+    const tileBounds = {
+        x: Math.floor(trail.data.trackData[0][0].lon),
+        y: Math.ceil(trail.data.trackData[0][0].lat),
+        w: 1,
+        h: -1,
+    };
     const innerBounds = {
         x: tileBounds.x + (rawData.x / rawData.ow) * tileBounds.w,
         y: tileBounds.y + (rawData.y / rawData.oh) * tileBounds.h,
@@ -138,7 +142,7 @@ const showTrail = (trail, rawData, stepped) => {
         return { x, y };
     });
     points = simplify(points, stepped[0].length / 400, true);
-    return pathSmoothD(points.map((p) => [p.x, p.y]));
+    return pathSmoothD(points.map((p) => [p.x * scale, p.y * scale]));
 };
 
 const borderingCells = [
@@ -468,6 +472,7 @@ const makeBoundary = (paths, polygon, firstCut) => {
 
 const createImage = (
     rawData,
+    trail,
     sub,
     first,
     minStep,
@@ -500,6 +505,7 @@ const createImage = (
     Object.keys(paths).forEach((k) => (total += paths[k].length));
     console.log(`All paths: ${total}`);
     return showPaths(
+        trail,
         width,
         stepped,
         paths,

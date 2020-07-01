@@ -1,6 +1,7 @@
 const defaultSettings = {
     color: false,
     data: Object.keys(window.data)[0],
+    trail: null,
     layers: 7,
     size: 500,
     sub: 4,
@@ -17,6 +18,7 @@ const app = (root, settings) => {
     const canvas = div({});
     const image = createImage(
         window.data[settings.data],
+        window.trails[settings.trail],
         settings.sub,
         settings.first,
         settings.minStep,
@@ -71,6 +73,13 @@ const app = (root, settings) => {
                 blurInput(settings.minStep, (minStep) =>
                     update({ ...settings, minStep }),
                 ),
+                'Width:',
+                blurInput(
+                    settings.size,
+                    (size) => update({ ...settings, size }),
+                    40,
+                ),
+                'mm',
                 button({ onclick: () => update(settings) }, 'Re-run'),
             ]),
             canvas,
@@ -88,15 +97,28 @@ const app = (root, settings) => {
                         ),
                     ),
                 ),
+                div(
+                    {},
+                    Object.keys(window.trails).map((name) =>
+                        button(
+                            {
+                                onclick: () => {
+                                    update({ ...settings, trail: name });
+                                },
+                            },
+                            `Load trail ${name}`,
+                        ),
+                    ),
+                ),
             ]),
             node('img', { src: `data:image/svg+xml,` + image }),
         ]),
     );
 };
 
-const blurInput = (value, onChange) => {
+const blurInput = (value, onChange, width = 20) => {
     const dom = node('input', {
-        style: { width: '20px' },
+        style: { width: width + 'px' },
         onchange: () => onChange(dom.value),
         value,
     });
