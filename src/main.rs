@@ -232,39 +232,39 @@ fn handle_transition(
             },
             _ => None,
         },
-        Some(status) => {
-            match transition {
-                Transition::Open(file_name) => match load_file_and_render(window, file_name) {
-                    Some(status) => Some(status),
-                    None => Some(status),
-                },
-                Transition::OpenTrail(file_name) => match load_trail_file(file_name) {
-                    Ok(trail) => Some(Status {
-                        trail: Some(trail),
+        Some(status) => match transition {
+            Transition::Open(file_name) => match load_file_and_render(window, file_name) {
+                Some(status) => Some(status),
+                None => Some(status),
+            },
+            Transition::OpenTrail(file_name) => match load_trail_file(file_name) {
+                Ok(trail) => Some(Status {
+                    trail: Some(trail),
+                    ..status
+                }),
+                _ => Some(status),
+            },
+            Transition::Select(coords, sample) => {
+                if let Some((pointer, selection_node)) =
+                    render_scene_2_crop(window, &status.file, &coords, sample, true)
+                {
+                    Some(Status {
+                        pointer,
+                        selection_node,
+                        zoom: Some(Zoom {
+                            coords,
+                            sample,
+                            hselection: (Point2::new(0.0, 0.0), 0.0),
+                            cut: None,
+                        }),
                         ..status
-                    }),
-                    _ => Some(status),
-                },
-                Transition::Select(coords, sample) => {
-                    if let Some((pointer, selection_node)) =
-                        render_scene_2_crop(window, &status.file, &coords, sample, true)
-                    {
-                        Some(Status {
-                            pointer,
-                            selection_node,
-                            zoom: Some(Zoom {
-                                coords,
-                                sample,
-                                hselection: (Point2::new(0.0, 0.0), 0.0),
-                                cut: None,
-                            }),
-                            ..status
-                        })
-                    } else {
-                        Some(status)
-                    }
+                    })
+                } else {
+                    Some(status)
                 }
-                Transition::Cut(hex) => match status.zoom {
+            }
+            Transition::Cut(hex) => {
+                match status.zoom {
                     None => Some(status),
                     Some(zoom) => {
                         println!("To re-run at this setting: \n cargo run --release {} {} {} {} {} {} {} {}", status.file.name, zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h, hex.cx, hex.cy, hex.half_height);
@@ -277,109 +277,110 @@ fn handle_transition(
                             ..status
                         })
                     }
-                },
-                Transition::Resolution(res) => match status.zoom {
-                    None => Some(status),
-                    Some(zoom) => match zoom.cut {
-                        Some(cut) => {
-                            render_scene_3_hex(window, &status.file, &cut, res, false);
-                            Some(Status {
-                                zoom: Some(Zoom {
-                                    sample: res,
-                                    cut: Some(cut),
-                                    ..zoom
-                                }),
-                                ..status
-                            })
-                        }
-                        None => Some(Status {
-                            zoom: if let Some((mut p_new, mut sel_new)) =
-                                render_scene_2_crop(window, &status.file, &zoom.coords, res, false)
-                            {
-                                sel_new.unlink();
-                                window.add_child(&status.selection_node);
-                                p_new.unlink();
-                                window.add_child(&status.pointer);
-                                Some(Zoom {
-                                    sample: res,
-                                    ..zoom
-                                })
-                            } else {
-                                Some(zoom)
-                            },
+                }
+            }
+            Transition::Resolution(res) => match status.zoom {
+                None => Some(status),
+                Some(zoom) => match zoom.cut {
+                    Some(cut) => {
+                        render_scene_3_hex(window, &status.file, &cut, res, false);
+                        Some(Status {
+                            zoom: Some(Zoom {
+                                sample: res,
+                                cut: Some(cut),
+                                ..zoom
+                            }),
                             ..status
-                        }),
-                    },
+                        })
+                    }
+                    None => Some(Status {
+                        zoom: if let Some((mut p_new, mut sel_new)) =
+                            render_scene_2_crop(window, &status.file, &zoom.coords, res, false)
+                        {
+                            sel_new.unlink();
+                            window.add_child(&status.selection_node);
+                            p_new.unlink();
+                            window.add_child(&status.pointer);
+                            Some(Zoom {
+                                sample: res,
+                                ..zoom
+                            })
+                        } else {
+                            Some(zoom)
+                        },
+                        ..status
+                    }),
                 },
-                Transition::Reset => match status.zoom {
-                    None => Some(status),
-                    Some(zoom) => match zoom.cut {
-                        None => {
-                            let (pointer, selection_node) =
-                                render_scene_1_tile(&status.file, window);
+            },
+            Transition::Reset => match status.zoom {
+                None => Some(status),
+                Some(zoom) => match zoom.cut {
+                    None => {
+                        let (pointer, selection_node) = render_scene_1_tile(&status.file, window);
+                        Some(Status {
+                            pointer,
+                            selection_node,
+                            selection: Selection {
+                                pos: Point2::new(0.0, 0.0),
+                                size: Vector2::new(0.0, 0.0),
+                            },
+                            zoom: None,
+                            ..status
+                        })
+                    }
+                    Some(_cut) => {
+                        if let Some((pointer, selection_node)) = render_scene_2_crop(
+                            window,
+                            &status.file,
+                            &zoom.coords,
+                            zoom.sample,
+                            true,
+                        ) {
                             Some(Status {
+                                zoom: Some(Zoom { cut: None, ..zoom }),
                                 pointer,
                                 selection_node,
-                                selection: Selection {
-                                    pos: Point2::new(0.0, 0.0),
-                                    size: Vector2::new(0.0, 0.0),
-                                },
-                                zoom: None,
+                                ..status
+                            })
+                        } else {
+                            Some(Status {
+                                zoom: Some(zoom),
                                 ..status
                             })
                         }
-                        Some(_cut) => {
-                            if let Some((pointer, selection_node)) = render_scene_2_crop(
-                                window,
-                                &status.file,
-                                &zoom.coords,
-                                zoom.sample,
-                                true,
-                            ) {
-                                Some(Status {
-                                    zoom: Some(Zoom { cut: None, ..zoom }),
-                                    pointer,
-                                    selection_node,
-                                    ..status
-                                })
-                            } else {
-                                Some(Status {
-                                    zoom: Some(zoom),
-                                    ..status
-                                })
-                            }
-                        }
-                    },
+                    }
                 },
-                Transition::ExportJSON => match status.zoom {
-                    None => Some(status),
-                    Some(zoom) => {
-                        let json = match zoom.cut {
-                            Some(cut) => status.file.to_hex_json(&cut, zoom.sample),
-                            None => status.file.to_json(&zoom.coords, zoom.sample, 1.0),
-                        };
-                        let shape = match zoom.cut {
-                            Some(_) => "hex",
-                            None => "rect"
-                        };
+            },
+            Transition::ExportJSON => match status.zoom {
+                None => Some(status),
+                Some(zoom) => {
+                    let json = match zoom.cut {
+                        Some(cut) => status.file.to_hex_json(&cut, zoom.sample),
+                        None => status.file.to_json(&zoom.coords, zoom.sample, 1.0),
+                    };
+                    let shape = match zoom.cut {
+                        Some(_) => "hex",
+                        None => "rect",
+                    };
 
-                        match json {
-                            None => println!("Failed to get stl"),
-                            Some(json) => {
-                                if let Ok(nfd::Response::Okay(file_path)) =
-                                    nfd::open_save_dialog(Some("js"), None)
-                                {
-                                    let mut outfile =
-                                        std::fs::File::create(file_path.as_str()).unwrap();
-                                    // let mut file = File::create("foo.txt")?;
-                                    // file.write_all(b"Hello, world!")?;
-                                    let data = format!(
+                    match json {
+                        None => println!("Failed to get stl"),
+                        Some(json) => {
+                            if let Ok(nfd::Response::Okay(file_path)) =
+                                nfd::open_save_dialog(Some("js"), None)
+                            {
+                                let mut outfile =
+                                    std::fs::File::create(file_path.as_str()).unwrap();
+                                let (x, y, w, h) = match zoom.cut {
+                                    Some(hex) => hex.bbox(),
+                                    None => {
+                                        (zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h)
+                                    }
+                                };
+                                let data = format!(
                                         "window.data[\"{}\"] = {{x: {:2}, y: {:2}, w: {:2}, h: {:2}, ow: {:2}, oh: {:2}, shape: \"{}\", rows: [{}]}}",
                                         file_path,
-                                        &zoom.coords.x,
-                                        &zoom.coords.y,
-                                        &zoom.coords.w,
-                                        &zoom.coords.h,
+                                        x,y,w,h,
                                         &status.file.size.x,
                                         &status.file.size.y,
                                         shape,
@@ -391,58 +392,57 @@ fn handle_transition(
                                     ))
                                         .collect::<Vec<String>>().join(",\n")
                                     );
-                                    if profile!("Write file", outfile.write_all(data.as_bytes()))
-                                        .is_err()
-                                    {
-                                        println!("Failed to write :'(");
-                                    }
-                                } else {
-                                    println!("No file selected. Exiting");
-                                }
-                            }
-                        }
-
-                        Some(Status {
-                            zoom: Some(zoom),
-                            ..status
-                        })
-                    }
-                },
-                Transition::Export => match status.zoom {
-                    None => Some(status),
-                    Some(zoom) => {
-                        let stl = match zoom.cut {
-                            Some(cut) => status.file.to_hex_stl(&cut, zoom.sample),
-                            None => status.file.to_stl(&zoom.coords, zoom.sample, 1.0),
-                        };
-
-                        match stl {
-                            None => println!("Failed to get stl"),
-                            Some(stl) => {
-                                if let Ok(nfd::Response::Okay(file_path)) =
-                                    nfd::open_save_dialog(Some("stl"), None)
+                                if profile!("Write file", outfile.write_all(data.as_bytes()))
+                                    .is_err()
                                 {
-                                    let mut outfile =
-                                        std::fs::File::create(file_path.as_str()).unwrap();
-                                    if profile!("Write file", stl::write_stl(&mut outfile, &stl))
-                                        .is_err()
-                                    {
-                                        println!("Failed to write :'(");
-                                    }
-                                } else {
-                                    println!("No file selected. Exiting");
+                                    println!("Failed to write :'(");
                                 }
+                            } else {
+                                println!("No file selected. Exiting");
                             }
                         }
-
-                        Some(Status {
-                            zoom: Some(zoom),
-                            ..status
-                        })
                     }
-                },
-            }
-        }
+
+                    Some(Status {
+                        zoom: Some(zoom),
+                        ..status
+                    })
+                }
+            },
+            Transition::Export => match status.zoom {
+                None => Some(status),
+                Some(zoom) => {
+                    let stl = match zoom.cut {
+                        Some(cut) => status.file.to_hex_stl(&cut, zoom.sample),
+                        None => status.file.to_stl(&zoom.coords, zoom.sample, 1.0),
+                    };
+
+                    match stl {
+                        None => println!("Failed to get stl"),
+                        Some(stl) => {
+                            if let Ok(nfd::Response::Okay(file_path)) =
+                                nfd::open_save_dialog(Some("stl"), None)
+                            {
+                                let mut outfile =
+                                    std::fs::File::create(file_path.as_str()).unwrap();
+                                if profile!("Write file", stl::write_stl(&mut outfile, &stl))
+                                    .is_err()
+                                {
+                                    println!("Failed to write :'(");
+                                }
+                            } else {
+                                println!("No file selected. Exiting");
+                            }
+                        }
+                    }
+
+                    Some(Status {
+                        zoom: Some(zoom),
+                        ..status
+                    })
+                }
+            },
+        },
     }
 }
 

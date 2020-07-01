@@ -1,13 +1,3 @@
-// const simplify = require('simplify-js');
-// const fs = require('fs');
-// const [_, __, fname, layersRaw, outfile = 'out.csv'] = process.argv;
-
-// fs.writeFileSync(
-//     outfile,
-//     stepped.map((line) => line.map((x) => x + '').join(',')).join('\n'),
-//     'utf8',
-// );
-
 const trail_bounds = { x: -112, y: 41, w: 1, h: -1 }; // 41 to 40, -112 to -111
 
 const borders = [
@@ -17,8 +7,31 @@ const borders = [
     [0, 1],
 ];
 
-const isValid = (stepped, x, y) =>
-    x > 0 && y > 0 && x < stepped[0].length && y < stepped.length;
+const isValid = (stepped, x, y, shape) => {
+    if (shape === 'hex') {
+        const hh = stepped.length / 2;
+        const indent = stepped[0].length / 4;
+        // y = mx + b
+        // x = (y - b) / m
+        // 0 = (hh - b) / m
+        // indent = (0 - b) / m
+        // hh = m0 + b
+        // 0 = indent * m + b
+        // hh - 0 = -(indent * m)
+        // hh = - indent * m
+        // m = - hh / indent
+        const m = -hh / indent;
+        const b = hh;
+        const offset = Math.abs((y - b) / m);
+        if (x < offset || x > stepped[0].length - offset) {
+            return false;
+        }
+
+        // const offset =
+        // const rad =
+    }
+    return x > 0 && y > 0 && x < stepped[0].length && y < stepped.length;
+};
 
 const segmentFor = (x, y, dx, dy) => {
     if (dx === -1) {
@@ -175,8 +188,8 @@ const showTrail = (trail, rawData, stepped) => {
         let innerBounds = {
             x: trail_bounds.x + (rawData.x / rawData.ow) * trail_bounds.w,
             y: trail_bounds.y + (rawData.y / rawData.oh) * trail_bounds.h,
-            w: (rawData.h / rawData.ow) * trail_bounds.w,
-            h: (rawData.w / rawData.ow) * trail_bounds.h,
+            w: (rawData.w / rawData.ow) * trail_bounds.w,
+            h: (rawData.h / rawData.oh) * trail_bounds.h,
         };
         // console.log(rawData.x, rawData.ow, rawData.y, rawData.oh);
         // console.log(innerBounds);
@@ -249,7 +262,7 @@ const createImage = (rawData, getColor, layers = 9, width = 1000) => {
             borders.forEach(([dx, dy]) => {
                 const nx = x + dx;
                 const ny = y + dy;
-                if (isValid(stepped, nx, ny)) {
+                if (isValid(stepped, nx, ny, rawData.shape)) {
                     const adjacent = stepped[ny][nx];
                     if (adjacent > cell) {
                         if (!segments[cell]) {

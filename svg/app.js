@@ -50,6 +50,13 @@ const app = (root, settings) => {
                     },
                     settings.color ? 'Multicolor' : 'Laser colors',
                 ),
+                node('input', {
+                    type: 'checkbox',
+                    checked: settings.first,
+                    onchange: (evt) =>
+                        update({ ...settings, first: evt.target.checked }),
+                }),
+                'first',
                 button(
                     {
                         onclick: () =>
@@ -60,13 +67,6 @@ const app = (root, settings) => {
                     },
                     '- layer',
                 ),
-                node('input', {
-                    type: 'checkbox',
-                    checked: settings.first,
-                    onchange: (evt) =>
-                        update({ ...settings, first: evt.target.checked }),
-                }),
-                'first',
                 blurInput(settings.layers, (layers) =>
                     update({ ...settings, layers }),
                 ),
@@ -80,6 +80,8 @@ const app = (root, settings) => {
                     },
                     '+ layer',
                 ),
+                'Skip:',
+                blurInput(settings.sub, (sub) => update({ ...settings, sub })),
                 button({ onclick: () => update(settings) }, 'Re-run'),
             ]),
             canvas,
