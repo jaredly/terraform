@@ -26,6 +26,45 @@ const pathSmoothD = (points) => {
 const pathD = ([p0, ...rest]) =>
     `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
 
+const showPath = (
+    points,
+    color,
+    scale,
+    showEndPoints,
+) => `<path d="${pathSmoothD(points.map(([x, y]) => [x * scale, y * scale]))}"
+        fill="none"
+        style="stroke-width: 0.1"
+        stroke="${color}"
+    />
+${
+    showEndPoints
+        ? pointKey(points[0]) !== pointKey(points[points.length - 1])
+            ? `<circle cx="${points[0][0] * scale}" cy="${points[0][1] * scale}"
+                r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
+            <circle cx="${points[points.length - 1][0] * scale}" cy="${
+                  points[points.length - 1][1] * scale
+              }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
+                `
+            : `
+            <circle cx="${points[points.length - 1][0] * scale}" cy="${
+                  points[points.length - 1][1] * scale
+              }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
+        `
+        : ''
+}
+`;
+
+const svgNode = (width, height, contents) => `
+<svg
+xmlns="http://www.w3.org/2000/svg"
+width="${width}mm"
+height="${height.toFixed(2)}mm"
+viewBox="0 0 ${width} ${height}"
+>
+${contents}
+</svg>
+`;
+
 const showPaths = (
     trail,
     stepped,
@@ -45,67 +84,26 @@ const showPaths = (
     const vMargin = (oh / ow) * margin;
     console.log(margin);
     const showEndPoints = false;
-    return `
-<svg
-xmlns="http://www.w3.org/2000/svg"
-width="${width}mm"
-height="${height.toFixed(2)}mm"
-viewBox="0 0 ${width} ${height}"
->
+    return svgNode(
+        width,
+        height,
+        `
 <g transform="translate(${margin} ${vMargin})">
 ${Object.keys(paths)
-    .map((k, i) =>
-        paths[k]
+    .map((k, i) => {
+        const color = getColor(i);
+        if (!color) return '';
+
+        return paths[k]
             .filter((points) => points.length >= 3)
-            .map((points) => {
-                const color = getColor(i);
-                if (!color) {
-                    return '';
-                }
-
-                return `<path d="${pathSmoothD(
-                    points.map(([x, y]) => [x * scale, y * scale]),
-                )}"
-                        fill="none"
-                        style="stroke-width: 0.1"
-                        stroke="${color}"
-                    />
-                ${
-                    showEndPoints
-                        ? pointKey(points[0]) !==
-                          pointKey(points[points.length - 1])
-                            ? `<circle cx="${points[0][0] * scale}" cy="${
-                                  points[0][1] * scale
-                              }"
-                                r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                            <circle cx="${
-                                points[points.length - 1][0] * scale
-                            }" cy="${
-                                  points[points.length - 1][1] * scale
-                              }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                                `
-                            : `
-                            <circle cx="${
-                                points[points.length - 1][0] * scale
-                            }" cy="${
-                                  points[points.length - 1][1] * scale
-                              }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
-                        `
-                        : ''
-                }
-    `;
-            })
-
-            .join('\n'),
-    )
+            .map((points) => showPath(points, color, scale, showEndPoints))
+            .join('\n');
+    })
     .join('\n')}
     ${
         trail
             ? `<path d="${showTrail(trail, rawData, stepped, scale)}"
-    fill="none"
-    style="stroke-width: 0.5"
-    stroke="red"
-    />`
+                fill="none" style="stroke-width: 0.5" stroke="red" />`
             : ''
     }
     ${boundaryPaths
@@ -114,23 +112,14 @@ ${Object.keys(paths)
                 `<path d="${pathD(
                     path.map(({ x, y }) => [x * scale, y * scale]),
                 )}" 
-            fill="none"
-            style="stroke-width: 0.1"
-            stroke="red"
-            />`,
+                fill="none" style="stroke-width: 0.1" stroke="red" />`,
         )
         .join('\n')}
-        </g>
-                <path d="${pathD(
-                    fullBoundryPath.map(({ x, y }) => [
-                        x * fullScale,
-                        y * fullScale,
-                    ]),
-                )}" 
-            fill="none"
-            style="stroke-width: 0.1"
-            stroke="red"
-            />
+    </g>
+    <path d="${pathD(
+        fullBoundryPath.map(({ x, y }) => [x * fullScale, y * fullScale]),
+    )}" fill="none" style="stroke-width: 0.1" stroke="red" />
 </svg>
-`;
+`,
+    );
 };
