@@ -220,11 +220,11 @@ const makeInitialSegments = (stepped, shape) => {
                 const ny = y + dy;
                 if (isValid(stepped, nx, ny, shape)) {
                     const adjacent = stepped[ny][nx];
-                    if (adjacent > cell) {
-                        if (!segments[cell]) {
-                            segments[cell] = [];
+                    for (let i = cell; i < adjacent; i++) {
+                        if (!segments[i]) {
+                            segments[i] = [];
                         }
-                        segments[cell].push(segmentFor(x, y, dx, dy));
+                        segments[i].push(segmentFor(x, y, dx, dy));
                     }
                 }
             });
