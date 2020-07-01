@@ -42,6 +42,7 @@ const showPaths = (
     const height = (width / stepped[0].length) * stepped.length;
     const scale = (width - margin * 2) / ow;
     const fullScale = width / ow;
+    const vMargin = (oh / ow) * margin;
     console.log(margin);
     const showEndPoints = false;
     return `
@@ -51,7 +52,7 @@ width="${width}mm"
 height="${height.toFixed(2)}mm"
 viewBox="0 0 ${width} ${height}"
 >
-<g >
+<g transform="translate(${margin} ${vMargin})">
 ${Object.keys(paths)
     .map((k, i) =>
         paths[k]

@@ -84,6 +84,11 @@ const app = (root, settings) => {
                     40,
                 ),
                 'mm',
+                'Horizontal Margin:',
+                blurInput(settings.margin, (margin) =>
+                    update({ ...settings, margin }),
+                ),
+                'mm',
                 button({ onclick: () => update(settings) }, 'Re-run'),
             ]),
             canvas,
