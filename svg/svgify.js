@@ -1,68 +1,7 @@
-const trail_bounds = { x: -112, y: 41, w: 1, h: -1 }; // 41 to 40, -112 to -111
-
-const borders = [
-    [-1, 0],
-    [0, -1],
-    [1, 0],
-    [0, 1],
-];
-
-const isValid = (stepped, x, y, shape) => {
-    if (shape === 'hex') {
-        const hh = stepped.length / 2;
-        const indent = stepped[0].length / 4;
-        // y = mx + b
-        // x = (y - b) / m
-        // 0 = (hh - b) / m
-        // indent = (0 - b) / m
-        // hh = m0 + b
-        // 0 = indent * m + b
-        // hh - 0 = -(indent * m)
-        // hh = - indent * m
-        // m = - hh / indent
-        const m = -hh / indent;
-        const b = hh;
-        const offset = Math.abs((y - b) / m);
-        if (x < offset || x > stepped[0].length - offset) {
-            return false;
-        }
-
-        // const offset =
-        // const rad =
-    }
-    return x > 0 && y > 0 && x < stepped[0].length && y < stepped.length;
-};
-
-const segmentFor = (x, y, dx, dy) => {
-    if (dx === -1) {
-        return [
-            [x * 2 - 1, y * 2 - 1],
-            [x * 2 - 1, y * 2 + 1],
-        ];
-    }
-    if (dx === 1) {
-        return [
-            [x * 2 + 1, y * 2 - 1],
-            [x * 2 + 1, y * 2 + 1],
-        ];
-    }
-    if (dy === -1) {
-        return [
-            [x * 2 - 1, y * 2 - 1],
-            [x * 2 + 1, y * 2 - 1],
-        ];
-    }
-    return [
-        [x * 2 - 1, y * 2 + 1],
-        [x * 2 + 1, y * 2 + 1],
-    ];
-};
-
-const toKey = ([[x1, y1], [x2, y2]]) => `${x1}:${y1}:${x2}:${y2}`;
+// const toKey = ([[x1, y1], [x2, y2]]) => `${x1}:${y1}:${x2}:${y2}`;
 const pointKey = ([x, y]) => `${x}:${y}`;
 
 const organizeLevel = (segments) => {
-    // console.log('level', segments.length, segments[0].length);
     const paths = {};
     const byEndPoint = {};
     const add = (i, p, start) => {
@@ -178,21 +117,17 @@ const simplifyPath = (points) =>
 const colors = 'red,green,blue,orange,purple,black,pink,magenta'.split(',');
 const getColor = (i) => colors[i % colors.length];
 
+// STOPSHIP get this from the xml file or something, don't hard-code
+const tileBounds = { x: -112, y: 41, w: 1, h: -1 }; // 41 to 40, -112 to -111
+
 const showTrail = (trail, rawData, stepped) => {
-    // const trailSimple = simplify(
-    //     trail.data.trackData[0].map((item) => ({ x: item.lon, y: item.lat })),
-    //     2,
-    //     true,
-    // ).map((p) => [p.x, p.y]);
+    const innerBounds = {
+        x: tileBounds.x + (rawData.x / rawData.ow) * tileBounds.w,
+        y: tileBounds.y + (rawData.y / rawData.oh) * tileBounds.h,
+        w: (rawData.w / rawData.ow) * tileBounds.w,
+        h: (rawData.h / rawData.oh) * tileBounds.h,
+    };
     let points = trail.data.trackData[0].map((item) => {
-        let innerBounds = {
-            x: trail_bounds.x + (rawData.x / rawData.ow) * trail_bounds.w,
-            y: trail_bounds.y + (rawData.y / rawData.oh) * trail_bounds.h,
-            w: (rawData.w / rawData.ow) * trail_bounds.w,
-            h: (rawData.h / rawData.oh) * trail_bounds.h,
-        };
-        // console.log(rawData.x, rawData.ow, rawData.y, rawData.oh);
-        // console.log(innerBounds);
         let x =
             ((item.lon - innerBounds.x) / innerBounds.w) *
             stepped[0].length *
@@ -203,40 +138,98 @@ const showTrail = (trail, rawData, stepped) => {
     });
     points = simplify(points, stepped[0].length / 400, true);
     return pathSmoothD(points.map((p) => [p.x, p.y]));
-    // return (
-    //     `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)} ` +
-    //     points.map(({ x, y }) => `L ${x.toFixed(2)} ${y.toFixed(2)}`).join(' ')
-    // );
 };
 
-const showBasic = (segments) => {
-    return `
-<svg
-xmlns="http://www.w3.org/2000/svg"
-width="${1000}"
-height="${(1000 / stepped[0].length) * stepped.length}"
-viewBox="0 0 ${stepped[0].length} ${stepped.length}"
->
-${Object.keys(segments)
-    .map((k, i) =>
-        segments[k]
-            .map(
-                ([[x1, y1], [x2, y2]]) =>
-                    `<line x1="${x1}"
-    y1="${y1}"
-    x2="${x2}"
-    y2="${y2}"
-    style="stroke-width: 0.5"
-    stroke="${getColor(i)}"
-    />
-    `,
-            )
+const borderingCells = [
+    [-1, 0],
+    [0, -1],
+    [1, 0],
+    [0, 1],
+];
 
-            .join('\n'),
-    )
-    .join('\n')}
-</svg>
-`;
+const segmentFor = (x, y, dx, dy) => {
+    if (dx === -1) {
+        return [
+            [x * 2 - 1, y * 2 - 1],
+            [x * 2 - 1, y * 2 + 1],
+        ];
+    }
+    if (dx === 1) {
+        return [
+            [x * 2 + 1, y * 2 - 1],
+            [x * 2 + 1, y * 2 + 1],
+        ];
+    }
+    if (dy === -1) {
+        return [
+            [x * 2 - 1, y * 2 - 1],
+            [x * 2 + 1, y * 2 - 1],
+        ];
+    }
+    return [
+        [x * 2 - 1, y * 2 + 1],
+        [x * 2 + 1, y * 2 + 1],
+    ];
+};
+
+const isValid = (stepped, x, y, shape) => {
+    if (shape === 'hex') {
+        const hh = stepped.length / 2;
+        const indent = stepped[0].length / 4;
+        const m = -hh / indent;
+        const b = hh;
+        const offset = Math.abs((y - b) / m);
+        if (x < offset || x > stepped[0].length - offset) {
+            return false;
+        }
+    }
+    return x > 0 && y > 0 && x < stepped[0].length && y < stepped.length;
+};
+
+const makeInitialSegments = (stepped, shape) => {
+    const segments = {};
+    stepped.forEach((line, y) => {
+        line.forEach((cell, x) => {
+            borderingCells.forEach(([dx, dy]) => {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (isValid(stepped, nx, ny, shape)) {
+                    const adjacent = stepped[ny][nx];
+                    if (adjacent > cell) {
+                        if (!segments[cell]) {
+                            segments[cell] = [];
+                        }
+                        segments[cell].push(segmentFor(x, y, dx, dy));
+                    }
+                }
+            });
+        });
+    });
+
+    return segments;
+};
+
+const processLevel = (paths) => {
+    paths = organizeLevel(paths);
+    paths = organizeLevel(paths.map((points) => points.reverse()));
+    paths = paths.filter(
+        (points) =>
+            points.length > 10 ||
+            pointKey(points[0]) !== pointKey(points[points.length - 1]),
+    );
+    paths = paths.map(simplifyPath);
+    paths = paths.filter(
+        (points) =>
+            points.length > 10 ||
+            pointKey(points[0]) !== pointKey(points[points.length - 1]),
+    );
+    paths = organizeLevel(paths);
+    paths = paths.filter(
+        (points) =>
+            points.length > 10 ||
+            pointKey(points[0]) !== pointKey(points[points.length - 1]),
+    );
+    return paths;
 };
 
 const createImage = (rawData, getColor, layers = 9, width = 1000) => {
@@ -255,52 +248,11 @@ const createImage = (rawData, getColor, layers = 9, width = 1000) => {
     const stepped = csv.map((line) =>
         line.map((item) => parseInt((item - min) / step)),
     );
-
-    const segments = {};
-    stepped.forEach((line, y) => {
-        line.forEach((cell, x) => {
-            borders.forEach(([dx, dy]) => {
-                const nx = x + dx;
-                const ny = y + dy;
-                if (isValid(stepped, nx, ny, rawData.shape)) {
-                    const adjacent = stepped[ny][nx];
-                    if (adjacent > cell) {
-                        if (!segments[cell]) {
-                            segments[cell] = [];
-                        }
-                        segments[cell].push(segmentFor(x, y, dx, dy));
-                    }
-                }
-            });
-        });
-    });
-
-    const process = (paths) => {
-        paths = organizeLevel(paths);
-        paths = organizeLevel(paths.map((points) => points.reverse()));
-        paths = paths.filter(
-            (points) =>
-                points.length > 10 ||
-                pointKey(points[0]) !== pointKey(points[points.length - 1]),
-        );
-        paths = paths.map(simplifyPath);
-        paths = paths.filter(
-            (points) =>
-                points.length > 10 ||
-                pointKey(points[0]) !== pointKey(points[points.length - 1]),
-        );
-        paths = organizeLevel(paths);
-        paths = paths.filter(
-            (points) =>
-                points.length > 10 ||
-                pointKey(points[0]) !== pointKey(points[points.length - 1]),
-        );
-        return paths;
-    };
+    const segments = makeInitialSegments(stepped, rawData.shape);
 
     const paths = {};
     Object.keys(segments).forEach(
-        (level) => (paths[level] = process(segments[level])),
+        (level) => (paths[level] = processLevel(segments[level])),
     );
 
     let total = 0;
