@@ -1,6 +1,3 @@
-const getFirstColor = (i) => (i % 2 == 0 ? 'red' : 'blue');
-const getSecondColor = (i) => (i % 2 == 1 ? 'red' : 'blue');
-
 const defaultSettings = {
     color: false,
     data: Object.keys(window.data)[0],
@@ -8,17 +5,7 @@ const defaultSettings = {
     size: 500,
     sub: 4,
     first: true,
-};
-
-const getSubColor = (num, first, fn) => (i) => {
-    let band = parseInt(i / num);
-    let off = i % num;
-    if (off == 0) {
-        return fn(band);
-    } else if (band % 2 !== (first ? 0 : 1)) {
-        return fn(band + 1);
-        // return 'rgba(0,0,0,0.1)';
-    }
+    minStep: 0,
 };
 
 const app = (root, settings) => {
@@ -30,11 +17,9 @@ const app = (root, settings) => {
     const canvas = div({});
     const image = createImage(
         window.data[settings.data],
-        getSubColor(
-            settings.sub || 3,
-            settings.first,
-            settings.color ? getFirstColor : getColor,
-        ),
+        settings.sub,
+        settings.first,
+        settings.minStep,
         settings.layers,
         settings.size,
     );
@@ -82,6 +67,10 @@ const app = (root, settings) => {
                 ),
                 'Skip:',
                 blurInput(settings.sub, (sub) => update({ ...settings, sub })),
+                'Min Step:',
+                blurInput(settings.minStep, (minStep) =>
+                    update({ ...settings, minStep }),
+                ),
                 button({ onclick: () => update(settings) }, 'Re-run'),
             ]),
             canvas,

@@ -232,7 +232,37 @@ const processLevel = (paths) => {
     return paths;
 };
 
-const createImage = (rawData, getColor, layers = 9, width = 1000) => {
+const getSubColor = (num, first, skip) => (i) => {
+    // 'red' is cut, 'blue' is trace
+    // "first" means "the one that's connected to the bottom,
+    // where 0 through num are blue,
+    // num through num * 2 are skipped, then num * 2 is red.
+    if (!first) {
+        if (i < num) {
+            return;
+        }
+        i = i - num;
+    }
+    const im = i % (num * 2);
+    if (i === 0 && first) {
+        return 'blue';
+    }
+    if (im === 0) {
+        return 'red';
+    }
+    if (im <= num) {
+        return 'blue';
+    }
+};
+
+const createImage = (
+    rawData,
+    sub,
+    first,
+    minStep,
+    layers = 9,
+    width = 1000,
+) => {
     const csv = rawData.rows;
     let min = Infinity;
     let max = -Infinity;
@@ -258,5 +288,11 @@ const createImage = (rawData, getColor, layers = 9, width = 1000) => {
     let total = 0;
     Object.keys(paths).forEach((k) => (total += paths[k].length));
     console.log(`All paths: ${total}`);
-    return showPaths(width, stepped, paths, getColor, rawData);
+    return showPaths(
+        width,
+        stepped,
+        paths,
+        getSubColor(sub, first, minStep),
+        rawData,
+    );
 };
