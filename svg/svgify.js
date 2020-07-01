@@ -331,11 +331,13 @@ const lineToPoint = (p0, p1, p2) => {
     }
 };
 
-const minDist = 2;
+const minDist = 4;
 
-const getBoundaryPoints = (paths, polygon) => {
+const getBoundaryPoints = (paths, polygon, firstCut) => {
     const pointsAlongBoundary = [];
+    // console.log('Paths', Object.keys(paths));
     polygon.forEach((point, i) => {
+        // console.log('side', i);
         pointsAlongBoundary.push({ point, corner: true });
         const next = polygon[i === polygon.length - 1 ? 0 : i + 1];
         const closeEnough = [];
@@ -351,8 +353,8 @@ const getBoundaryPoints = (paths, polygon) => {
                         i,
                         dist: dist(point, first),
                     });
-                } else {
-                    // console.log(d1, first);
+                    // } else if (ki == firstCut) {
+                    //     console.log(d1, first, ki, firstCut, k);
                 }
                 const d2 = lineToPoint(point, next, last);
                 if (d2 < minDist) {
@@ -362,8 +364,8 @@ const getBoundaryPoints = (paths, polygon) => {
                         i,
                         dist: dist(point, last),
                     });
-                } else {
-                    // console.log(d2, last);
+                    // } else if (ki == firstCut) {
+                    //     console.log(d2, last, ki, firstCut, k);
                 }
                 // console.log(d1, d2);
             });
@@ -376,7 +378,7 @@ const getBoundaryPoints = (paths, polygon) => {
 };
 
 const makeBoundary = (paths, polygon, firstCut) => {
-    const pointsAlongBoundary = getBoundaryPoints(paths, polygon);
+    const pointsAlongBoundary = getBoundaryPoints(paths, polygon, firstCut);
     // console.log(pointsAlongBoundary);
     // ok, so what we want is: "spans of firstCut to firstCut, and whether there are other things in between them."
     const spans = [];
@@ -385,15 +387,20 @@ const makeBoundary = (paths, polygon, firstCut) => {
     // let firstPoint = null
     // let hasOthers = false
     // console.log(firstCut);
-    pointsAlongBoundary.forEach((point) => {
+    pointsAlongBoundary.forEach((point, i) => {
         if (point.k == firstCut) {
             if (!initialPoint) {
                 initialPoint = point;
             }
-            if (current && current.hasOthers) {
-                spans.push(current.path.concat([point.point]));
+            if (current) {
+                spans.push({
+                    i0: current.i0,
+                    hasOthers: current.hasOthers,
+                    i1: i,
+                    path: current.path.concat([point.point]),
+                });
             }
-            current = { path: [point.point], hasOthers: false };
+            current = { i0: i, path: [point.point], hasOthers: null };
             return;
         }
         if (point.corner) {
@@ -402,18 +409,28 @@ const makeBoundary = (paths, polygon, firstCut) => {
             }
             return;
         }
-        if (current && +point.k > firstCut) {
-            current.hasOthers = true;
+        if (current) {
+            if (+point.k > firstCut) {
+                current.hasOthers = true;
+            }
+            if (+point.k < firstCut) {
+                current.hasOthers = false;
+            }
         }
     });
 
     if (current) {
-        pointsAlongBoundary.some((point) => {
+        pointsAlongBoundary.some((point, i) => {
             if (point.k == firstCut) {
-                if (current && current.hasOthers) {
-                    spans.push(current.path.concat([point.point]));
+                if (current) {
+                    spans.push({
+                        i0: current.i0,
+                        i1: i,
+                        hasOthers: current.hasOthers,
+                        path: current.path.concat([point.point]),
+                    });
                 }
-                current = { path: [point.point], hasOthers: false };
+                current = { i0: i, path: [point.point], hasOthers: null };
                 return true;
             }
             if (point.corner) {
@@ -428,8 +445,25 @@ const makeBoundary = (paths, polygon, firstCut) => {
         });
     }
 
+    let lastHad = null;
+    const runIt = () => {
+        spans.forEach((span) => {
+            if (lastHad !== null) {
+                // if (span.hasOthers != null && span.hasOthers === lastHad) {
+                //     console.log(spans, span, lastHad);
+                //     throw new Error('Oh noes');
+                // }
+                span.hasOthers = !lastHad;
+            }
+            lastHad = span.hasOthers;
+        });
+    };
+
+    runIt();
+    runIt();
+
     // console.log(spans);
-    return spans;
+    return spans.filter((span) => span.hasOthers).map((span) => span.path);
 };
 
 const createImage = (
