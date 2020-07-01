@@ -54,28 +54,8 @@ ${
 }
 `;
 
-const showTrail = (trail, rawData, sx, sy) => {
-    // TODO this won't work if a trail spans multiple tiles ....
-    // But it works for now
-    const tileBounds = {
-        x: Math.floor(trail[0].lon),
-        y: Math.ceil(trail[0].lat),
-        w: 1,
-        h: -1,
-    };
-    const innerBounds = {
-        x: tileBounds.x + (rawData.x / rawData.ow) * tileBounds.w,
-        y: tileBounds.y + (rawData.y / rawData.oh) * tileBounds.h,
-        w: (rawData.w / rawData.ow) * tileBounds.w,
-        h: (rawData.h / rawData.oh) * tileBounds.h,
-    };
-    let points = trail.map((item) => {
-        let x = (item.lon - innerBounds.x) / innerBounds.w;
-        let y = (item.lat - innerBounds.y) / innerBounds.h;
-        return { x, y };
-    });
-    points = simplify(points, 1 / 400, true);
-    return pathSmoothD(points.map((p) => [p.x * sx, p.y * sy]));
+const showTrail = (trail, sx, sy) => {
+    return pathSmoothD(trail.map((p) => [p.x * sx, p.y * sy]));
 };
 
 const svgNode = (width, height, contents) => `
@@ -89,29 +69,19 @@ ${contents}
 </svg>
 `;
 
-const showPaths = (
-    trail,
-    stepped,
+const showTile = (
     paths,
-    getColor,
-    rawData,
+    trail,
     boundaryPaths,
     fullBoundryPath,
-    { width, margin },
+    { ow, oh, width, margin },
+    getColor,
 ) => {
-    width = parseInt(width);
-    const ow = stepped[0].length * 2;
-    const oh = stepped.length * 2;
-    const height = (width / ow) * oh;
-    const scale = (width - margin * 2) / ow;
-    const fullScale = width / ow;
     const vMargin = (oh / ow) * margin;
-    console.log(margin);
     const showEndPoints = false;
-    return svgNode(
-        width,
-        height,
-        `
+    const fullScale = width / ow;
+    const scale = (width - margin * 2) / ow;
+    return `
 <g transform="translate(${margin} ${vMargin})">
 ${Object.keys(paths)
     .map((k, i) => {
@@ -126,7 +96,7 @@ ${Object.keys(paths)
     .join('\n')}
     ${
         trail
-            ? `<path d="${showTrail(trail, rawData, scale * ow, scale * oh)}"
+            ? `<path d="${showTrail(trail, scale * ow, scale * oh)}"
                 fill="none" style="stroke-width: 0.5" stroke="red" />`
             : ''
     }
@@ -143,6 +113,37 @@ ${Object.keys(paths)
     <path d="${pathD(
         fullBoundryPath.map(({ x, y }) => [x * fullScale, y * fullScale]),
     )}" fill="none" style="stroke-width: 0.1" stroke="red" />
-`,
+`;
+};
+
+const showPaths = (
+    trail,
+    stepped,
+    paths,
+    getColor,
+    boundaryPaths,
+    fullBoundryPath,
+    { width, margin },
+) => {
+    width = parseInt(width);
+    const ow = stepped[0].length * 2;
+    const oh = stepped.length * 2;
+    const height = (width / ow) * oh;
+    return svgNode(
+        width,
+        height,
+        showTile(
+            paths,
+            trail,
+            boundaryPaths,
+            fullBoundryPath,
+            {
+                ow,
+                oh,
+                width,
+                margin,
+            },
+            getColor,
+        ),
     );
 };

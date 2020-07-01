@@ -442,6 +442,29 @@ const makeBoundary = (paths, polygon, firstCut) => {
     return spans.filter((span) => span.hasOthers).map((span) => span.path);
 };
 
+const normalizeTrail = (trail, rawData) => {
+    // TODO this won't work if a trail spans multiple tiles ....
+    // But it works for now
+    const tileBounds = {
+        x: Math.floor(trail[0].lon),
+        y: Math.ceil(trail[0].lat),
+        w: 1,
+        h: -1,
+    };
+    const innerBounds = {
+        x: tileBounds.x + (rawData.x / rawData.ow) * tileBounds.w,
+        y: tileBounds.y + (rawData.y / rawData.oh) * tileBounds.h,
+        w: (rawData.w / rawData.ow) * tileBounds.w,
+        h: (rawData.h / rawData.oh) * tileBounds.h,
+    };
+    let points = trail.map((item) => {
+        let x = (item.lon - innerBounds.x) / innerBounds.w;
+        let y = (item.lat - innerBounds.y) / innerBounds.h;
+        return { x, y };
+    });
+    return simplify(points, 1 / 400, true);
+};
+
 const createImage = (
     rawData,
     trail,
@@ -472,12 +495,13 @@ const createImage = (
     let total = 0;
     Object.keys(paths).forEach((k) => (total += paths[k].length));
     console.log(`All paths: ${total}`);
+    const trailPath = normalizeTrail(trail.data.trackData[0], rawData);
+
     return showPaths(
-        trail.data.trackData[0],
+        trailPath,
         stepped,
         paths,
         getSubColor(sub, first, minStep),
-        rawData,
         first
             ? makeBoundary(
                   paths,
