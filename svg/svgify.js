@@ -117,34 +117,6 @@ const simplifyPath = (points) =>
 const colors = 'red,green,blue,orange,purple,black,pink,magenta'.split(',');
 const getColor = (i) => colors[i % colors.length];
 
-const showTrail = (trail, rawData, stepped, scale) => {
-    // TODO this won't work if a trail spans multiple tiles ....
-    // But it works for now
-    const tileBounds = {
-        x: Math.floor(trail.data.trackData[0][0].lon),
-        y: Math.ceil(trail.data.trackData[0][0].lat),
-        w: 1,
-        h: -1,
-    };
-    const innerBounds = {
-        x: tileBounds.x + (rawData.x / rawData.ow) * tileBounds.w,
-        y: tileBounds.y + (rawData.y / rawData.oh) * tileBounds.h,
-        w: (rawData.w / rawData.ow) * tileBounds.w,
-        h: (rawData.h / rawData.oh) * tileBounds.h,
-    };
-    let points = trail.data.trackData[0].map((item) => {
-        let x =
-            ((item.lon - innerBounds.x) / innerBounds.w) *
-            stepped[0].length *
-            2;
-        let y =
-            ((item.lat - innerBounds.y) / innerBounds.h) * stepped.length * 2;
-        return { x, y };
-    });
-    points = simplify(points, stepped[0].length / 400, true);
-    return pathSmoothD(points.map((p) => [p.x * scale, p.y * scale]));
-};
-
 const borderingCells = [
     [-1, 0],
     [0, -1],
@@ -501,7 +473,7 @@ const createImage = (
     Object.keys(paths).forEach((k) => (total += paths[k].length));
     console.log(`All paths: ${total}`);
     return showPaths(
-        trail,
+        trail.data.trackData[0],
         stepped,
         paths,
         getSubColor(sub, first, minStep),
