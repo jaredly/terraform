@@ -7,6 +7,7 @@ const defaultSettings = {
     sub: 4,
     first: true,
     minStep: 0,
+    margin: 5,
 };
 
 const app = (root, settings) => {
@@ -19,11 +20,14 @@ const app = (root, settings) => {
     const image = createImage(
         window.data[settings.data],
         window.trails[settings.trail],
-        settings.sub,
-        settings.first,
-        settings.minStep,
-        settings.layers,
-        settings.size,
+        {
+            sub: settings.sub,
+            first: settings.first,
+            minStep: settings.minStep,
+            layers: settings.layers,
+            width: settings.size,
+            margin: settings.margin,
+        },
     );
     canvas.innerHTML = image;
     render(
@@ -128,9 +132,9 @@ const blurInput = (value, onChange, width = 20) => {
 const root = document.createElement('div');
 document.body.appendChild(root);
 
-app(
-    root,
-    window.location.hash.length
+app(root, {
+    ...defaultSettings,
+    ...(window.location.hash.length
         ? JSON.parse(decodeURIComponent(window.location.hash.slice(1)))
-        : defaultSettings,
-);
+        : {}),
+});

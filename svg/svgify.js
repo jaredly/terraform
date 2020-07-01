@@ -473,11 +473,7 @@ const makeBoundary = (paths, polygon, firstCut) => {
 const createImage = (
     rawData,
     trail,
-    sub,
-    first,
-    minStep,
-    layers = 9,
-    width = 1000,
+    { sub, first, minStep, layers, width, margin },
 ) => {
     const csv = rawData.rows;
     let min = Infinity;
@@ -506,7 +502,6 @@ const createImage = (
     console.log(`All paths: ${total}`);
     return showPaths(
         trail,
-        width,
         stepped,
         paths,
         getSubColor(sub, first, minStep),
@@ -518,6 +513,8 @@ const createImage = (
                   sub * 2,
               )
             : [closePath(boundaryPolygon(stepped, rawData.shape))],
+        closePath(boundaryPolygon(stepped, rawData.shape)),
+        { width, margin },
     );
 };
 

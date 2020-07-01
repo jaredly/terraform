@@ -28,19 +28,22 @@ const pathD = ([p0, ...rest]) =>
 
 const showPaths = (
     trail,
-    width,
     stepped,
     paths,
     getColor,
     rawData,
     boundaryPaths,
+    fullBoundryPath,
+    { width, margin },
 ) => {
     width = parseInt(width);
     const ow = stepped[0].length * 2;
     const oh = stepped.length * 2;
     const height = (width / stepped[0].length) * stepped.length;
-    const scale = width / ow;
-    const showEndPoints = true;
+    const scale = (width - margin * 2) / ow;
+    const fullScale = width / ow;
+    console.log(margin);
+    const showEndPoints = false;
     return `
 <svg
 xmlns="http://www.w3.org/2000/svg"
@@ -48,6 +51,7 @@ width="${width}mm"
 height="${height.toFixed(2)}mm"
 viewBox="0 0 ${width} ${height}"
 >
+<g >
 ${Object.keys(paths)
     .map((k, i) =>
         paths[k]
@@ -115,6 +119,17 @@ ${Object.keys(paths)
             />`,
         )
         .join('\n')}
+        </g>
+                <path d="${pathD(
+                    fullBoundryPath.map(({ x, y }) => [
+                        x * fullScale,
+                        y * fullScale,
+                    ]),
+                )}" 
+            fill="none"
+            style="stroke-width: 0.1"
+            stroke="red"
+            />
 </svg>
 `;
 };
