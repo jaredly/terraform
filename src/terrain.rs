@@ -86,7 +86,12 @@ impl File {
         }
     }
 
-    pub fn to_json(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Vec<Vec<f32>>> {
+    pub fn to_json(
+        &self,
+        coords: &Coords,
+        sample: usize,
+        elevation_boost: f32,
+    ) -> Option<Vec<Vec<f32>>> {
         if coords.validate(self) {
             let elevation_scale = if self.size.x >= self.size.y {
                 self.size.x as f32 / coords.w as f32 * 1.0 / self.longest_dim_in_meters
@@ -115,7 +120,7 @@ impl File {
             };
             Some(to_json(
                 &self.raster,
-                Coords {x, y, w, h},
+                Coords { x, y, w, h },
                 sample,
                 self.size.x,
                 elevation_scale,
@@ -417,7 +422,6 @@ fn to_json(
     full_width: usize,
     elevation_scale: f32,
 ) -> Vec<Vec<f32>> {
-
     let ww = w / sample;
     let hh = h / sample;
     let total = ww * hh;
@@ -433,8 +437,12 @@ fn to_json(
     for y in 0..hh {
         for x in 0..ww {
             let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
-            if p > max { max = p }
-            if p < min { min = p }
+            if p > max {
+                max = p
+            }
+            if p < min {
+                min = p
+            }
         }
     }
 

@@ -14,9 +14,9 @@ use kiss3d::resource::{IndexNum, Mesh};
 use kiss3d::window::Window;
 use na::{Point2, Point3, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3};
 use ncollide3d::procedural::{IndexBuffer, TriMesh};
-use std::time::SystemTime;
 use std::fs::File;
 use std::io::prelude::*;
+use std::time::SystemTime;
 
 mod hex;
 
@@ -65,7 +65,7 @@ struct Status {
     selection_node: kiss3d::scene::SceneNode,
     selection: Selection,
     zoom: Option<Zoom>,
-    trail: Option<Vec<(f32,f32)>>,
+    trail: Option<Vec<(f32, f32)>>,
 }
 
 enum Transition {
@@ -91,19 +91,25 @@ Scene_3_Hex - cropped down to a hex
 
 */
 
-fn load_trail_file(file_name: String) -> std::io::Result<Vec<(f32,f32)>> {
+fn load_trail_file(file_name: String) -> std::io::Result<Vec<(f32, f32)>> {
     let mut file = File::open("foo.txt")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    Ok(contents.split('\n').collect::<Vec<&str>>().iter().skip(1).map(|line| {
-        let parts: Vec<&str> = line.split(',').collect();
-        if (parts.len() < 3) {
-            panic!("Bad line");
-        }
-        let x: f32 = parts[0].parse().unwrap();
-        let y: f32 = parts[1].parse().unwrap();
-        (x, y)
-    }).collect())
+    Ok(contents
+        .split('\n')
+        .collect::<Vec<&str>>()
+        .iter()
+        .skip(1)
+        .map(|line| {
+            let parts: Vec<&str> = line.split(',').collect();
+            if (parts.len() < 3) {
+                panic!("Bad line");
+            }
+            let x: f32 = parts[0].parse().unwrap();
+            let y: f32 = parts[1].parse().unwrap();
+            (x, y)
+        })
+        .collect())
 }
 
 fn render_scene_1_tile(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNode) {
@@ -233,7 +239,10 @@ fn handle_transition(
                     None => Some(status),
                 },
                 Transition::OpenTrail(file_name) => match load_trail_file(file_name) {
-                    Ok(trail) => Some(Status {trail: Some(trail), ..status}),
+                    Ok(trail) => Some(Status {
+                        trail: Some(trail),
+                        ..status
+                    }),
                     _ => Some(status),
                 },
                 Transition::Select(coords, sample) => {
@@ -306,7 +315,8 @@ fn handle_transition(
                     None => Some(status),
                     Some(zoom) => match zoom.cut {
                         None => {
-                            let (pointer, selection_node) = render_scene_1_tile(&status.file, window);
+                            let (pointer, selection_node) =
+                                render_scene_1_tile(&status.file, window);
                             Some(Status {
                                 pointer,
                                 selection_node,
@@ -319,9 +329,13 @@ fn handle_transition(
                             })
                         }
                         Some(_cut) => {
-                            if let Some((pointer, selection_node)) =
-                                render_scene_2_crop(window, &status.file, &zoom.coords, zoom.sample, true)
-                            {
+                            if let Some((pointer, selection_node)) = render_scene_2_crop(
+                                window,
+                                &status.file,
+                                &zoom.coords,
+                                zoom.sample,
+                                true,
+                            ) {
                                 Some(Status {
                                     zoom: Some(Zoom { cut: None, ..zoom }),
                                     pointer,
@@ -373,9 +387,9 @@ fn handle_transition(
                                     ))
                                         .collect::<Vec<String>>().join(",\n")
                                     );
-                                    if profile!("Write file", outfile.write_all(
-                                        data.as_bytes()
-                                    )).is_err() {
+                                    if profile!("Write file", outfile.write_all(data.as_bytes()))
+                                        .is_err()
+                                    {
                                         println!("Failed to write :'(");
                                     }
                                 } else {
@@ -406,7 +420,9 @@ fn handle_transition(
                                 {
                                     let mut outfile =
                                         std::fs::File::create(file_path.as_str()).unwrap();
-                                    if profile!("Write file", stl::write_stl(&mut outfile, &stl)).is_err() {
+                                    if profile!("Write file", stl::write_stl(&mut outfile, &stl))
+                                        .is_err()
+                                    {
                                         println!("Failed to write :'(");
                                     }
                                 } else {
@@ -627,9 +643,13 @@ impl Statusable for Option<Status> {
                     .align_middle_x()
                     .w(80.0 * 2.0)
                     .h(HEIGHT * 2.0)
-                    .set(ids.open_file, ui).next() {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
-                        return Some(Transition::Open(file_path))
+                    .set(ids.open_file, ui)
+                    .next()
+                {
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("adf,tif"), None)
+                    {
+                        return Some(Transition::Open(file_path));
                     }
                 }
 
@@ -648,8 +668,10 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
-                        return Some(Transition::Open(file_path))
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("adf,tif"), None)
+                    {
+                        return Some(Transition::Open(file_path));
                     }
                 }
 
@@ -660,8 +682,10 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .set(ids.open_trail, ui)
                 {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("csv"), None) {
-                        return Some(Transition::OpenTrail(file_path))
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("csv"), None)
+                    {
+                        return Some(Transition::OpenTrail(file_path));
                     }
                 }
 
@@ -719,8 +743,10 @@ impl Statusable for Option<Status> {
                     .set(ids.open_file, ui)
                     .next()
                 {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
-                        return Some(Transition::Open(file_path))
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("adf,tif"), None)
+                    {
+                        return Some(Transition::Open(file_path));
                     }
                 }
 
@@ -785,7 +811,8 @@ impl Statusable for Option<Status> {
                     .w(90.0)
                     .h(HEIGHT)
                     .enabled(zoom.sample < 100)
-                    .set(ids.sample_greater, ui).next()
+                    .set(ids.sample_greater, ui)
+                    .next()
                 {
                     if zoom.sample < 100 {
                         return Some(Transition::Resolution(zoom.sample + 1));
@@ -797,7 +824,8 @@ impl Statusable for Option<Status> {
                     .right_from(ids.sample_greater, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.export, ui).next()
+                    .set(ids.export, ui)
+                    .next()
                 {
                     return Some(Transition::Export);
                 }
@@ -807,7 +835,8 @@ impl Statusable for Option<Status> {
                     .right_from(ids.export, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.export_json, ui).next()
+                    .set(ids.export_json, ui)
+                    .next()
                 {
                     return Some(Transition::ExportJSON);
                 }
@@ -817,7 +846,8 @@ impl Statusable for Option<Status> {
                     .right_from(ids.export_json, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.reset, ui).next()
+                    .set(ids.reset, ui)
+                    .next()
                 {
                     return Some(Transition::Reset);
                 }
@@ -828,7 +858,8 @@ impl Statusable for Option<Status> {
                         .right_from(ids.reset, 10.0)
                         .w(30.0)
                         .h(HEIGHT)
-                        .set(ids.cut, ui).next()
+                        .set(ids.cut, ui)
+                        .next()
                     {
                         return Some(Transition::Cut(hselection_to_hex(
                             &zoom.coords,
