@@ -155,17 +155,6 @@ const organizeLevel = (segments) => {
 };
 
 const midPoint = ([a, b], [c, d]) => [(a + c) / 2, (b + d) / 2];
-const midPoints = ([a, b], [c, d]) => [
-    [
-        a + ((c - a) / 3) * Math.random() * 0.9,
-        b + ((d - b) / 3) * Math.random() * 0.9,
-    ],
-    [
-        a + ((c - a) / 3) * (1.1 + Math.random() * 0.9),
-        b + ((d - b) * (1.1 + Math.random() * 0.9)) / 3,
-    ],
-];
-
 const simplifyPath = (points) =>
     simplify(
         points.map(([x, y]) => ({ x, y })),
@@ -173,107 +162,8 @@ const simplifyPath = (points) =>
         true,
     ).map((p) => [p.x, p.y]);
 
-const smoothPath = (points) => {
-    const newPoints = [points[0]];
-    points.forEach((p, i) => {
-        if (i === 0) return;
-        const prev = points[i - 1];
-        if (Math.random() < 0.5) {
-            newPoints.push(...midPoints(prev, p));
-        } else {
-            newPoints.push(midPoint(prev, p));
-        }
-    });
-    newPoints.push(points[points.length - 1]);
-    return newPoints;
-};
-
 const colors = 'red,green,blue,orange,purple,black,pink,magenta'.split(',');
 const getColor = (i) => colors[i % colors.length];
-
-const s = ([x, y]) => `${x} ${y}`;
-
-const spaths = (rest) => {
-    let i = 0;
-    const parts = [];
-    for (; i < rest.length - 2; i += 2) {
-        parts.push(`S ${s(rest[i])}, ${s(rest[i + 1])}`);
-    }
-    if (i < rest.length - 1) {
-        parts.push(`L ${s(rest[rest.length - 1])}`);
-    }
-    return parts.join(' ');
-};
-
-const pathSmoothD = (points) => {
-    const parts = [`M${s(points[0])}`];
-    for (let i = 1; i < points.length; i++) {
-        const prev = points[i - 1];
-        const mid = midPoint(prev, points[i]);
-        parts.push(`Q ${s(prev)} ${s(mid)}`);
-    }
-    parts.push(`L ${s(points[points.length - 1])}`);
-    return parts.join(' ');
-};
-
-const pathD = ([p0, ...rest]) =>
-    `M${s(p0)} ${rest.map((p) => `L${s(p)}`).join(' ')}`;
-
-const showPaths = (width, stepped, paths, getColor, rawData) => {
-    const scale = width / stepped[0].length;
-    return `
-<svg
-xmlns="http://www.w3.org/2000/svg"
-width="${width}"
-height="${scale * stepped.length}"
-viewBox="0 0 ${stepped[0].length * 2} ${stepped.length * 2}"
->
-${Object.keys(paths)
-    .map((k, i) =>
-        paths[k]
-            .filter((points) => points.length >= 3)
-            .map(
-                (points) =>
-                    // `<path d="${pathD(points)}"
-                    //     fill="none"
-                    //     style="stroke-width: 1; opacity: 0.5"
-                    //     stroke-dasharray="2 1"
-                    //     stroke="${getColor(i)}"
-                    // />` +
-                    `
-                    <path d="${pathSmoothD(points)}"
-                        fill="none"
-                        style="stroke-width: ${(2 / scale).toFixed(2)}"
-                        stroke="${getColor(i)}"
-                    />
-    `,
-                // ${
-                //     pointKey(points[0]) !== pointKey(points[points.length - 1])
-                //         ? `<circle cx="${points[0][0]}" cy="${points[0][1]}"
-                //                 r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                //             <circle cx="${points[points.length - 1][0]}" cy="${
-                //               points[points.length - 1][1]
-                //           }" r="0.5" stroke="black" fill="none" style="stroke-width:0.1"/>
-                //                 `
-                //         : `
-                //             <circle cx="${points[points.length - 1][0]}" cy="${
-                //               points[points.length - 1][1]
-                //           }" r="0.3" stroke="none" fill="green" style="stroke-width:0.1"/>
-                //         `
-                // }
-            )
-
-            .join('\n'),
-    )
-    .join('\n')}
-    <path d="M 0 0 ${showTrail(trail, rawData, stepped)}"
-    fill="none"
-    style="stroke-width: ${(4 / scale).toFixed(2)}"
-    stroke="red"
-    />
-</svg>
-`;
-};
 
 const showTrail = (trail, rawData, stepped) => {
     // const trailSimple = simplify(
@@ -338,15 +228,6 @@ ${Object.keys(segments)
 
 const createImage = (rawData, getColor, layers = 9, width = 1000) => {
     const csv = rawData.rows;
-    // ? rawData.rows
-    // : rawData
-    //       .split('\n')
-    //       .map((line) => line.split(',').map((item) => parseFloat(item)));
-
-    // const csv = fs
-    //     .readFileSync(fname, 'utf8')
-    //     .split('\n')
-    //     .map((line) => line.split(',').map((item) => parseFloat(item)));
     let min = Infinity;
     let max = -Infinity;
 
@@ -389,8 +270,6 @@ const createImage = (rawData, getColor, layers = 9, width = 1000) => {
                 points.length > 10 ||
                 pointKey(points[0]) !== pointKey(points[points.length - 1]),
         );
-        // .map(smoothPath)
-        // paths = paths.map(smoothPath);
         paths = paths.map(simplifyPath);
         paths = paths.filter(
             (points) =>
@@ -416,183 +295,3 @@ const createImage = (rawData, getColor, layers = 9, width = 1000) => {
     console.log(`All paths: ${total}`);
     return showPaths(width, stepped, paths, getColor, rawData);
 };
-
-// My little framework
-const node = (name, attrs, children) => {
-    const add = (child) => {
-        if (child == null) {
-            return;
-        } else if (Array.isArray(child)) {
-            child.forEach(add);
-        } else if (
-            typeof child === 'string' ||
-            typeof child === 'number' ||
-            typeof child === 'boolean'
-        ) {
-            node.appendChild(document.createTextNode('' + child));
-        } else {
-            // TODO check, and warn otherwise
-            node.appendChild(child);
-        }
-    };
-    const node = document.createElement(name);
-    if (attrs) {
-        Object.keys(attrs).forEach((k) => {
-            if (k === 'style') {
-                Object.assign(node.style, attrs[k]);
-            } else if (typeof attrs[k] === 'function') {
-                node[k] = function () {
-                    attrs[k].apply(node, arguments);
-                }; // todo addeventlistener maybe?
-            } else if (['checked'].includes(k)) {
-                node[k] = attrs[k];
-            } else {
-                node.setAttribute(k, attrs[k]);
-            }
-        });
-    }
-    add(children);
-    return node;
-};
-const named = (name) => (attrs, children) => node(name, attrs, children);
-const div = named('div');
-const span = named('span');
-const button = named('button');
-const render = (dest, node) => {
-    dest.innerHTML = '';
-    dest.appendChild(node);
-};
-// done with framework
-
-const root = document.createElement('div');
-document.body.appendChild(root);
-
-const getFirstColor = (i) => (i % 2 == 0 ? 'red' : 'blue');
-const getSecondColor = (i) => (i % 2 == 1 ? 'red' : 'blue');
-
-const defaultSettings = {
-    color: false,
-    data: Object.keys(window.data)[0],
-    layers: 7,
-    size: 500,
-    sub: 4,
-    first: true,
-};
-
-const getSubColor = (num, first, fn) => (i) => {
-    let band = parseInt(i / num);
-    let off = i % num;
-    if (off == 0) {
-        return fn(band);
-    } else if (band % 2 !== (first ? 0 : 1)) {
-        return fn(band + 1);
-        // return 'rgba(0,0,0,0.1)';
-    }
-};
-
-const update = (settings) => {
-    window.location.hash = JSON.stringify(settings);
-    app({ ...defaultSettings, ...settings });
-};
-
-const app = (settings) => {
-    const canvas = div({});
-    const image = createImage(
-        window.data[settings.data],
-        getSubColor(
-            settings.sub || 3,
-            settings.first,
-            settings.color ? getFirstColor : getColor,
-        ),
-        settings.layers,
-        settings.size,
-    );
-    canvas.innerHTML = image;
-    render(
-        root,
-        div({}, [
-            div({}, [
-                button(
-                    {
-                        onclick: () =>
-                            update({ ...settings, color: !settings.color }),
-                    },
-                    settings.color ? 'Multicolor' : 'Laser colors',
-                ),
-                button(
-                    {
-                        onclick: () =>
-                            update({
-                                ...settings,
-                                layers: settings.layers - 1,
-                            }),
-                    },
-                    '- layer',
-                ),
-                node('input', {
-                    type: 'checkbox',
-                    checked: settings.first,
-                    onchange: (evt) =>
-                        update({ ...settings, first: evt.target.checked }),
-                }),
-                'first',
-                blurInput(settings.layers, (layers) =>
-                    update({ ...settings, layers }),
-                ),
-                button(
-                    {
-                        onclick: () =>
-                            update({
-                                ...settings,
-                                layers: settings.layers + 1,
-                            }),
-                    },
-                    '+ layer',
-                ),
-                button({ onclick: () => update(settings) }, 'Re-run'),
-            ]),
-            canvas,
-            div({}, [
-                div(
-                    {},
-                    Object.keys(window.data).map((num) =>
-                        button(
-                            {
-                                onclick: () => {
-                                    update({ ...settings, data: num });
-                                },
-                            },
-                            `Load data ${num}`,
-                        ),
-                    ),
-                ),
-            ]),
-            node('img', { src: `data:image/svg+xml,` + image }),
-        ]),
-    );
-};
-
-const blurInput = (value, onChange) => {
-    const dom = node('input', {
-        style: { width: '20px' },
-        onchange: () => onChange(dom.value),
-        value,
-    });
-    return dom;
-};
-
-app(
-    window.location.hash.length
-        ? JSON.parse(decodeURIComponent(window.location.hash.slice(1)))
-        : defaultSettings,
-);
-
-// const image = createImage(window.data, getFirstColor, 7, 500);
-// const container = document.createElement('div');
-// document.body.appendChild(container);
-// container.innerHTML = image;
-// const img = document.createElement('img');
-// img.src = `data:image/svg+xml,` + image;
-// document.body.appendChild(img);
-// fs.writeFileSync('./out.svg', showBasic(segments));
-// fs.writeFileSync('./out.svg', showPaths(paths));

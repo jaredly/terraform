@@ -120,7 +120,7 @@ impl File {
             };
             Some(to_json(
                 &self.raster,
-                Coords { x, y, w, h },
+                &Coords { x, y, w, h },
                 sample,
                 self.size.x,
                 elevation_scale,
