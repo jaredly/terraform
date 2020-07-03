@@ -497,20 +497,50 @@ const createImage = (
     console.log(`All paths: ${total}`);
     const trailPath = normalizeTrail(trail.data.trackData[0], rawData);
 
-    return showPaths(
-        trailPath,
-        stepped,
+    width = parseInt(width);
+    const ow = stepped[0].length * 2;
+    const oh = stepped.length * 2;
+    const height = (width / ow) * oh;
+
+    const getColor = getSubColor(sub, first, minStep);
+    const polygon = boundaryPolygon(stepped, rawData.shape);
+    const fullBoundryPath = closePath(polygon);
+
+    const internalMargin = 2;
+
+    const firstTile = showTile(
         paths,
-        getSubColor(sub, first, minStep),
-        first
-            ? makeBoundary(
-                  paths,
-                  boundaryPolygon(stepped, rawData.shape),
-                  sub * 2,
-              )
-            : [closePath(boundaryPolygon(stepped, rawData.shape))],
-        closePath(boundaryPolygon(stepped, rawData.shape)),
-        { width, margin },
+        trailPath,
+        makeBoundary(paths, polygon, sub * 2),
+        fullBoundryPath,
+        {
+            ow,
+            oh,
+            width,
+            margin,
+        },
+        getSubColor(sub, true, minStep),
+    );
+
+    const secondTile = showTile(
+        paths,
+        trailPath,
+        [fullBoundryPath],
+        fullBoundryPath,
+        {
+            ow,
+            oh,
+            width,
+            margin,
+        },
+        getSubColor(sub, false, minStep),
+    );
+
+    return svgNode(
+        width * 2 + internalMargin,
+        height,
+        `<g>${firstTile}</g>
+    <g transform="translate(${width + internalMargin} 0)">${secondTile}</g>`,
     );
 };
 

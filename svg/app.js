@@ -73,18 +73,13 @@ const app = (root, settings) => {
                 ),
                 'Skip:',
                 blurInput(settings.sub, (sub) => update({ ...settings, sub })),
-                'Min Step:',
-                blurInput(settings.minStep, (minStep) =>
-                    update({ ...settings, minStep }),
-                ),
                 'Width:',
                 blurInput(
                     settings.size,
                     (size) => update({ ...settings, size }),
                     40,
                 ),
-                'mm',
-                'Horizontal Margin:',
+                'mm. Horizontal Margin:',
                 blurInput(settings.margin, (margin) =>
                     update({ ...settings, margin }),
                 ),

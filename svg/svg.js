@@ -31,8 +31,10 @@ const showPath = (
     color,
     scale,
     showEndPoints,
+    i,
 ) => `<path d="${pathSmoothD(points.map(([x, y]) => [x * scale, y * scale]))}"
         fill="none"
+        ${color === 'red' ? `laser_group="${i}"` : ''}
         style="stroke-width: 0.1"
         stroke="${color}"
     />
@@ -90,14 +92,16 @@ ${Object.keys(paths)
 
         return paths[k]
             .filter((points) => points.length >= 3)
-            .map((points) => showPath(points, color, scale, showEndPoints))
+            .map((points) => showPath(points, color, scale, showEndPoints, i))
             .join('\n');
     })
+    // inner ones first, they should be cut first
+    .reverse()
     .join('\n')}
     ${
         trail
             ? `<path d="${showTrail(trail, scale * ow, scale * oh)}"
-                fill="none" style="stroke-width: 0.5" stroke="red" />`
+                fill="none" style="stroke-width: 0.5" stroke="orange" />`
             : ''
     }
     ${boundaryPaths
@@ -106,44 +110,44 @@ ${Object.keys(paths)
                 `<path d="${pathD(
                     path.map(({ x, y }) => [x * scale, y * scale]),
                 )}" 
-                fill="none" style="stroke-width: 0.1" stroke="red" />`,
+                fill="none" style="stroke-width: 0.1" stroke="green" />`,
         )
         .join('\n')}
     </g>
     <path d="${pathD(
         fullBoundryPath.map(({ x, y }) => [x * fullScale, y * fullScale]),
-    )}" fill="none" style="stroke-width: 0.1" stroke="red" />
+    )}" fill="none" style="stroke-width: 0.1" stroke="green" />
 `;
 };
 
-const showPaths = (
-    trail,
-    stepped,
-    paths,
-    getColor,
-    boundaryPaths,
-    fullBoundryPath,
-    { width, margin },
-) => {
-    width = parseInt(width);
-    const ow = stepped[0].length * 2;
-    const oh = stepped.length * 2;
-    const height = (width / ow) * oh;
-    return svgNode(
-        width,
-        height,
-        showTile(
-            paths,
-            trail,
-            boundaryPaths,
-            fullBoundryPath,
-            {
-                ow,
-                oh,
-                width,
-                margin,
-            },
-            getColor,
-        ),
-    );
-};
+// const showPaths = (
+//     trail,
+//     stepped,
+//     paths,
+//     getColor,
+//     boundaryPaths,
+//     fullBoundryPath,
+//     { width, margin },
+// ) => {
+//     width = parseInt(width);
+//     const ow = stepped[0].length * 2;
+//     const oh = stepped.length * 2;
+//     const height = (width / ow) * oh;
+//     return svgNode(
+//         width,
+//         height,
+//         showTile(
+//             paths,
+//             trail,
+//             boundaryPaths,
+//             fullBoundryPath,
+//             {
+//                 ow,
+//                 oh,
+//                 width,
+//                 margin,
+//             },
+//             getColor,
+//         ),
+//     );
+// };
