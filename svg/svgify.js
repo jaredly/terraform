@@ -468,7 +468,7 @@ const normalizeTrail = (trail, rawData) => {
 const createImage = (
     rawData,
     trail,
-    { sub, first, minStep, layers, width, margin },
+    { sub, first, minStep, thickness, width, margin },
 ) => {
     const csv = rawData.rows;
     let min = Infinity;
@@ -480,6 +480,14 @@ const createImage = (
             max = Math.max(max, item);
         }),
     );
+
+    // TODO I'd rather terraform didn't pre-normalize this to the "longest side"
+    // would rather have it just be "in the same units as the x/y plane"
+    const heightInMM = max * width;
+    const materialLayers = Math.round(heightInMM / thickness);
+    const layers = (materialLayers + 1) * sub - 1;
+    console.log(heightInMM / thickness, materialLayers, heightInMM);
+    // console.log(heightInMM, materialLayers, layers);
 
     const step = (max - min) / layers;
     const stepped = csv.map((line) =>

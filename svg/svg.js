@@ -119,35 +119,3 @@ ${Object.keys(paths)
     )}" fill="none" style="stroke-width: 0.1" stroke="green" />
 `;
 };
-
-// const showPaths = (
-//     trail,
-//     stepped,
-//     paths,
-//     getColor,
-//     boundaryPaths,
-//     fullBoundryPath,
-//     { width, margin },
-// ) => {
-//     width = parseInt(width);
-//     const ow = stepped[0].length * 2;
-//     const oh = stepped.length * 2;
-//     const height = (width / ow) * oh;
-//     return svgNode(
-//         width,
-//         height,
-//         showTile(
-//             paths,
-//             trail,
-//             boundaryPaths,
-//             fullBoundryPath,
-//             {
-//                 ow,
-//                 oh,
-//                 width,
-//                 margin,
-//             },
-//             getColor,
-//         ),
-//     );
-// };

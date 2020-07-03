@@ -2,7 +2,8 @@ const defaultSettings = {
     color: false,
     data: Object.keys(window.data)[0],
     trail: null,
-    layers: 7,
+    thickness: 3,
+    // layers: 7,
     size: 500,
     sub: 4,
     first: true,
@@ -24,7 +25,7 @@ const app = (root, settings) => {
             sub: settings.sub,
             first: settings.first,
             minStep: settings.minStep,
-            layers: settings.layers,
+            thickness: settings.thickness,
             width: settings.size,
             margin: settings.margin,
         },
@@ -47,31 +48,12 @@ const app = (root, settings) => {
                     onchange: (evt) =>
                         update({ ...settings, first: evt.target.checked }),
                 }),
-                'first',
-                button(
-                    {
-                        onclick: () =>
-                            update({
-                                ...settings,
-                                layers: +settings.layers - 1,
-                            }),
-                    },
-                    '- layer',
+                'first. ',
+                'Material thickness',
+                blurInput(settings.thickness, (thickness) =>
+                    update({ ...settings, thickness }),
                 ),
-                blurInput(settings.layers, (layers) =>
-                    update({ ...settings, layers }),
-                ),
-                button(
-                    {
-                        onclick: () =>
-                            update({
-                                ...settings,
-                                layers: +settings.layers + 1,
-                            }),
-                    },
-                    '+ layer',
-                ),
-                'Skip:',
+                'mm. Skip:',
                 blurInput(settings.sub, (sub) => update({ ...settings, sub })),
                 'Width:',
                 blurInput(
