@@ -1,4 +1,5 @@
 const defaultSettings = {
+    title: '',
     color: false,
     data: Object.keys(window.data)[0],
     trail: null,
@@ -19,6 +20,7 @@ const app = (root, settings) => {
 
     const canvas = div({});
     const image = createImage(
+        settings.title,
         window.data[settings.data],
         window.trails[settings.trail],
         {
@@ -67,6 +69,12 @@ const app = (root, settings) => {
                 ),
                 'mm',
                 button({ onclick: () => update(settings) }, 'Re-run'),
+                'Title:',
+                blurInput(
+                    settings.title,
+                    (title) => update({ ...settings, title }),
+                    100,
+                ),
             ]),
             canvas,
             div({}, [

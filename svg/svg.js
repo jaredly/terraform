@@ -72,6 +72,7 @@ ${contents}
 `;
 
 const showTile = (
+    title,
     paths,
     trail,
     boundaryPaths,
@@ -117,5 +118,8 @@ ${Object.keys(paths)
     <path d="${pathD(
         fullBoundryPath.map(({ x, y }) => [x * fullScale, y * fullScale]),
     )}" fill="none" style="stroke-width: 0.1" stroke="green" />
+    <text x="${width / 2}" y="${
+        (width / ow) * oh - vMargin / 4
+    }" text-anchor="middle" font-size="${2}" font-family="Helvetica">${title}</text>
 `;
 };

@@ -466,6 +466,7 @@ const normalizeTrail = (trail, rawData) => {
 };
 
 const createImage = (
+    title,
     rawData,
     trail,
     { sub, first, minStep, thickness, width, margin },
@@ -517,6 +518,7 @@ const createImage = (
     const internalMargin = 2;
 
     const firstTile = showTile(
+        title,
         paths,
         trailPath,
         makeBoundary(paths, polygon, sub * 2),
@@ -531,6 +533,7 @@ const createImage = (
     );
 
     const secondTile = showTile(
+        title,
         paths,
         trailPath,
         [fullBoundryPath],
