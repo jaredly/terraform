@@ -504,7 +504,9 @@ const createImage = (
     let total = 0;
     Object.keys(paths).forEach((k) => (total += paths[k].length));
     console.log(`All paths: ${total}`);
-    const trailPath = normalizeTrail(trail.data.trackData[0], rawData);
+    const trailPath = trail
+        ? normalizeTrail(trail.data.trackData[0], rawData)
+        : null;
 
     width = parseInt(width);
     const ow = stepped[0].length * 2;

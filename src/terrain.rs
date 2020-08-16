@@ -437,6 +437,7 @@ fn to_json(
     for y in 0..hh {
         for x in 0..ww {
             let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
+
             if p > max {
                 max = p
             }
@@ -480,7 +481,7 @@ fn to_points(
     let mut min = std::f32::INFINITY;
     for y in 0..hh {
         for x in 0..ww {
-            let p = raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)];
+            let p = (-20.0_f32).max(raster.data[(y0 + y * sample) * full_width + (x0 + x * sample)]);
 
             if p > max {
                 max = p
