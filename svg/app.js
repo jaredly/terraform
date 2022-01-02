@@ -13,11 +13,44 @@ const defaultSettings = {
     stars: '',
 };
 
+const drawData = (title, rawData) => {
+    const csv = rawData.rows;
+    let min = Infinity;
+    let max = -Infinity;
+
+    csv.forEach((line) =>
+        line.forEach((item) => {
+            min = Math.min(min, item);
+            max = Math.max(max, item);
+        }),
+    );
+
+    const canvas = document.createElement('canvas');
+    const size = 500;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    csv.forEach((line, y) => {
+        const w = Math.floor(size / line.length);
+        const h = Math.floor(size / csv.length);
+        line.forEach((val, x) => {
+            const scaled = (val - min) / (max - min);
+            ctx.fillStyle = `rgba(0,0,255,${scaled})`;
+            ctx.fillRect(x * w, y * h, w, h);
+        });
+    });
+    return canvas;
+};
+
 const app = (root, settings) => {
     const update = (settings) => {
         window.location.hash = JSON.stringify(settings);
         app(root, { ...defaultSettings, ...settings });
     };
+
+    // This is for debugging the export, to see if things make sense.
+    // const canvas = drawData(settings.title, window.data[settings.data]);
+    // const image = 'ehllo';
 
     const canvas = div({});
     const image = createImage(
@@ -35,6 +68,7 @@ const app = (root, settings) => {
         },
     );
     canvas.innerHTML = image;
+
     render(
         root,
         div({}, [

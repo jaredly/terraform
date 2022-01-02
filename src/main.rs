@@ -472,7 +472,7 @@ fn handle_transition(
                     };
 
                     match json {
-                        None => println!("Failed to get stl"),
+                        None => println!("Failed to get json"),
                         Some(json) => {
                             if let Ok(nfd::Response::Okay(file_path)) =
                                 nfd::open_save_dialog(Some("js"), None)
