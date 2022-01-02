@@ -10,6 +10,7 @@ const defaultSettings = {
     first: true,
     minStep: 0,
     margin: 5,
+    stars: '',
 };
 
 const app = (root, settings) => {
@@ -30,6 +31,7 @@ const app = (root, settings) => {
             thickness: settings.thickness,
             width: settings.size,
             margin: settings.margin,
+            stars: settings.stars,
         },
     );
     canvas.innerHTML = image;
@@ -73,6 +75,12 @@ const app = (root, settings) => {
                 blurInput(
                     settings.title,
                     (title) => update({ ...settings, title }),
+                    100,
+                ),
+                'Stars:',
+                blurInput(
+                    settings.stars,
+                    (stars) => update({ ...settings, stars }),
                     100,
                 ),
             ]),

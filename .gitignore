@@ -8,3 +8,5 @@ target
 docs
 *.csv
 Users
+exports
+datasets

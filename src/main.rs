@@ -92,27 +92,39 @@ Scene_3_Hex - cropped down to a hex
 */
 
 fn load_trail_file(file_name: String) -> std::io::Result<Vec<(f32, f32)>> {
-    let mut file = File::open("foo.txt")?;
+    let mut file = File::open(file_name)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    Ok(contents
-        .split('\n')
-        .collect::<Vec<&str>>()
-        .iter()
-        .skip(1)
-        .map(|line| {
-            let parts: Vec<&str> = line.split(',').collect();
-            if (parts.len() < 3) {
-                panic!("Bad line");
-            }
-            let x: f32 = parts[0].parse().unwrap();
-            let y: f32 = parts[1].parse().unwrap();
-            (x, y)
-        })
-        .collect())
+    let mut result: Vec<(f32, f32)> = vec![];
+    for line in contents.split('\n') .collect::<Vec<&str>>() .iter() .skip(1) {
+        if line.len() == 0 {
+            continue;
+        }
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() < 3 {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Too few items"))
+        }
+        if parts[0].eq("Latitude") {
+            continue;
+        }
+        let lat: f32 = parts[0].parse().unwrap();
+        let lon: f32 = parts[1].parse().unwrap();
+        let y = lat - lat.floor() - 0.5;
+        let x = lon - lon.floor() - 0.5;
+
+                    // for (x, y) in &mut trail {
+                    //     *x -= 0.5;
+                    //     *y -= 0.5;
+                    // }
+
+        result.push((x, y));
+    }
+    println!("Loaded trail success!");
+
+    return Ok(result);
 }
 
-fn render_scene_1_tile(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNode) {
+fn render_scene_1_tile(file: &terrain::File, trail: &Option<Vec<(f32, f32)>>, window: &mut Window) -> (SceneNode, SceneNode) {
     window.scene_mut().clear();
     window.set_camera(make_camera());
 
@@ -131,6 +143,27 @@ fn render_scene_1_tile(file: &terrain::File, window: &mut Window) -> (SceneNode,
     selection.set_color(0.0, 0.0, 1.0);
     selection.set_alpha(0.5);
 
+    match trail {
+        Some(trail) => {
+            // let w = file.size.x as f32;
+            // let h = file.size.y as f32;
+            // let xoff = (coords.x as f32 / w);
+            // let yoff = (coords.y as f32 / h);
+            // let scale = if coords.w > coords.h { coords.w as f32 / w } else { coords.h as f32 / h };
+            // let mut trailed = vec![];
+            // for (x, y) in trail {
+            //     trailed.push(((*x ) / scale , (*y ) / scale ));
+            // }
+            let poly = threed::make_prism(trail, false);
+            let mut trail = window.add_trimesh(poly, Vector3::from_element(1.0));
+            trail.set_local_scale(1.0, 1.0, 0.15);
+            trail.enable_backface_culling(false);
+            trail.set_color(1.0, 0.0, 1.0);
+            trail.set_alpha(0.8);
+        }
+        _ => {}
+    };
+
     (pointer, selection)
 }
 
@@ -141,7 +174,7 @@ fn load_file_and_render(window: &mut Window, file_name: String) -> Option<Status
             terrain::File::from_dataset(&dataset, file_name)
         );
 
-        let (pointer, selection) = render_scene_1_tile(&file, window);
+        let (pointer, selection) = render_scene_1_tile(&file, &None, window);
 
         Some(Status {
             file,
@@ -189,6 +222,7 @@ fn render_scene_3_hex(
 fn render_scene_2_crop(
     window: &mut Window,
     file: &terrain::File,
+    trail: &Option<Vec<(f32, f32)>>,
     coords: &terrain::Coords,
     sample: usize,
     reset_camera: bool,
@@ -212,6 +246,41 @@ fn render_scene_2_crop(
         selection.enable_backface_culling(false);
         selection.set_color(0.0, 0.0, 1.0);
         selection.set_alpha(0.5);
+        // println!("Coord {:?}", coords);
+
+        match trail {
+            Some(trail) => {
+                let w = file.size.x as f32;
+                let h = file.size.y as f32;
+
+                let ocx = w / 2.0;
+                let ocy = h / 2.0;
+                let ncx = coords.x as f32 + coords.w as f32 / 2.0;
+                let ncy = coords.y as f32 + coords.h as f32 / 2.0;
+
+                // let xoff = (coords.x as f32 / w);
+                // let yoff = (coords.y as f32 / h);
+                let xoff = (ncx - ocx) / w;
+                let yoff = (ncy - ocy) / h;
+
+                println!("Ok {},{} vs {},{}", ocx, ocy, ncx, ncy);
+                println!("Coords {},{} {}x{}", coords.x, coords.y, coords.w, coords.h);
+
+                let scale = if coords.w > coords.h { coords.w as f32 / w } else { coords.h as f32 / h };
+                let mut trailed = vec![];
+                for (x, y) in trail {
+                    trailed.push(((*x - xoff) / scale , (*y + yoff) / scale ));
+                }
+                let poly = threed::make_prism(&trailed, false);
+                let mut trail_poly = window.add_trimesh(poly, Vector3::from_element(1.0));
+                trail_poly.set_local_scale(1.0, 1.0, 0.15);
+                trail_poly.enable_backface_culling(false);
+                trail_poly.set_color(1.0, 0.0, 1.0);
+                trail_poly.set_alpha(0.8);
+            }
+            _ => {}
+        };
+
 
         Some((pointer, selection))
     } else {
@@ -232,21 +301,59 @@ fn handle_transition(
             },
             _ => None,
         },
-        Some(status) => match transition {
+        Some(mut status) => match transition {
             Transition::Open(file_name) => match load_file_and_render(window, file_name) {
                 Some(status) => Some(status),
                 None => Some(status),
             },
             Transition::OpenTrail(file_name) => match load_trail_file(file_name) {
-                Ok(trail) => Some(Status {
-                    trail: Some(trail),
-                    ..status
-                }),
-                _ => Some(status),
+                Ok(trail) => {
+                    let opt = Some(trail);
+                    let (pointer, selection_node) = render_scene_1_tile(&status.file, &opt, window);
+                    Some(Status {
+                        pointer,
+                        selection_node,
+                        selection: Selection {
+                            pos: Point2::new(0.0, 0.0),
+                            size: Vector2::new(0.0, 0.0),
+                        },
+                        trail: opt,
+                        ..status
+                    })
+
+                    // let poly = threed::make_prism(&trail, false);
+                    // let mut selection = window.add_trimesh(poly, Vector3::from_element(1.0));
+                    // selection.set_local_scale(1.0, 1.0, 0.15);
+                    // selection.enable_backface_culling(false);
+                    // selection.set_color(1.0, 0.0, 1.0);
+                    // selection.set_alpha(0.8);
+                    // let mut bounds = (trail[0].0, trail[0].0, trail[0].1, trail[0].1);
+                    // for (x, y) in &trail {
+                    //     bounds.0 = x.min(bounds.0);
+                    //     bounds.1 = x.max(bounds.1);
+                    //     bounds.2 = y.min(bounds.2);
+                    //     bounds.3 = y.max(bounds.3);
+                    // }
+                    // let w = (bounds.1 - bounds.0);
+                    // let h = (bounds.3 - bounds.2);
+                    // status.selection_node.set_local_scale(w / 2.0, h / 2.0, 0.15);
+                    // status.selection_node.set_local_translation(Translation3::from(
+                    //     Vector3::new(bounds.0 + w / 2.0, bounds.2 + h / 2.0, 0.0),
+                    // ));
+
+                    // Some(Status {
+                    //     trail: Some(trail),
+                    //     ..status
+                    // })
+                },
+                Err(err) => {
+                    println!("Failed! {}", err);
+                    Some(status)
+                },
             },
             Transition::Select(coords, sample) => {
                 if let Some((pointer, selection_node)) =
-                    render_scene_2_crop(window, &status.file, &coords, sample, true)
+                    render_scene_2_crop(window, &status.file, &status.trail, &coords, sample, true)
                 {
                     Some(Status {
                         pointer,
@@ -295,7 +402,7 @@ fn handle_transition(
                     }
                     None => Some(Status {
                         zoom: if let Some((mut p_new, mut sel_new)) =
-                            render_scene_2_crop(window, &status.file, &zoom.coords, res, false)
+                            render_scene_2_crop(window, &status.file, &status.trail, &zoom.coords, res, false)
                         {
                             sel_new.unlink();
                             window.add_child(&status.selection_node);
@@ -316,7 +423,7 @@ fn handle_transition(
                 None => Some(status),
                 Some(zoom) => match zoom.cut {
                     None => {
-                        let (pointer, selection_node) = render_scene_1_tile(&status.file, window);
+                        let (pointer, selection_node) = render_scene_1_tile(&status.file, &status.trail, window);
                         Some(Status {
                             pointer,
                             selection_node,
@@ -332,6 +439,7 @@ fn handle_transition(
                         if let Some((pointer, selection_node)) = render_scene_2_crop(
                             window,
                             &status.file,
+                            &status.trail,
                             &zoom.coords,
                             zoom.sample,
                             true,

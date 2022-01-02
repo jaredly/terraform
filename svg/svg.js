@@ -77,6 +77,7 @@ const showTile = (
     trail,
     boundaryPaths,
     fullBoundryPath,
+    starPoints,
     { ow, oh, width, margin },
     getColor,
 ) => {
@@ -114,6 +115,26 @@ ${Object.keys(paths)
                 fill="none" style="stroke-width: 0.1" stroke="green" />`,
         )
         .join('\n')}
+    ${
+        starPoints
+            ? starPoints.map(
+                  ({ x, y }) =>
+                      //   `<circle cx="${center.x * scale * ow}" cy="${
+                      //       center.y * scale * oh
+                      //   }" r="2" />`,
+                      `<path d="${pathD(
+                          starPath(
+                              { x: x * scale * ow, y: y * scale * oh },
+                              2,
+                              0.6,
+                          ).map(({ x, y }) => [x, y]),
+                      )} z"
+                  fill="black" style="stroke-width: 0.5; 
+                  stroke-linecap: round;
+                  stroke-linejoin: round;" stroke="black" />`,
+              )
+            : ''
+    }
     </g>
     <path d="${pathD(
         fullBoundryPath.map(({ x, y }) => [x * fullScale, y * fullScale]),
@@ -122,4 +143,22 @@ ${Object.keys(paths)
         (width / ow) * oh - vMargin / 4
     }" text-anchor="middle" font-size="${2}" font-family="Helvetica">${title}</text>
 `;
+};
+
+const off = ({ x, y }, angle, amount) => {
+    return {
+        x: x + Math.cos(angle) * amount,
+        y: y + Math.sin(angle) * amount,
+    };
+};
+
+const starPath = (center, size, size2) => {
+    const points = [];
+    const by = (Math.PI * 2) / 5;
+    const ini = -Math.PI / 2;
+    for (let i = 0; i < 5; i++) {
+        points.push(off(center, ini + i * by, size));
+        points.push(off(center, ini + (i + 0.5) * by, size2));
+    }
+    return points;
 };

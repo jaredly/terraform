@@ -442,6 +442,39 @@ const makeBoundary = (paths, polygon, firstCut) => {
     return spans.filter((span) => span.hasOthers).map((span) => span.path);
 };
 
+const parseStars = (rawStars, rawData) => {
+    if (!rawStars.trim().length) {
+        return null;
+    }
+    const stars = rawStars.split(';').map((star) => {
+        const [lon, lat] = star.split('/');
+        return { lat: parseFloat(lat), lon: parseFloat(lon) };
+    });
+    const tileBounds = {
+        x: Math.floor(stars[0].lon),
+        y: Math.ceil(stars[0].lat),
+        w: 1,
+        h: -1,
+    };
+    const innerBounds = {
+        x: tileBounds.x + (rawData.x / rawData.ow) * tileBounds.w,
+        y: tileBounds.y + (rawData.y / rawData.oh) * tileBounds.h,
+        w: (rawData.w / rawData.ow) * tileBounds.w,
+        h: (rawData.h / rawData.oh) * tileBounds.h,
+    };
+    let points = stars.map((star) => {
+        let x = (star.lon - innerBounds.x) / innerBounds.w;
+        let y = (star.lat - innerBounds.y) / innerBounds.h;
+        return { x, y };
+    });
+    return points;
+};
+
+/**
+ * Because our tile info doesn't currently include the actual lat/lon of the tile,
+ * I just assume that the trail you pass in is within the tile, and I normalize all
+ * coordinates to the square of the given 1-degree lat/lon tile.
+ */
 const normalizeTrail = (trail, rawData) => {
     // TODO this won't work if a trail spans multiple tiles ....
     // But it works for now
@@ -469,7 +502,7 @@ const createImage = (
     title,
     rawData,
     trail,
-    { sub, first, minStep, thickness, width, margin },
+    { sub, first, minStep, thickness, width, margin, stars },
 ) => {
     const csv = rawData.rows;
     let min = Infinity;
@@ -507,6 +540,7 @@ const createImage = (
     const trailPath = trail
         ? normalizeTrail(trail.data.trackData[0], rawData)
         : null;
+    const starPoints = stars ? parseStars(stars, rawData) : null;
 
     width = parseInt(width);
     const ow = stepped[0].length * 2;
@@ -525,6 +559,7 @@ const createImage = (
         trailPath,
         makeBoundary(paths, polygon, sub * 2),
         fullBoundryPath,
+        starPoints,
         {
             ow,
             oh,
@@ -540,6 +575,7 @@ const createImage = (
         trailPath,
         [fullBoundryPath],
         fullBoundryPath,
+        starPoints,
         {
             ow,
             oh,
