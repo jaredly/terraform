@@ -1,0 +1,11 @@
+{
+  "name": "terraform",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:jaredly/terraform.git",
+  "author": "Jared Forsyth <jared@jaredforsyth.com>",
+  "license": "MIT",
+  "dependencies": {
+    "simplify-js": "^1.2.4"
+  }
+}
