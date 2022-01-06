@@ -154,14 +154,29 @@ function lerp(x: number, x0: number, x1: number, y0 = 0, y1 = 1) {
 
 import '../exports/timp_hex.js';
 import '../exports/tn_rect.js';
+import '../exports/cec.js';
+import '../exports/cec2.js';
+import '../exports/arenal.js';
+import '../exports/arenal-small.js';
+import '../exports/arenal-large.js';
 
-// window.ok = data;
-const lines: Array<Array<number>> =
-    window.data['/Users/jared/clone/exploration/terraform/tn_rect.js'].rows;
+const data: { [key: string]: { rows: Array<Array<number>> } } = (window as any)
+    .data;
+
 // const lines: Array<Array<number>> =
-//     window.data['/Users/jared/clone/exploration/terraform/timp_hex.js'].rows;
+//     data['/Users/jared/clone/exploration/terraform/tn_rect.js'].rows;
+// const lines: Array<Array<number>> =
+//     data['/Users/jared/clone/exploration/terraform/timp_hex.js'].rows;
+// const lines: Array<Array<number>> =
+//     data['/Users/jared/clone/exploration/terraform/cec.js'].rows;
+// const lines: Array<Array<number>> =
+//     data['/Users/jared/Downloads/cec2.js'].rows;
+// const lines: Array<Array<number>> =
+//     data['/Users/jared/Downloads/arenal.js'].rows;
+const lines: Array<Array<number>> =
+    data['/Users/jared/Downloads/arenal-large.js'].rows;
 
-const scale = 5;
+const scale = 10;
 
 const canvas = document.createElement('canvas');
 canvas.width = scale * lines[0].length;
@@ -200,7 +215,7 @@ const render = (threshhold: number) => {
         ctx.lineTo(line[1][0] + scale / 2, line[1][1] + scale / 2);
     });
     ctx.stroke();
-    window.rendered = rendered;
+    // window.rendered = rendered;
 };
 
 // const inp = document.createElement('input');
@@ -217,7 +232,7 @@ const render = (threshhold: number) => {
 
 document.body.append(canvas);
 
-const steps = 100;
+const steps = 300;
 
 const renderAt = (at: number) => {
     const th = ((max - min) / steps) * at;
@@ -232,6 +247,7 @@ const renderAt = (at: number) => {
 let at = 0;
 const fn = () => {
     if (at++ > steps) return;
+    // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     renderAt(at);
     requestAnimationFrame(fn);
     // setTimeout(fn, 100)
