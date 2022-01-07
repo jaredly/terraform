@@ -73,6 +73,14 @@ export function calculateLines(
 
     for (var y = 0; y < inputValues.length - 1; y++) {
         for (var x = 0; x < inputValues[y].length - 1; x++) {
+            if (
+                !isValid(x, y) ||
+                !isValid(x + 1, y + 1) ||
+                !isValid(x + 1, y - 1) ||
+                !isValid(x - 1, y + 1)
+            ) {
+                continue;
+            }
             let a: Point, b: Point, c: Point, d: Point;
             if (!interpolation) {
                 //abcd uninterpolated
@@ -160,24 +168,39 @@ import '../exports/cec2.js';
 import '../exports/arenal.js';
 import '../exports/arenal-small.js';
 import '../exports/arenal-large.js';
+import '../exports/arenal-hex.js';
 
-const data: { [key: string]: { rows: Array<Array<number>> } } = (window as any)
-    .data;
+const data: {
+    [key: string]: {
+        rows: Array<Array<number>>;
+        shape: 'rect' | 'hex';
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        ow: number;
+        oh: number;
+    };
+} = (window as any).data;
 
-// const lines: Array<Array<number>> =
-//     data['/Users/jared/clone/exploration/terraform/tn_rect.js'].rows;
-// const lines: Array<Array<number>> =
-//     data['/Users/jared/clone/exploration/terraform/timp_hex.js'].rows;
-// const lines: Array<Array<number>> =
-//     data['/Users/jared/clone/exploration/terraform/cec.js'].rows;
-// const lines: Array<Array<number>> =
-//     data['/Users/jared/Downloads/cec2.js'].rows;
-// const lines: Array<Array<number>> =
-//     data['/Users/jared/Downloads/arenal.js'].rows;
-const lines: Array<Array<number>> =
-    data['/Users/jared/Downloads/arenal-large.js'].rows;
+// const dataset =
+//     data['/Users/jared/clone/exploration/terraform/tn_rect.js'];
+// const dataset = data['/Users/jared/clone/exploration/terraform/timp_hex.js'];
+// const dataset =
+//     data['/Users/jared/clone/exploration/terraform/cec.js'];
+// const dataset = data['/Users/jared/Downloads/cec2.js'];
+// const dataset =
+//     data['/Users/jared/Downloads/arenal.js'];
+// const dataset =
+//     data['/Users/jared/Downloads/arenal-small.js'];
+// const dataset = data['/Users/jared/Downloads/arenal-large.js'];
+
+const dataset = data['/Users/jared/Downloads/arenal-hex.js'];
+
+const lines = dataset.rows;
 
 const scale = 10;
+const steps = 100;
 
 const canvas = document.createElement('canvas');
 canvas.width = scale * lines[0].length;
@@ -194,6 +217,30 @@ lines.forEach((line) =>
         min = Math.min(v, min);
     }),
 );
+
+const isValid = (x: number, y: number) => {
+    if (dataset.shape === 'hex') {
+        const hh = lines.length / 2;
+        const indent = lines[0].length / 4;
+        const m = -hh / indent;
+        const b = hh;
+        const offset = Math.abs((y - b) / m);
+        if (x < offset || x > lines[0].length - offset) {
+            return false;
+        }
+    }
+    return true;
+};
+
+// if (dataset.shape === 'hex') {
+//     lines.forEach((line, y) => {
+//         line.forEach((_, x) => {
+//             if (!isValid(x, y)) {
+//                 line[x] = -1000;
+//             }
+//         });
+//     });
+// }
 
 // ctx.globalAlpha = 0.2;
 // lines.forEach((line, y) => {
@@ -309,8 +356,6 @@ const render = (threshhold: number) => {
 // document.body.append(inp);
 
 document.body.append(canvas);
-
-const steps = 300;
 
 const renderAt = (at: number) => {
     const th = ((max - min) / steps) * at;

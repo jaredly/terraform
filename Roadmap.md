@@ -12,3 +12,13 @@ Aaaand then it would be really nice to make the rust stuff into a wasm'd webapp,
 - whyyyyyyy does the volcano not have a top???
 - also, my smoothing algorithm is hella janky, I need to A debug it and B make it not terrible.
 - profit
+
+
+- [x] get marching squares lookin lit
+- [ ] make it handle hexes thanks
+- [ ] figure out how to export svgs that make sense
+	- [ ] title
+	- [ ] border
+	- [ ] allow you to fiddle with the offset to make things just right
+	- [ ] fix the bug with ... timp? or somewhere.
+	- [ ] allow you to specify the number of sheets you'll use (so that cardboard thickness is a possibility)
