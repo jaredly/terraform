@@ -63,6 +63,7 @@ export function calculateLines(
     inputValues: Array<Array<number>>,
     threshhold: number,
     rez: number,
+    isValid: (x: number, y: number) => boolean,
 ) {
     // const rez = 1;
     const lines: Array<[Point, Point]> = [];
@@ -199,16 +200,6 @@ const dataset = data['/Users/jared/Downloads/arenal-hex.js'];
 
 const lines = dataset.rows;
 
-const scale = 10;
-const steps = 100;
-
-const canvas = document.createElement('canvas');
-canvas.width = scale * lines[0].length;
-canvas.height = scale * lines.length;
-canvas.style.width = `${(scale * lines[0].length) / 2}px`;
-canvas.style.height = `${(scale * lines.length) / 2}px`;
-const ctx = canvas.getContext('2d')!;
-
 let max = -Infinity;
 let min = Infinity;
 lines.forEach((line) =>
@@ -217,6 +208,27 @@ lines.forEach((line) =>
         min = Math.min(v, min);
     }),
 );
+
+// TWEAK THESE
+const widthInMM = 152;
+const thickness = 3;
+
+const skip = 1;
+
+const heightInMM = max * widthInMM;
+const materialLayers = Math.round(heightInMM / thickness);
+const layers = (materialLayers + 1) * skip - 1;
+console.log(heightInMM / thickness, materialLayers, heightInMM, layers);
+
+const scale = 10;
+const steps = layers;
+
+const canvas = document.createElement('canvas');
+canvas.width = scale * lines[0].length;
+canvas.height = scale * lines.length;
+canvas.style.width = `${(scale * lines[0].length) / 2}px`;
+canvas.style.height = `${(scale * lines.length) / 2}px`;
+const ctx = canvas.getContext('2d')!;
 
 const isValid = (x: number, y: number) => {
     if (dataset.shape === 'hex') {
@@ -319,7 +331,7 @@ ctx.lineWidth = 0.5;
 
 const render = (threshhold: number) => {
     console.log(lines.length, lines[0].length);
-    const rendered = calculateLines(true, lines, threshhold, scale);
+    const rendered = calculateLines(true, lines, threshhold, scale, isValid);
 
     const p = polyfy(rendered);
     p.forEach((points) => {
