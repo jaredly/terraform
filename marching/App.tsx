@@ -17,8 +17,19 @@ const data: {
     [key: string]: Dataset;
 } = (window as any).data;
 
+type Trail = {
+    data: {
+        trackData: Array<Array<{ lat: number; lon: number; ele: number }>>;
+    };
+};
+
+const trails: {
+    [key: string]: Trail;
+} = (window as any).trails;
+
 export type Settings = {
     set: string;
+    hike?: string;
     width: number;
     thickness: number;
     skip: number;
@@ -57,7 +68,12 @@ export const App = () => {
         }
 
         if (ref.current) {
-            renderTopoMap(ref.current, data[settings.set], settings);
+            renderTopoMap(
+                ref.current,
+                data[settings.set],
+                settings,
+                settings.hike ? trails[settings.hike] : undefined,
+            );
         }
     }, [settings]);
 
@@ -79,6 +95,22 @@ export const App = () => {
                     }}
                 >
                     {Object.keys(data).map((k) => (
+                        <option key={k} value={k}>
+                            {k}
+                        </option>
+                    ))}
+                </select>
+                <select
+                    value={settings.hike || ''}
+                    onChange={(evt) => {
+                        setSettings((s) => ({
+                            ...s,
+                            hike: evt.target.value,
+                        }));
+                    }}
+                >
+                    <option value="">No trail</option>
+                    {Object.keys(trails).map((k) => (
                         <option key={k} value={k}>
                             {k}
                         </option>
@@ -188,6 +220,7 @@ function renderTopoMap(
     canvas: HTMLCanvasElement,
     dataset: Dataset,
     { width: widthInMM, thickness, skip, scale, tweak }: Settings,
+    trail?: Trail,
 ) {
     const lines = dataset.rows;
 
@@ -228,5 +261,39 @@ function renderTopoMap(
 
     for (let at = 0; at < steps; at++) {
         renderAt(at);
+    }
+
+    if (trail) {
+        ctx.strokeStyle = 'red';
+        trail.data.trackData.forEach((track) => {
+            const points = track.map((p) => {
+                const x = p.lon - Math.floor(p.lon);
+                const y = 1 - (p.lat - Math.floor(p.lat));
+                // console.log(
+                //     x,
+                //     p.lon,
+                //     y,
+                //     p.lat,
+                //     x * dataset.ow,
+                //     y * dataset.oh,
+                //     dataset.x,
+                //     dataset.y,
+                // );
+                return {
+                    x: (x * dataset.ow - dataset.x) * scale,
+                    y: (y * dataset.oh - dataset.y) * scale,
+                };
+            });
+            console.log(points);
+            console.log(points.slice(0, 10));
+            console.log(track.slice(0, 10));
+            console.log(dataset.x, dataset.y, dataset.ow, dataset.oh);
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            points.slice(1).forEach((point) => {
+                ctx.lineTo(point.x, point.y);
+            });
+            ctx.stroke();
+        });
     }
 }

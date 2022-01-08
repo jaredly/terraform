@@ -7,6 +7,8 @@ import '../exports/arenal.js';
 import '../exports/arenal-small.js';
 import '../exports/arenal-large.js';
 import '../exports/arenal-hex.js';
+import '../exports/arenal_hike.js';
+import '../exports/timp_trail.js';
 import { renderLevel } from './render';
 import { render } from 'react-dom';
 import React from 'react';
