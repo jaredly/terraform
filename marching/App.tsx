@@ -259,6 +259,7 @@ function renderTopoMap(
         tweak,
         margin: hmargin,
         blanks,
+        title,
     }: Settings,
     trail?: Trail,
 ) {
@@ -351,7 +352,7 @@ function renderTopoMap(
     }
 
     if (trail) {
-        ctx.strokeStyle = 'red';
+        ctx.strokeStyle = '#faa';
         trail.data.trackData.forEach((track) => {
             const points = track.map((p) => {
                 const x = p.lon - Math.floor(p.lon);
@@ -370,6 +371,12 @@ function renderTopoMap(
         });
     }
     ctx.restore();
+    if (title) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'white';
+        ctx.font = `${marginPX * 0.6}px sans-serif`;
+        ctx.fillText(title, canvas.width / 2, canvas.height - marginPX / 3);
+    }
 }
 
 const drawBorder = (
