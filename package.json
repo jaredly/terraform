@@ -6,7 +6,7 @@
     "author": "Jared Forsyth <jared@jaredforsyth.com>",
     "license": "MIT",
     "scripts": {
-        "start": "esbuild marching/run.ts --define:process.cwd=\"cwd\" --bundle --define:process.env=\"{}\" --define:process.env.NODE_ENV=\\\"development\\\" --sourcemap --platform=browser --servedir=. --outdir=. --serve=:4343 --external:fs --external:events --external:constants"
+        "start": "esbuild marching/run.tsx --define:process.cwd=\"cwd\" --bundle --define:process.env=\"{}\" --define:process.env.NODE_ENV=\\\"development\\\" --sourcemap --platform=browser --servedir=. --outdir=. --serve=:4343 --external:fs --external:events --external:constants"
     },
     "dependencies": {
         "esbuild": "^0.14.10",
@@ -14,5 +14,10 @@
         "react-dom": "^17.0.2",
         "simplify-js": "^1.2.4",
         "typescript": "^4.5.4"
+    },
+    "devDependencies": {
+        "@types/node": "^17.0.8",
+        "@types/react": "^17.0.38",
+        "@types/react-dom": "^17.0.11"
     }
 }
