@@ -37,6 +37,7 @@ export type Settings = {
     title: string;
     tweak: number;
     margin: number;
+    blanks: number;
 };
 
 const defaultSettings: Settings = {
@@ -48,6 +49,7 @@ const defaultSettings: Settings = {
     title: '',
     tweak: 0,
     margin: 5,
+    blanks: 2,
 };
 
 const initialSettings: Settings = ((): Settings => {
@@ -162,6 +164,22 @@ export const App = () => {
                         {settings.skip}
                     </div>
                     <div>
+                        Blanks:
+                        <input
+                            type="range"
+                            min="2"
+                            max="20"
+                            value={settings.blanks}
+                            onChange={(evt) => {
+                                setSettings((s) => ({
+                                    ...s,
+                                    blanks: +evt.target.value,
+                                }));
+                            }}
+                        />{' '}
+                        {settings.blanks}
+                    </div>
+                    <div>
                         Tweak
                         <input
                             type="range"
@@ -181,7 +199,7 @@ export const App = () => {
                 </div>
                 <div>
                     <div>
-                        Width (in mm):
+                        Width (mm):
                         <BlurNumber
                             value={settings.width}
                             onChange={(width) =>
@@ -190,7 +208,7 @@ export const App = () => {
                         />
                     </div>
                     <div>
-                        Thickness (in mm):
+                        Thickness (mm):
                         <BlurNumber
                             value={settings.thickness}
                             validate={(v) => v > 0.001}
@@ -198,6 +216,18 @@ export const App = () => {
                                 setSettings((s) => ({
                                     ...s,
                                     thickness,
+                                }))
+                            }
+                        />
+                    </div>
+                    <div>
+                        Margin (mm):
+                        <BlurNumber
+                            value={settings.margin}
+                            onChange={(margin) =>
+                                setSettings((s) => ({
+                                    ...s,
+                                    margin,
                                 }))
                             }
                         />
@@ -221,7 +251,15 @@ export const App = () => {
 function renderTopoMap(
     canvas: HTMLCanvasElement,
     dataset: Dataset,
-    { width: widthInMM, thickness, skip, scale, tweak, margin }: Settings,
+    {
+        width: widthInMM,
+        thickness,
+        skip,
+        scale,
+        tweak,
+        margin: hmargin,
+        blanks,
+    }: Settings,
     trail?: Trail,
 ) {
     const lines = dataset.rows;
@@ -241,6 +279,8 @@ function renderTopoMap(
     const layers = (materialLayers + 1) * skip - 1;
 
     const steps = layers;
+
+    const margin = (hmargin * Math.sqrt(3)) / 2;
 
     const pixelsPerMM = (scale * lines[0].length) / widthInMM;
     const marginPX = margin * pixelsPerMM;
@@ -287,12 +327,23 @@ function renderTopoMap(
     const renderAt = (at: number) => {
         const th = ((max - min) / steps) * at;
         if (at % skip === 0) {
-            // ctx.strokeStyle = `hsl(${(at / steps) * 360}, 100%, 50%)`;
-            ctx.strokeStyle = `#aaa`;
+            if ((at / skip) % blanks === 0) {
+                ctx.strokeStyle = `#f00`;
+            } else {
+                // ctx.strokeStyle = `hsl(${(at / steps) * 360}, 100%, 50%)`;
+                // ctx.strokeStyle = `#555`;
+                if (skip === 1) {
+                    ctx.strokeStyle = `#555`;
+                } else {
+                    ctx.strokeStyle = `#777`;
+                }
+            }
         } else {
+            ctx.setLineDash([5, 5]);
             ctx.strokeStyle = `#555`;
         }
         renderLevel(ctx, th, lines, scale, dataset.shape === 'hex');
+        ctx.setLineDash([]);
     };
 
     for (let at = 0; at < steps; at++) {

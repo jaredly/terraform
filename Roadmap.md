@@ -15,7 +15,11 @@ Aaaand then it would be really nice to make the rust stuff into a wasm'd webapp,
 
 
 - [x] get marching squares lookin lit
-- [ ] make it handle hexes thanks
+- [x] make it handle hexes thanks
+- [x] and borders!
+- [ ] determine whether the margin was calculated as being in addition to the other bit
+	- oooh ok margin is "hmargin", /not/ vmargin, so I'll need to mess with things a little.
+	- switch them.
 - [ ] figure out how to export svgs that make sense
 	- [ ] title
 	- [ ] border
