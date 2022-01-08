@@ -269,25 +269,11 @@ function renderTopoMap(
             const points = track.map((p) => {
                 const x = p.lon - Math.floor(p.lon);
                 const y = 1 - (p.lat - Math.floor(p.lat));
-                // console.log(
-                //     x,
-                //     p.lon,
-                //     y,
-                //     p.lat,
-                //     x * dataset.ow,
-                //     y * dataset.oh,
-                //     dataset.x,
-                //     dataset.y,
-                // );
                 return {
                     x: (x * dataset.ow - dataset.x) * scale,
                     y: (y * dataset.oh - dataset.y) * scale,
                 };
             });
-            console.log(points);
-            console.log(points.slice(0, 10));
-            console.log(track.slice(0, 10));
-            console.log(dataset.x, dataset.y, dataset.ow, dataset.oh);
             ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
             points.slice(1).forEach((point) => {
