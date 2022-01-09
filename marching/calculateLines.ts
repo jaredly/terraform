@@ -1,45 +1,55 @@
+// The bones of marching squares
+
 export function calculateLines(
     interpolation: boolean,
-    // gridValues: Array<Array<number>>,
     inputValues: Array<Array<number>>,
     threshhold: number,
-    rez: number,
-    isValid: (x: number, y: number) => boolean,
+    scale: number,
+    // For discarding points outside of the clip
+    // isValid: (x: number, y: number) => boolean,
 ) {
     // const rez = 1;
     const lines: Array<[Point, Point]> = [];
 
-    const addLine = (p1: Point, p2: Point) => lines.push([p1, p2]);
+    const addLine = (p1: Point, p2: Point) => {
+        lines.push([p1, p2]);
+    };
 
     let missed = 0;
 
     for (var y = 0; y < inputValues.length - 1; y++) {
         for (var x = 0; x < inputValues[y].length - 1; x++) {
-            if (
-                !isValid(x, y) ||
-                !isValid(x + 1, y + 1) ||
-                !isValid(x + 1, y - 1) ||
-                !isValid(x - 1, y + 1)
-            ) {
-                continue;
-            }
+            // if (
+            //     !isValid(x, y) ||
+            //     !isValid(x + 1, y + 1) ||
+            //     !isValid(x + 1, y - 1) ||
+            //     !isValid(x - 1, y + 1)
+            // ) {
+            //     continue;
+            // }
             let a: Point, b: Point, c: Point, d: Point;
             if (!interpolation) {
                 //abcd uninterpolated
-                a = [x * rez + rez / 2, y * rez];
-                b = [x * rez + rez, y * rez + rez / 2];
-                c = [x * rez + rez / 2, y * rez + rez];
-                d = [x * rez, y * rez + rez / 2];
+                a = [x * scale + scale / 2, y * scale];
+                b = [x * scale + scale, y * scale + scale / 2];
+                c = [x * scale + scale / 2, y * scale + scale];
+                d = [x * scale, y * scale + scale / 2];
             } else {
                 //abcd interpolated
                 const nw = inputValues[y][x];
                 const ne = inputValues[y][x + 1];
                 const se = inputValues[y + 1][x + 1];
                 const sw = inputValues[y + 1][x];
-                a = [x * rez + rez * lerp(threshhold, nw, ne), y * rez];
-                b = [x * rez + rez, y * rez + rez * lerp(threshhold, ne, se)];
-                c = [x * rez + rez * lerp(threshhold, sw, se), y * rez + rez];
-                d = [x * rez, y * rez + rez * lerp(threshhold, nw, sw)];
+                a = [x * scale + scale * lerp(threshhold, nw, ne), y * scale];
+                b = [
+                    x * scale + scale,
+                    y * scale + scale * lerp(threshhold, ne, se),
+                ];
+                c = [
+                    x * scale + scale * lerp(threshhold, sw, se),
+                    y * scale + scale,
+                ];
+                d = [x * scale, y * scale + scale * lerp(threshhold, nw, sw)];
             }
 
             const v = stateForGridPosition(inputValues, y, x, threshhold);

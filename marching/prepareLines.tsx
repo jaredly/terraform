@@ -1,6 +1,7 @@
-import { levelPoints } from './render';
+import { levelPoints, polyLines } from './render';
 import { Dataset, Trail } from './App';
 import { Settings } from './App';
+import { borderHexes, hex } from './hex';
 
 export type Lines = {
     // in px, including margins
@@ -73,13 +74,18 @@ export function prepareLines(
     const skips = [];
     const reference = [];
 
+    const clipHex = polyLines(
+        borderHexes(lines[0].length, lines.length, scale, 0)[0].map(
+            ([x, y]) => [x - scale / 2, y - scale / 2],
+        ),
+    );
     for (let at = 0; at < steps; at++) {
         const th = ((max - min) / steps) * at;
         const rendered: Array<Array<[number, number]>> = levelPoints(
             th,
             lines,
             scale,
-            dataset.shape === 'hex',
+            dataset.shape === 'hex' ? clipHex : undefined,
         ).map((line) => line.map(([x, y]) => [x + wmargin, y + vmargin]));
 
         if (at % skip === 0) {
@@ -136,23 +142,4 @@ const trailPoints = (trail: Trail, dataset: Dataset, scale: number) => {
             };
         });
     });
-};
-const borderHexes = (w: number, h: number, scale: number, vmargin: number) => {
-    const hpx = h * scale + vmargin * 2;
-    const wpx = w * scale + (vmargin * 2 * 2) / Math.sqrt(3);
-    return [
-        hex(wpx / 2, hpx / 2, (((h - 1.0) * scale) / 2 / Math.sqrt(3)) * 2),
-        hex(wpx / 2, hpx / 2, (hpx / 2 / Math.sqrt(3)) * 2 - 1),
-    ];
-};
-const hex = (cx: number, cy: number, r: number): Array<[number, number]> => {
-    const h = (r / 2) * Math.sqrt(3);
-    return [
-        [cx - r, cy],
-        [cx - r / 2, cy - h],
-        [cx + r / 2, cy - h],
-        [cx + r, cy],
-        [cx + r / 2, cy + h],
-        [cx - r / 2, cy + h],
-    ];
 };

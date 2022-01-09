@@ -1,21 +1,144 @@
-import { calculateLines } from './calculateLines';
+import { calculateLines, Point } from './calculateLines';
 import { polyfy } from './polyfy';
-// import { dataset } from './run';
 
 export const levelPoints = (
     threshhold: number,
     lines: Array<Array<number>>,
     scale: number,
-    isHex: boolean,
+    clipPolygon?: Array<LineSlope>,
 ): Array<Array<[number, number]>> => {
-    const rendered = calculateLines(true, lines, threshhold, scale, (x, y) =>
-        isHex ? isValidHex(x, y, lines) : true,
-    );
+    const rendered = calculateLines(true, lines, threshhold, scale);
 
-    const p = polyfy(rendered);
+    const p = polyfy(
+        clipPolygon ? clipToPolygon(rendered, clipPolygon) : rendered,
+    );
     return p.map((points) => {
         return points.map(([x, y]) => [x + scale / 2, y + scale / 2]);
     });
+};
+
+export const EPSILON = 0.001;
+export const closeEnough = (a: number, b: number) => Math.abs(a - b) < EPSILON;
+
+export type LineSlope = {
+    m: number;
+    b: number;
+    t: number;
+    // true if above/left is "inside"
+    aboveLeft: boolean;
+};
+
+export const lineToSlope = (p1: Point, p2: Point): LineSlope => {
+    const dx = p2[0] - p1[0];
+    const dy = p2[1] - p1[1];
+    const t = Math.atan2(dy, dx);
+    if (closeEnough(p1[0], p2[0])) {
+        return { m: Infinity, b: p1[0], t, aboveLeft: p2[1] < p2[0] };
+    }
+    const m = dy / dx;
+    const b = p1[1] - m * p1[0];
+    return { m, b, t, aboveLeft: p2[0] < p1[0] };
+};
+
+export const intersection = (
+    one: LineSlope,
+    two: LineSlope,
+): boolean | Point => {
+    if (closeEnough(one.m, two.m)) {
+        return closeEnough(one.b, two.b);
+    }
+    if (two.m === Infinity) {
+        return intersection(two, one);
+    }
+    if (one.m === Infinity) {
+        const x = one.b;
+        const y = two.m * x + two.b;
+        return [x, y];
+    } else {
+        // y = mx + b
+        // y = m2x + b2
+        // mx + b = m2x + b2
+        // mx - m2x = b2 - b
+        // x (m - m2) = b2 - b
+        // x = (b2 - b) / (m - m2)
+        const x = (two.b - one.b) / (one.m - two.m);
+        const y = one.m * x + one.b;
+        return [x, y];
+    }
+};
+
+export const isInside = (p: Point, clip: LineSlope) => {
+    if (clip.m === Infinity) {
+        const left = p[0] <= clip.b + EPSILON;
+        return left === clip.aboveLeft;
+    } else {
+        const y = clip.m * p[0] + clip.b;
+        const above = p[1] <= y + EPSILON;
+        return above === clip.aboveLeft;
+    }
+};
+
+export const polyLines = (poly: Array<Point>) => {
+    const res: Array<LineSlope> = [];
+    for (let i = 0; i < poly.length; i++) {
+        const next = i === 0 ? poly.length - 1 : i - 1;
+        res.push(lineToSlope(poly[next], poly[i]));
+    }
+    return res;
+};
+
+export const clipToLine = (
+    [p1, p2]: [Point, Point],
+    clip: LineSlope,
+): null | [Point, Point] => {
+    const p1i = isInside(p1, clip);
+    const p2i = isInside(p2, clip);
+    if (!p1i && !p2i) {
+        return null;
+    }
+    if (p1i && p2i) {
+        return [p1, p2];
+    }
+    if (true) {
+        const slope = lineToSlope(p1, p2);
+        const hit = intersection(clip, slope);
+        if (hit === false) {
+            return null;
+        }
+        if (hit === true) {
+            return [p1, p2];
+        }
+        return p1i ? [p1, hit] : [hit, p2];
+    }
+    return [p1, p2];
+    // return null;
+    // c1 c2, clip to be on the clockwise side of c1 pointing at c2
+};
+
+export const clipToPolygon = (
+    lines: Array<[Point, Point]>,
+    polygon: Array<LineSlope>,
+) => {
+    const result: Array<[Point, Point]> = [];
+    lines.forEach((line) => {
+        for (let clip of polygon) {
+            const res = clipToLine(line, clip);
+            if (!res) {
+                return;
+            }
+            line = res;
+        }
+        result.push(line);
+        // polygon.forEach(clip => {
+        //     const res = clipToLine(line, clip)
+        //     if (res)
+        // })
+    });
+    return result;
+    // const clipped: Array<[Point, Point]> = [];
+    // rendered.forEach(([p1, p2]) => {
+    //     clipped.push([p1, p2]);
+    // });
 };
 
 export const renderLevel = (
@@ -23,9 +146,9 @@ export const renderLevel = (
     threshhold: number,
     lines: Array<Array<number>>,
     scale: number,
-    isHex: boolean,
+    clipPolygon?: Array<LineSlope>,
 ) => {
-    levelPoints(threshhold, lines, scale, isHex).forEach((line) => {
+    levelPoints(threshhold, lines, scale, clipPolygon).forEach((line) => {
         ctx.beginPath();
         ctx.moveTo(line[0][0], line[0][1]);
         line.slice(1).forEach(([x, y]) => {
