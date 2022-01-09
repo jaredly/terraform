@@ -135,23 +135,19 @@ fn render_scene_1_tile(file: &terrain::File, trail: &Option<Vec<(f32, f32)>>, wi
             w: file.size.x,
             h: file.size.y,
         },
-        10,
+        4,
         2.0
     ).unwrap();
 
     let max_height = terrain.points.iter().map(|p| p.z).max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).unwrap();
     let mesh = terrain.into_mesh();
 
-    // if let Some(terrain) = file.get_terrain(&coords, sample, 1.0) {
-    // let mesh = profile!("Make mesh", file.full_mesh(10, 2.0));
-
     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
     mesh_node.set_color(0.0, 1.0, 0.0);
     mesh_node.enable_backface_culling(false);
 
     let mut pointer = window.add_cube(0.002, 0.002, 0.5);
-    pointer.set_color(1.0, 0.0, 0.0);
-    // pointer.set_visible(false);
+    
 
     let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
     selection.set_local_scale(0.0, 0.0, max_height);
@@ -161,15 +157,6 @@ fn render_scene_1_tile(file: &terrain::File, trail: &Option<Vec<(f32, f32)>>, wi
 
     match trail {
         Some(trail) => {
-            // let w = file.size.x as f32;
-            // let h = file.size.y as f32;
-            // let xoff = (coords.x as f32 / w);
-            // let yoff = (coords.y as f32 / h);
-            // let scale = if coords.w > coords.h { coords.w as f32 / w } else { coords.h as f32 / h };
-            // let mut trailed = vec![];
-            // for (x, y) in trail {
-            //     trailed.push(((*x ) / scale , (*y ) / scale ));
-            // }
             let poly = threed::make_prism(trail, false);
             let mut trail = window.add_trimesh(poly, Vector3::from_element(1.0));
             trail.set_local_scale(1.0, 1.0, max_height);
@@ -917,13 +904,20 @@ impl Statusable for Option<Status> {
                         }
                     }
                 };
+
+                let selected_text = format!(
+                    " Zoom: {:.3}, {:.3} - {:.3} x {:.3}",
+                    zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h
+                );
+
                 widget::Text::new(
                     format!(
-                        "{} triangles, {}mb file size. Sample: {}",
+                        "{} triangles, {}mb file size. Sample: {}. {}",
                         points * 2,
                         // each "square" takes 100 bytes, 50 bytes per triangle
                         points * 100 / 1_048_576,
-                        zoom.sample
+                        zoom.sample,
+                        selected_text
                     )
                     .as_str(),
                 )

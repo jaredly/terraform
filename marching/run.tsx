@@ -1,5 +1,7 @@
 const data2 = require('../exports/timp_hex.js');
 import '../exports/just-trail.js';
+import '../exports/generous.js';
+import '../exports/more.js';
 import '../exports/end-point.js';
 import '../exports/one-more.js';
 import '../exports/around-again.js';

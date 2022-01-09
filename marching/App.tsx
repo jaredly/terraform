@@ -38,6 +38,7 @@ export type Settings = {
     tweak: number;
     margin: number;
     blanks: number;
+    rainbow: boolean;
 };
 
 const defaultSettings: Settings = {
@@ -50,6 +51,7 @@ const defaultSettings: Settings = {
     tweak: 0,
     margin: 5,
     blanks: 2,
+    rainbow: false,
 };
 
 const initialSettings: Settings = ((): Settings => {
@@ -196,6 +198,19 @@ export const App = () => {
                         />{' '}
                         {settings.tweak}
                     </div>
+                    <div>
+                        Color Elevation
+                        <input
+                            type="checkbox"
+                            checked={settings.rainbow}
+                            onChange={(evt) => {
+                                setSettings((s) => ({
+                                    ...s,
+                                    rainbow: evt.target.checked,
+                                }));
+                            }}
+                        />{' '}
+                    </div>
                 </div>
                 <div>
                     <div>
@@ -260,6 +275,7 @@ function renderTopoMap(
         margin: hmargin,
         blanks,
         title,
+        rainbow,
     }: Settings,
     trail?: Trail,
 ) {
@@ -310,7 +326,7 @@ function renderTopoMap(
     ctx.save();
     ctx.translate(wmargin, marginPX);
 
-    if (true) {
+    if (rainbow) {
         ctx.globalAlpha = 0.1;
         dataset.rows.forEach((line, y) => {
             line.forEach((v, x) => {
