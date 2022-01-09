@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { BlurInput, BlurNumber } from './BlurInput';
-import { isValidHex, renderLevel } from './render';
+import { isValidHex, levelPoints, renderLevel } from './render';
 
 type Dataset = {
     rows: Array<Array<number>>;
@@ -263,8 +263,7 @@ export const App = () => {
     );
 };
 
-function renderTopoMap(
-    canvas: HTMLCanvasElement,
+function prepareLines(
     dataset: Dataset,
     {
         width: widthInMM,
@@ -274,8 +273,6 @@ function renderTopoMap(
         tweak,
         margin: hmargin,
         blanks,
-        title,
-        rainbow,
     }: Settings,
     trail?: Trail,
 ) {
@@ -300,84 +297,130 @@ function renderTopoMap(
     const margin = (hmargin * Math.sqrt(3)) / 2;
 
     const pixelsPerMM = (scale * lines[0].length) / widthInMM;
-    const marginPX = margin * pixelsPerMM;
-    const wmargin = (marginPX * 2) / Math.sqrt(3);
+    const vmargin = margin * pixelsPerMM;
+    const wmargin = (vmargin * 2) / Math.sqrt(3);
 
     const w = scale * lines[0].length + wmargin * 2;
-    const h = scale * lines.length + marginPX * 2;
-    canvas.width = w;
-    canvas.height = h;
-    canvas.style.width = `${w / 2}px`;
-    canvas.style.height = `${h / 2}px`;
+    const h = scale * lines.length + vmargin * 2;
+
+    const borders = borderHexes(lines[0].length, lines.length, scale, vmargin);
+
+    const cuts = [];
+    const alts = [];
+    const skips = [];
+
+    for (let at = 0; at < steps; at++) {
+        const th = ((max - min) / steps) * at;
+        const rendered: Array<Array<[number, number]>> = levelPoints(
+            th,
+            lines,
+            scale,
+            dataset.shape === 'hex',
+        ).map((line) => line.map(([x, y]) => [x + wmargin, y + vmargin]));
+
+        if (at % skip === 0) {
+            if ((at / skip) % blanks === 0) {
+                cuts.push(...rendered);
+            } else {
+                alts.push(...rendered);
+            }
+        } else {
+            skips.push(...rendered);
+        }
+    }
+
+    return {
+        w,
+        h,
+        vmargin,
+        trail: trail ? trailPoints(trail, dataset, scale) : null,
+        cuts,
+        alts,
+        skips,
+        borders,
+        wmargin,
+        min,
+        max,
+    };
+}
+
+function renderTopoMap(
+    canvas: HTMLCanvasElement,
+    dataset: Dataset,
+    settings: Settings,
+    trail?: Trail,
+) {
+    const rendered = prepareLines(dataset, settings, trail);
+    canvas.width = rendered.w;
+    canvas.height = rendered.h;
+    canvas.style.width = `${rendered.w / 2}px`;
+    canvas.style.height = `${rendered.h / 2}px`;
     const ctx = canvas.getContext('2d')!;
+    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'green';
 
     ctx.lineWidth = 0.5;
     ctx.strokeStyle = 'green';
-    drawBorder(
-        ctx,
-        lines[0].length,
-        lines.length,
-        scale,
-        marginPX,
-        dataset.shape === 'hex',
-        false,
-    );
+    rendered.borders.forEach((border) => {
+        ctx.beginPath();
+        strokePoints(ctx, border, true);
+        ctx.stroke();
+    });
 
-    ctx.save();
-    ctx.translate(wmargin, marginPX);
-
-    if (rainbow) {
+    if (settings.rainbow) {
         ctx.globalAlpha = 0.1;
         dataset.rows.forEach((line, y) => {
             line.forEach((v, x) => {
-                if (dataset.shape !== 'hex' || isValidHex(x, y, lines)) {
+                if (dataset.shape !== 'hex' || isValidHex(x, y, dataset.rows)) {
                     ctx.fillStyle = `hsl(${
-                        (((v - min) / (max - min)) * 360 * 10) % 360
+                        (((v - rendered.min) / (rendered.max - rendered.min)) *
+                            360 *
+                            10) %
+                        360
                     }, 100%, 50%)`;
-                    ctx.fillRect(x * scale, y * scale, scale, scale);
+                    ctx.fillRect(
+                        x * settings.scale + rendered.wmargin,
+                        y * settings.scale + rendered.vmargin,
+                        settings.scale,
+                        settings.scale,
+                    );
                 }
             });
         });
         ctx.globalAlpha = 1;
     }
 
-    const renderAt = (at: number) => {
-        const th = ((max - min) / steps) * at;
-        if (at % skip === 0) {
-            if ((at / skip) % blanks === 0) {
-                ctx.strokeStyle = `#f00`;
-            } else {
-                // ctx.strokeStyle = `hsl(${(at / steps) * 360}, 100%, 50%)`;
-                // ctx.strokeStyle = `#555`;
-                if (skip === 1) {
-                    ctx.strokeStyle = `#555`;
-                } else {
-                    ctx.strokeStyle = `#777`;
-                }
-            }
-        } else {
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = `#555`;
-        }
-        renderLevel(ctx, th, lines, scale, dataset.shape === 'hex');
-        ctx.setLineDash([]);
-    };
+    ctx.strokeStyle = `#f00`;
+    rendered.cuts.forEach((cut) => {
+        ctx.beginPath();
+        strokePoints(ctx, cut);
+        ctx.stroke();
+    });
 
-    for (let at = 0; at < steps; at++) {
-        renderAt(at);
+    if (settings.skip === 1) {
+        ctx.strokeStyle = `#555`;
+    } else {
+        ctx.strokeStyle = `#777`;
     }
 
-    if (trail) {
+    rendered.alts.forEach((line) => {
+        ctx.beginPath();
+        strokePoints(ctx, line);
+        ctx.stroke();
+    });
+
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = `#555`;
+    rendered.skips.forEach((alt) => {
+        ctx.beginPath();
+        strokePoints(ctx, alt);
+        ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    if (rendered.trail) {
         ctx.strokeStyle = '#faa';
-        trail.data.trackData.forEach((track) => {
-            const points = track.map((p) => {
-                const x = p.lon - Math.floor(p.lon);
-                const y = 1 - (p.lat - Math.floor(p.lat));
-                return {
-                    x: (x * dataset.ow - dataset.x) * scale,
-                    y: (y * dataset.oh - dataset.y) * scale,
-                };
-            });
+        rendered.trail.forEach((points) => {
             ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
             points.slice(1).forEach((point) => {
@@ -386,14 +429,39 @@ function renderTopoMap(
             ctx.stroke();
         });
     }
-    ctx.restore();
-    if (title) {
+    if (settings.title) {
         ctx.textAlign = 'center';
         ctx.fillStyle = 'white';
-        ctx.font = `${marginPX * 0.6}px sans-serif`;
-        ctx.fillText(title, canvas.width / 2, canvas.height - marginPX / 3);
+        ctx.font = `${rendered.vmargin * 0.6}px sans-serif`;
+        ctx.fillText(
+            settings.title,
+            canvas.width / 2,
+            canvas.height - rendered.vmargin / 3,
+        );
     }
 }
+
+const trailPoints = (trail: Trail, dataset: Dataset, scale: number) => {
+    return trail.data.trackData.map((track) => {
+        return track.map((p) => {
+            const x = p.lon - Math.floor(p.lon);
+            const y = 1 - (p.lat - Math.floor(p.lat));
+            return {
+                x: (x * dataset.ow - dataset.x) * scale,
+                y: (y * dataset.oh - dataset.y) * scale,
+            };
+        });
+    });
+};
+
+const borderHexes = (w: number, h: number, scale: number, vmargin: number) => {
+    const hpx = h * scale + vmargin * 2;
+    const wpx = w * scale + (vmargin * 2 * 2) / Math.sqrt(3);
+    return [
+        hex(wpx / 2, hpx / 2, (((h - 1.0) * scale) / 2 / Math.sqrt(3)) * 2),
+        hex(wpx / 2, hpx / 2, (hpx / 2 / Math.sqrt(3)) * 2 - 1),
+    ];
+};
 
 const drawBorder = (
     ctx: CanvasRenderingContext2D,
@@ -402,7 +470,6 @@ const drawBorder = (
     scale: number,
     margin: number,
     isHex: boolean,
-    fakeHex: boolean,
 ) => {
     if (!isHex) {
         ctx.strokeRect(
@@ -412,75 +479,33 @@ const drawBorder = (
             h * scale + margin * 2 - 2,
         );
     } else {
-        // console.log(
-        //     w,
-        //     h,
-        //     w / h,
-        //     Math.sqrt(3),
-        //     2 / Math.sqrt(3),
-        //     Math.sqrt(3) / 2,
-        //     (w / 2) * Math.sqrt(3),
-        //     (h * 2) / Math.sqrt(3),
-        // );
-        // const hh = (h * scale) / 2 + margin;
-        // const ww = w * scale + (margin * 2 * 2) / Math.sqrt(3);
-        // const sq3 = Math.sqrt(3);
-
-        // OH NOOOOO I haven't been actually cutting hexes???? Devastating.
-        // oh wait I think I have.
-
-        // const points = [
-        //     [0, hh],
-        //     [ww / 4, 1],
-        //     [(ww * 3) / 4, 1],
-        //     [ww, hh],
-        //     [(ww * 3) / 4, hh * 2 - 1],
-        //     [ww / 4, hh * 2 - 1],
-        // ];
-
-        // if (fakeHex) {
-        //     const points = [
-        //         [0, hh],
-        //         [ww / 4, 1],
-        //         [(ww * 3) / 4, 1],
-        //         [ww, hh],
-        //         [(ww * 3) / 4, hh * 2 - 1],
-        //         [ww / 4, hh * 2 - 1],
-        //     ];
-
-        //     ctx.beginPath();
-        //     ctx.moveTo(
-        //         points[points.length - 1][0],
-        //         points[points.length - 1][1],
-        //     );
-        //     points.forEach(([x, y]) => ctx.lineTo(x, y));
-        //     ctx.stroke();
-        // } else {
-        const hpx = h * scale + margin * 2;
-        const wpx = w * scale + (margin * 2 * 2) / Math.sqrt(3);
+        const [inner, outer] = borderHexes(w, h, scale, margin);
         ctx.beginPath();
-        hex(
-            ctx,
-            wpx / 2,
-            hpx / 2,
-            (((h - 1.0) * scale) / 2 / Math.sqrt(3)) * 2,
-        );
+        strokePoints(ctx, inner, true);
         ctx.stroke();
         ctx.beginPath();
-        hex(ctx, wpx / 2, hpx / 2, (hpx / 2 / Math.sqrt(3)) * 2 - 1);
+        strokePoints(ctx, outer, true);
         ctx.stroke();
-        // }
     }
 };
 
-const hex = (
+const strokePoints = (
     ctx: CanvasRenderingContext2D,
-    cx: number,
-    cy: number,
-    r: number,
+    points: Array<[number, number]>,
+    loop = false,
 ) => {
+    if (loop) {
+        ctx.moveTo(points[points.length - 1][0], points[points.length - 1][1]);
+        points.forEach(([x, y]) => ctx.lineTo(x, y));
+    } else {
+        ctx.moveTo(points[0][0], points[0][1]);
+        points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
+    }
+};
+
+const hex = (cx: number, cy: number, r: number): Array<[number, number]> => {
     const h = (r / 2) * Math.sqrt(3);
-    const points = [
+    return [
         [cx - r, cy],
         [cx - r / 2, cy - h],
         [cx + r / 2, cy - h],
@@ -488,6 +513,4 @@ const hex = (
         [cx + r / 2, cy + h],
         [cx - r / 2, cy + h],
     ];
-    ctx.moveTo(points[points.length - 1][0], points[points.length - 1][1]);
-    points.forEach(([x, y]) => ctx.lineTo(x, y));
 };

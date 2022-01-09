@@ -2,6 +2,22 @@ import { calculateLines } from './calculateLines';
 import { polyfy } from './polyfy';
 // import { dataset } from './run';
 
+export const levelPoints = (
+    threshhold: number,
+    lines: Array<Array<number>>,
+    scale: number,
+    isHex: boolean,
+): Array<Array<[number, number]>> => {
+    const rendered = calculateLines(true, lines, threshhold, scale, (x, y) =>
+        isHex ? isValidHex(x, y, lines) : true,
+    );
+
+    const p = polyfy(rendered);
+    return p.map((points) => {
+        return points.map(([x, y]) => [x + scale / 2, y + scale / 2]);
+    });
+};
+
 export const renderLevel = (
     ctx: CanvasRenderingContext2D,
     threshhold: number,
@@ -9,17 +25,11 @@ export const renderLevel = (
     scale: number,
     isHex: boolean,
 ) => {
-    // console.log(lines.length, lines[0].length);
-    const rendered = calculateLines(true, lines, threshhold, scale, (x, y) =>
-        isHex ? isValidHex(x, y, lines) : true,
-    );
-
-    const p = polyfy(rendered);
-    p.forEach((points) => {
+    levelPoints(threshhold, lines, scale, isHex).forEach((line) => {
         ctx.beginPath();
-        ctx.moveTo(points[0][0] + scale / 2, points[0][1] + scale / 2);
-        points.slice(1).forEach(([x, y]) => {
-            ctx.lineTo(x + scale / 2, y + scale / 2);
+        ctx.moveTo(line[0][0], line[0][1]);
+        line.slice(1).forEach(([x, y]) => {
+            ctx.lineTo(x, y);
         });
         ctx.stroke();
     });
