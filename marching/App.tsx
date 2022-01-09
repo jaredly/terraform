@@ -43,6 +43,8 @@ export type Settings = {
     rainbow: boolean;
     showReference: boolean;
     rows: number;
+    columns: number;
+    rowsFirst: boolean;
     svg: boolean;
 };
 
@@ -57,6 +59,8 @@ const defaultSettings: Settings = {
     margin: 5,
     blanks: 2,
     rows: 0,
+    rowsFirst: true,
+    columns: 0,
     showReference: false,
     rainbow: false,
     svg: false,

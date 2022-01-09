@@ -1,4 +1,4 @@
-import { levelPoints, polyLines } from './render';
+import { closeEnough, closePos, levelPoints, polyLines } from './render';
 import { Dataset, Trail } from './App';
 import { Settings } from './App';
 import { borderHexes, hex } from './hex';
@@ -22,7 +22,7 @@ export type Lines = {
     skips: [number, number][][];
     reference: [number, number][][];
     borders: [number, number][][];
-    innerCut: Array<[Point, Point]>;
+    innerCut: Array<Array<Point>>;
     min: number;
     max: number;
     pixelsPerMM: number;
@@ -34,7 +34,7 @@ export const arrangeCut = (
     scale: number,
     isGood: (v: number) => boolean,
     // threshold: number,
-): Array<[Point, Point]> => {
+): Array<Array<Point>> => {
     const h = lines.length * scale;
     const w = lines[0].length * scale;
     const cx = w / 2;
@@ -46,28 +46,71 @@ export const arrangeCut = (
         .map((d) => d.p);
     // const hpx = h * scale,
     // const wpx = w * scale + (vmargin * 2 * 2) / Math.sqrt(3);
-    const res: Array<[Point, Point]> = [];
+    const res: Array<Array<Point>> = [];
     hangles.forEach((p, i) => {
         const next = i === 0 ? hangles.length - 1 : i - 1;
         const p2 = hangles[next];
         const dx = p2[0] - p[0];
         const dy = p2[1] - p[1];
-        const mid = [p[0] + dx / 2, p[1] + dy / 2];
+        const hit = [0.25, 0.5, 0.75].some((z) => {
+            const mid = [p[0] + dx * z, p[1] + dy * z];
 
-        const x = mid[0] / scale;
-        const y = mid[1] / scale;
-        const v = lines[y | 0][x | 0];
-        if (isGood(v)) {
-            // res.push([p, p2]);
-            res.push([
-                [p[0] + scale / 2, p[1] + scale / 2],
-                [p2[0] + scale / 2, p2[1] + scale / 2],
-            ]);
+            const x = mid[0] / scale;
+            const y = mid[1] / scale;
+            const v = lines[y | 0][x | 0];
+            return isGood(v);
+        });
+        // const mid = [p[0] + dx / 2, p[1] + dy / 2];
+
+        // const x = mid[0] / scale;
+        // const y = mid[1] / scale;
+        // const v = lines[y | 0][x | 0];
+        // if (isGood(v)) {
+        if (hit) {
+            const pa: Point = [p[0] + scale / 2, p[1] + scale / 2];
+            const pb: Point = [p2[0] + scale / 2, p2[1] + scale / 2];
+
+            // Maybe join it to the previous one
+            if (res.length) {
+                const last = res[res.length - 1];
+                if (closePos(last[last.length - 1], pa)) {
+                    last.push(pb);
+                    return;
+                }
+            }
+
+            res.push([pa, pb]);
         }
     });
-    console.log(res);
+
     return res;
 };
+
+// export const numKey = (n: number) => n.toFixed(3)
+// export const coordKey = ([x, y]: [number, number]) => `${numKey(x)},${numKey(y)}`
+
+// export const joinNeighbors = (segments: Array<[Point, Point]>): Array<Array<Point>> => {
+//     const map: {[key: string]: Array<number>} = {};
+//     segments.forEach(([p1, p2], i) => {
+//         const k1 = coordKey(p1)
+//         const k2 = coordKey(p2)
+//         if (map[k1]) {
+//             map[k1].push(i)
+//         } else {
+//             map[k1] = [i]
+//         }
+//         if (map[k2]) {
+//             map[k2].push(i)
+//         } else {
+//             map[k2] = [i]
+//         }
+//     })
+//     const res = [];
+//     segments.forEach(([p1, p2], i) => {
+//         const k1 = coordKey(p1)
+//         const k2 = coordKey(p2)
+//     })
+// }
 
 export function prepareLines(
     dataset: Dataset,
@@ -117,7 +160,7 @@ export function prepareLines(
     const skips = [];
     const reference = [];
 
-    let innerCut: Array<[Point, Point]> = [];
+    let innerCut: Array<Array<Point>> = [];
 
     const polyPoints =
         dataset.shape === 'hex'
@@ -164,11 +207,13 @@ export function prepareLines(
         hits,
         lines,
         scale,
-        blank === 1
-            ? (v) => v >= each * 2 + min || v <= each + min
-            : blank === 0
-            ? (v) => v >= each + min
-            : (_) => true,
+        blank != null ? (v) => v >= each * (blank + 1) + min : (_) => true,
+        // blank === 1
+        //     ? (v) => v >= each * 2 + min // || v <= each + min
+        //     : blank === 0
+        //     ? (v) => v >= each + min
+        //     : (v) => true,
+        // : (v) => v >= each + min,
         // each + min
     );
     // }

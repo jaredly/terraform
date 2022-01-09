@@ -154,7 +154,19 @@ export const SettingsForm = ({
                     )}
                     {settings.svg ? (
                         <div>
-                            Rows
+                            <select
+                                value={settings.rowsFirst ? 'columns' : 'rows'}
+                                onChange={(evt) => {
+                                    setSettings((s) => ({
+                                        ...s,
+                                        rowsFirst:
+                                            evt.target.value === 'columns',
+                                    }));
+                                }}
+                            >
+                                <option value="rows">Rows</option>
+                                <option value="columns">Columns</option>
+                            </select>
                             <input
                                 type="range"
                                 min="0"
@@ -169,6 +181,21 @@ export const SettingsForm = ({
                                 }}
                             />{' '}
                             {settings.rows}
+                            {/* Columns
+                            <input
+                                type="range"
+                                min="0"
+                                max={settings.blanks / (settings.rows + 1) + 5}
+                                step="1"
+                                value={settings.columns}
+                                onChange={(evt) => {
+                                    setSettings((s) => ({
+                                        ...s,
+                                        columns: +evt.target.value,
+                                    }));
+                                }}
+                            />{' '}
+                            {settings.columns} */}
                         </div>
                     ) : null}
                 </div>

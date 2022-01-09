@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Dataset, Settings, Trail } from './App';
+import { colsFirst, rowsFirst } from './placements';
 import { Lines, prepareLines } from './prepareLines';
 
 export const RenderSvgContents = ({
@@ -14,37 +15,50 @@ export const RenderSvgContents = ({
     return (
         <>
             {rendered.borders.map((border, i) =>
-                i === 0 || blank === 0 || true ? (
+                i === 1 ? (
                     <polyline
                         key={i}
                         points={border
                             .concat([border[0]])
                             .map(([x, y]) => `${x},${y}`)
                             .join(' ')}
-                        stroke={'red'}
+                        stroke={i === 1 ? 'red' : 'blue'}
                         fill="none"
                         strokeWidth={0.5}
                     />
                 ) : null,
             )}
-            {rendered.innerCut.map(([p1, p2], i) => (
+            {rendered.innerCut.map((points, i) => (
                 <>
-                    <circle
+                    {/* <circle
                         key={i + 'c'}
                         fill="green"
                         strokeWidth={0}
                         r={2}
                         cx={p1[0] + rendered.wmargin}
                         cy={p1[1] + rendered.vmargin}
-                    />
-                    <line
+                    /> */}
+                    <polyline
                         key={i}
-                        stroke="green"
-                        strokeWidth={1}
-                        x1={p1[0] + rendered.wmargin}
-                        y1={p1[1] + rendered.vmargin}
-                        x2={p2[0] + rendered.wmargin}
-                        y2={p2[1] + rendered.vmargin}
+                        stroke="red"
+                        strokeWidth={0.5}
+                        points={points
+                            .map(
+                                ([x, y]) =>
+                                    `${x + rendered.wmargin},${
+                                        y + rendered.vmargin
+                                    }`,
+                            )
+                            .join(' ')}
+                        // points={`${p1[0] + rendered.wmargin},${
+                        //     p1[1] + rendered.vmargin
+                        // } ${p2[0] + rendered.wmargin},${
+                        //     p2[1] + rendered.vmargin
+                        // }`}
+                        // x1={p1[0] + rendered.wmargin}
+                        // y1={p1[1] + rendered.vmargin}
+                        // x2={p2[0] + rendered.wmargin}
+                        // y2={p2[1] + rendered.vmargin}
                     />
                 </>
             ))}
@@ -93,7 +107,7 @@ export const RenderSvgContents = ({
                           points={trail
                               .map(({ x, y }) => `${x},${y}`)
                               .join(' ')}
-                          stroke={'blue'}
+                          stroke={'green'}
                           fill="none"
                           strokeWidth={0.5}
                       />
@@ -153,7 +167,8 @@ export const RenderSvgs = ({
 
     // const fullRows = (settings.rows + 1) / 2
     // const fullColums = (settings.blanks / fullRows)
-    const columns = Math.round(settings.blanks / settings.rows);
+    const columns = settings.columns;
+    // const columns = Math.round(settings.blanks / settings.rows);
 
     // 1 -> blanks / 1
     // 2 -> blanks + 1) / 2
@@ -187,17 +202,26 @@ export const RenderSvgs = ({
     let maxx = 0;
     let maxy = 0;
 
+    const positions = (settings.rowsFirst ? rowsFirst : colsFirst)(
+        settings.blanks,
+        settings.rows,
+    );
+
     for (let i = 0; i < settings.blanks; i++) {
+        let { x, y } = positions[i];
         let xa, ya;
-        if (settings.rows >= settings.blanks) {
-            xa = 0;
-            ya = i * (oneHeightMM + between);
-        } else if (settings.rows === 1) {
+        if (settings.rowsFirst && settings.rows > settings.blanks) {
             xa = i * (oneWidthMM + between);
             ya = 0;
+        } else if (!settings.rowsFirst && settings.rows > settings.blanks * 2) {
+            xa = 0;
+            ya = i * (oneHeightMM + between);
+            // } else if (settings.rows === 1) {
+            //     xa = i * (oneWidthMM + between);
+            //     ya = 0;
         } else {
-            const x = i % columns;
-            const y = Math.floor(i / columns);
+            // const x = i % columns;
+            // const y = Math.floor(i / columns);
             xa =
                 ((oneWidthMM + between) *
                     (x + (y % 2 === 1 ? 0.5 : 0)) *

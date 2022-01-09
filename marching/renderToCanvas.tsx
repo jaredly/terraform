@@ -76,6 +76,14 @@ export function renderToCanvas(
     });
     ctx.setLineDash([]);
 
+    ctx.strokeStyle = 'green';
+    ctx.lineWidth = 5;
+    rendered.innerCut.forEach(([[x0, y0], [x1, y1]]) => {
+        ctx.beginPath();
+        ctx.moveTo(x0 + rendered.wmargin, y0 + rendered.vmargin);
+        ctx.lineTo(x1 + rendered.wmargin, y1 + rendered.vmargin);
+        ctx.stroke();
+    });
     if (rendered.trail) {
         ctx.strokeStyle = '#faa';
         rendered.trail.forEach((points) => {

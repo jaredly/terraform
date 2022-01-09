@@ -18,6 +18,8 @@ export const levelPoints = (
 
 export const EPSILON = 0.1;
 export const closeEnough = (a: number, b: number) => Math.abs(a - b) < EPSILON;
+export const closePos = ([x, y]: Point, [a, b]: Point) =>
+    closeEnough(x, a) && closeEnough(y, b);
 
 export type LineSlope = {
     m: number;
@@ -79,14 +81,21 @@ export const intersection = (
     }
 };
 
+// "On the line" is considered /not inside/
 export const isInside = (p: Point, clip: LineSlope) => {
     if (clip.m === Infinity) {
-        const left = p[0] <= clip.b + EPSILON;
-        return left === clip.aboveLeft;
+        if (clip.aboveLeft) {
+            return p[0] < clip.b - EPSILON;
+        } else {
+            return p[0] > clip.b + EPSILON;
+        }
     } else {
         const y = clip.m * p[0] + clip.b;
-        const above = p[1] <= y + EPSILON;
-        return above === clip.aboveLeft;
+        if (clip.aboveLeft) {
+            return p[1] < y - EPSILON;
+        } else {
+            return p[1] > y + EPSILON;
+        }
     }
 };
 
