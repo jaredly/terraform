@@ -128,7 +128,23 @@ fn render_scene_1_tile(file: &terrain::File, trail: &Option<Vec<(f32, f32)>>, wi
     window.scene_mut().clear();
     window.set_camera(make_camera());
 
-    let mesh = profile!("Make mesh", file.full_mesh(10, 2.0));
+    let terrain = file.get_terrain(
+        &terrain::Coords {
+            x: 0,
+            y: 0,
+            w: file.size.x,
+            h: file.size.y,
+        },
+        10,
+        2.0
+    ).unwrap();
+
+    let max_height = terrain.points.iter().map(|p| p.z).max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).unwrap();
+    let mesh = terrain.into_mesh();
+
+    // if let Some(terrain) = file.get_terrain(&coords, sample, 1.0) {
+    // let mesh = profile!("Make mesh", file.full_mesh(10, 2.0));
+
     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
     mesh_node.set_color(0.0, 1.0, 0.0);
     mesh_node.enable_backface_culling(false);
@@ -138,7 +154,7 @@ fn render_scene_1_tile(file: &terrain::File, trail: &Option<Vec<(f32, f32)>>, wi
     // pointer.set_visible(false);
 
     let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
-    selection.set_local_scale(0.0, 0.0, 0.15);
+    selection.set_local_scale(0.0, 0.0, max_height);
     selection.enable_backface_culling(false);
     selection.set_color(0.0, 0.0, 1.0);
     selection.set_alpha(0.5);
@@ -156,7 +172,7 @@ fn render_scene_1_tile(file: &terrain::File, trail: &Option<Vec<(f32, f32)>>, wi
             // }
             let poly = threed::make_prism(trail, false);
             let mut trail = window.add_trimesh(poly, Vector3::from_element(1.0));
-            trail.set_local_scale(1.0, 1.0, 0.15);
+            trail.set_local_scale(1.0, 1.0, max_height);
             trail.enable_backface_culling(false);
             trail.set_color(1.0, 0.0, 1.0);
             trail.set_alpha(0.8);
@@ -200,6 +216,7 @@ fn render_scene_3_hex(
     sample: usize,
     reset_camera: bool,
 ) -> bool {
+
     if let Some(mesh) = file.get_hex(&hex, sample) {
         window.scene_mut().clear();
         if reset_camera {
@@ -1126,10 +1143,11 @@ impl Statusable for Option<Status> {
                             {
                                 // selection.pos = point;
                                 selection.size = point - selection.pos;
+                                let z = selection_node.data().local_scale().z;
                                 selection_node.set_local_scale(
                                     selection.size.x / 2.0,
                                     selection.size.y / 2.0,
-                                    0.15,
+                                    z,
                                 );
                                 selection_node.set_local_translation(Translation3::from(
                                     Vector3::new(

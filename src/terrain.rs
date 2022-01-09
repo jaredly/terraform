@@ -202,8 +202,6 @@ impl File {
             &Coords {
                 x: 0,
                 y: 0,
-                // w: 30,
-                // h: 40,
                 w: self.size.x,
                 h: self.size.y,
             },
