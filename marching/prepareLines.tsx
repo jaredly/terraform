@@ -47,13 +47,14 @@ export const arrangeCut = (
     // const hpx = h * scale,
     // const wpx = w * scale + (vmargin * 2 * 2) / Math.sqrt(3);
     const res: Array<Array<Point>> = [];
-    hangles.forEach((p, i) => {
-        const next = i === 0 ? hangles.length - 1 : i - 1;
-        const p2 = hangles[next];
-        const dx = p2[0] - p[0];
-        const dy = p2[1] - p[1];
+    let lastHit = false;
+    hangles.forEach((pos, i) => {
+        const prevIdx = i === 0 ? hangles.length - 1 : i - 1;
+        const prev = hangles[prevIdx];
+        const dx = prev[0] - pos[0];
+        const dy = prev[1] - pos[1];
         const hit = [0.25, 0.5, 0.75].some((z) => {
-            const mid = [p[0] + dx * z, p[1] + dy * z];
+            const mid = [pos[0] + dx * z, pos[1] + dy * z];
 
             const x = mid[0] / scale;
             const y = mid[1] / scale;
@@ -67,20 +68,28 @@ export const arrangeCut = (
         // const v = lines[y | 0][x | 0];
         // if (isGood(v)) {
         if (hit) {
-            const pa: Point = [p[0] + scale / 2, p[1] + scale / 2];
-            const pb: Point = [p2[0] + scale / 2, p2[1] + scale / 2];
+            const posShifted: Point = [pos[0] + scale / 2, pos[1] + scale / 2];
+            const prevShifted: Point = [
+                prev[0] + scale / 2,
+                prev[1] + scale / 2,
+            ];
 
-            // Maybe join it to the previous one
-            if (res.length) {
-                const last = res[res.length - 1];
-                if (closePos(last[last.length - 1], pa)) {
-                    last.push(pb);
-                    return;
-                }
+            // // Maybe join it to the previous one
+            // if (res.length) {
+            //     const last = res[res.length - 1];
+            //     if (closePos(last[last.length - 1], prevShifted)) {
+            //         last.push(posShifted);
+            //         return;
+            //     }
+            // }
+
+            if (lastHit) {
+                res[res.length - 1].push(posShifted);
+            } else {
+                res.push([prevShifted, posShifted]);
             }
-
-            res.push([pa, pb]);
         }
+        lastHit = hit;
     });
 
     return res;

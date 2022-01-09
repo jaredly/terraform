@@ -30,17 +30,10 @@ export const RenderSvgContents = ({
             )}
             {rendered.innerCut.map((points, i) => (
                 <>
-                    {/* <circle
-                        key={i + 'c'}
-                        fill="green"
-                        strokeWidth={0}
-                        r={2}
-                        cx={p1[0] + rendered.wmargin}
-                        cy={p1[1] + rendered.vmargin}
-                    /> */}
                     <polyline
                         key={i}
                         stroke="red"
+                        fill="none"
                         strokeWidth={0.5}
                         points={points
                             .map(
@@ -50,15 +43,6 @@ export const RenderSvgContents = ({
                                     }`,
                             )
                             .join(' ')}
-                        // points={`${p1[0] + rendered.wmargin},${
-                        //     p1[1] + rendered.vmargin
-                        // } ${p2[0] + rendered.wmargin},${
-                        //     p2[1] + rendered.vmargin
-                        // }`}
-                        // x1={p1[0] + rendered.wmargin}
-                        // y1={p1[1] + rendered.vmargin}
-                        // x2={p2[0] + rendered.wmargin}
-                        // y2={p2[1] + rendered.vmargin}
                     />
                 </>
             ))}
