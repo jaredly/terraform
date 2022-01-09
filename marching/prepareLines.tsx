@@ -3,9 +3,12 @@ import { Dataset, Trail } from './App';
 import { Settings } from './App';
 
 export type Lines = {
+    // in px, including margins
     w: number;
     h: number;
+    // in px
     vmargin: number;
+    wmargin: number;
     trail:
         | {
               x: number;
@@ -15,10 +18,11 @@ export type Lines = {
     cuts: [number, number][][];
     alts: [number, number][][];
     skips: [number, number][][];
+    reference: [number, number][][];
     borders: [number, number][][];
-    wmargin: number;
     min: number;
     max: number;
+    pixelsPerMM: number;
 };
 
 export function prepareLines(
@@ -67,6 +71,7 @@ export function prepareLines(
     const cuts = [];
     const alts = [];
     const skips = [];
+    const reference = [];
 
     for (let at = 0; at < steps; at++) {
         const th = ((max - min) / steps) * at;
@@ -85,10 +90,14 @@ export function prepareLines(
                 (at / skip) % blanks === (blank + 1) % blanks
             ) {
                 alts.push(...rendered);
+            } else {
+                reference.push(...rendered);
             }
         } else {
             if (blank == null || Math.floor(at / skip) % blanks === blank) {
                 skips.push(...rendered);
+            } else {
+                reference.push(...rendered);
             }
         }
     }
@@ -97,10 +106,19 @@ export function prepareLines(
         w,
         h,
         vmargin,
-        trail: trail ? trailPoints(trail, dataset, scale) : null,
+        pixelsPerMM,
+        trail: trail
+            ? trailPoints(trail, dataset, scale).map((line) =>
+                  line.map(({ x, y }) => ({
+                      x: x + wmargin,
+                      y: y + vmargin,
+                  })),
+              )
+            : null,
         cuts,
         alts,
         skips,
+        reference,
         borders,
         wmargin,
         min,

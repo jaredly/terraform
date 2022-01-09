@@ -23,6 +23,25 @@ Aaaand then it would be really nice to make the rust stuff into a wasm'd webapp,
 - [x] render a title
 
 
+
+
+
+- [x] render title on svg
+- [x] allow grouping of blanks onto the same svg
+	- [x] allow specification of how many rows, when grouping
+		- maybe 0 means no grouping? Sounds fine.
+
+- [ ] need a fancier algorithm for drawing the inner border on the bottom-most piece.
+	- the other pieces don't need an outer border, and the inner border should be complete. right?
+	- but the bottom piece needs the inner border to /not/ be drawn along sections of strictly lower elevation than the bottom threshhold. yeah I guess that's the rule. Seems pretty straightforward. But it'll be something of a pain producing the candidate line segments.
+		- ok I mean I could just brute force it. Turn the hex into a bunch of points, one at each pixel of data,
+			and then connect up the ones that are below the threshhold.
+
+- annnnd I think that's it? Then I can just start printing stuff???
+
+
+
+
 BUGGGG the hex export is weeeeeirdly offset
 - rect export looks fine
 - but hex export, if I do it small, is very much off of where I wanted it. not sure what's happening.

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { renderLevel } from './render';
-import { RenderSvg } from './RenderSvg';
+import { RenderSvg, RenderSvgs } from './RenderSvg';
 import { renderToCanvas } from './renderToCanvas';
 import { SettingsForm } from './SettingsForm';
 
@@ -41,6 +41,8 @@ export type Settings = {
     margin: number;
     blanks: number;
     rainbow: boolean;
+    showReference: boolean;
+    rows: number;
     svg: boolean;
 };
 
@@ -54,6 +56,8 @@ const defaultSettings: Settings = {
     tweak: 0,
     margin: 5,
     blanks: 2,
+    rows: 0,
+    showReference: false,
     rainbow: false,
     svg: false,
 };
@@ -87,25 +91,33 @@ export const App = () => {
         }
     }, [settings]);
 
-    const svgs = [];
-    if (settings.svg) {
-        for (let i = 0; i < settings.blanks; i++) {
-            svgs.push(
-                <RenderSvg
-                    dataset={data[settings.set]}
-                    trail={settings.hike ? trails[settings.hike] : undefined}
-                    settings={settings}
-                    blank={i}
-                    key={i}
-                />,
-            );
-        }
-    }
+    // const svgs = [];
+    // if (settings.svg) {
+    //     for (let i = 0; i < settings.blanks; i++) {
+    //         svgs.push(
+    //             <RenderSvg
+    //                 dataset={data[settings.set]}
+    //                 trail={settings.hike ? trails[settings.hike] : undefined}
+    //                 settings={settings}
+    //                 blank={i}
+    //                 key={i}
+    //             />,
+    //         );
+    //     }
+    // }
 
     return (
         <div>
             <SettingsForm setSettings={setSettings} settings={settings} />
-            {settings.svg ? svgs : <canvas ref={ref} />}
+            {settings.svg ? (
+                <RenderSvgs
+                    dataset={data[settings.set]}
+                    trail={settings.hike ? trails[settings.hike] : undefined}
+                    settings={settings}
+                />
+            ) : (
+                <canvas ref={ref} />
+            )}
         </div>
     );
 };

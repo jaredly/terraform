@@ -56,9 +56,9 @@ export function renderToCanvas(
     });
 
     if (settings.skip === 1) {
-        ctx.strokeStyle = `#555`;
-    } else {
         ctx.strokeStyle = `#777`;
+    } else {
+        ctx.strokeStyle = `#999`;
     }
 
     rendered.alts.forEach((line) => {
@@ -68,7 +68,7 @@ export function renderToCanvas(
     });
 
     ctx.setLineDash([5, 5]);
-    ctx.strokeStyle = `#555`;
+    ctx.strokeStyle = `#777`;
     rendered.skips.forEach((alt) => {
         ctx.beginPath();
         strokePoints(ctx, alt);

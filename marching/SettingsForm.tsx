@@ -152,6 +152,25 @@ export const SettingsForm = ({
                             />{' '}
                         </div>
                     )}
+                    {settings.svg ? (
+                        <div>
+                            Rows
+                            <input
+                                type="range"
+                                min="0"
+                                max={settings.blanks * 2 - 1}
+                                step="1"
+                                value={settings.rows}
+                                onChange={(evt) => {
+                                    setSettings((s) => ({
+                                        ...s,
+                                        rows: +evt.target.value,
+                                    }));
+                                }}
+                            />{' '}
+                            {settings.rows}
+                        </div>
+                    ) : null}
                 </div>
                 <div>
                     <div>
@@ -196,6 +215,19 @@ export const SettingsForm = ({
                                 setSettings((s) => ({ ...s, title }))
                             }
                         />
+                    </div>
+                    <div>
+                        Show reference
+                        <input
+                            type="checkbox"
+                            checked={settings.showReference}
+                            onChange={(evt) => {
+                                setSettings((s) => ({
+                                    ...s,
+                                    showReference: evt.target.checked,
+                                }));
+                            }}
+                        />{' '}
                     </div>
                 </div>
             </div>
