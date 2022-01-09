@@ -2,6 +2,7 @@ import { levelPoints, polyLines } from './render';
 import { Dataset, Trail } from './App';
 import { Settings } from './App';
 import { borderHexes, hex } from './hex';
+import { Point } from '/Users/jared/clone/exploration/terraform/marching/calculateLines';
 
 export type Lines = {
     // in px, including margins
@@ -21,9 +22,51 @@ export type Lines = {
     skips: [number, number][][];
     reference: [number, number][][];
     borders: [number, number][][];
+    innerCut: Array<[Point, Point]>;
     min: number;
     max: number;
     pixelsPerMM: number;
+};
+
+export const arrangeCut = (
+    hits: Array<Point>,
+    lines: Dataset['rows'],
+    scale: number,
+    isGood: (v: number) => boolean,
+    // threshold: number,
+): Array<[Point, Point]> => {
+    const h = lines.length * scale;
+    const w = lines[0].length * scale;
+    const cx = w / 2;
+    const cy = h / 2;
+    // Sorted clockwise!
+    const hangles = hits
+        .map((p) => ({ p, t: Math.atan2(p[1] - cy, p[0] - cx) }))
+        .sort((a, b) => a.t - b.t)
+        .map((d) => d.p);
+    // const hpx = h * scale,
+    // const wpx = w * scale + (vmargin * 2 * 2) / Math.sqrt(3);
+    const res: Array<[Point, Point]> = [];
+    hangles.forEach((p, i) => {
+        const next = i === 0 ? hangles.length - 1 : i - 1;
+        const p2 = hangles[next];
+        const dx = p2[0] - p[0];
+        const dy = p2[1] - p[1];
+        const mid = [p[0] + dx / 2, p[1] + dy / 2];
+
+        const x = mid[0] / scale;
+        const y = mid[1] / scale;
+        const v = lines[y | 0][x | 0];
+        if (isGood(v)) {
+            // res.push([p, p2]);
+            res.push([
+                [p[0] + scale / 2, p[1] + scale / 2],
+                [p2[0] + scale / 2, p2[1] + scale / 2],
+            ]);
+        }
+    });
+    console.log(res);
+    return res;
 };
 
 export function prepareLines(
@@ -74,18 +117,27 @@ export function prepareLines(
     const skips = [];
     const reference = [];
 
-    const clipHex = polyLines(
-        borderHexes(lines[0].length, lines.length, scale, 0)[0].map(
-            ([x, y]) => [x - scale / 2, y - scale / 2],
-        ),
-    );
+    let innerCut: Array<[Point, Point]> = [];
+
+    const polyPoints =
+        dataset.shape === 'hex'
+            ? borderHexes(lines[0].length, lines.length, scale, 0)[0].map(
+                  ([x, y]): Point => [x - scale / 2, y - scale / 2],
+              )
+            : rectClip(lines, scale);
+
+    const clipPoly = polyLines(polyPoints);
+
+    const hits: Array<Point> = polyPoints.slice();
+    const each = (max - min) / steps;
     for (let at = 0; at < steps; at++) {
-        const th = ((max - min) / steps) * at;
+        const th = each * (at + 1) + min;
         const rendered: Array<Array<[number, number]>> = levelPoints(
             th,
             lines,
             scale,
-            dataset.shape === 'hex' ? clipHex : undefined,
+            clipPoly,
+            hits,
         ).map((line) => line.map(([x, y]) => [x + wmargin, y + vmargin]));
 
         if (at % skip === 0) {
@@ -107,6 +159,19 @@ export function prepareLines(
             }
         }
     }
+    // if (at === 0) {
+    innerCut = arrangeCut(
+        hits,
+        lines,
+        scale,
+        blank === 1
+            ? (v) => v >= each * 2 + min || v <= each + min
+            : blank === 0
+            ? (v) => v >= each + min
+            : (_) => true,
+        // each + min
+    );
+    // }
 
     return {
         w,
@@ -126,6 +191,7 @@ export function prepareLines(
         skips,
         reference,
         borders,
+        innerCut,
         wmargin,
         min,
         max,
@@ -143,3 +209,14 @@ const trailPoints = (trail: Trail, dataset: Dataset, scale: number) => {
         });
     });
 };
+function rectClip(
+    lines: number[][],
+    scale: number,
+): import('/Users/jared/clone/exploration/terraform/marching/calculateLines').Point[] {
+    return [
+        [0, 0],
+        [0, lines.length * scale],
+        [lines[0].length * scale, lines.length * scale],
+        [lines[0].length * scale, 0],
+    ];
+}

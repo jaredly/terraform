@@ -5,10 +5,7 @@ export function calculateLines(
     inputValues: Array<Array<number>>,
     threshhold: number,
     scale: number,
-    // For discarding points outside of the clip
-    // isValid: (x: number, y: number) => boolean,
 ) {
-    // const rez = 1;
     const lines: Array<[Point, Point]> = [];
 
     const addLine = (p1: Point, p2: Point) => {
@@ -19,14 +16,6 @@ export function calculateLines(
 
     for (var y = 0; y < inputValues.length - 1; y++) {
         for (var x = 0; x < inputValues[y].length - 1; x++) {
-            // if (
-            //     !isValid(x, y) ||
-            //     !isValid(x + 1, y + 1) ||
-            //     !isValid(x + 1, y - 1) ||
-            //     !isValid(x - 1, y + 1)
-            // ) {
-            //     continue;
-            // }
             let a: Point, b: Point, c: Point, d: Point;
             if (!interpolation) {
                 //abcd uninterpolated

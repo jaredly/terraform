@@ -27,6 +27,27 @@ export const RenderSvgContents = ({
                     />
                 ) : null,
             )}
+            {rendered.innerCut.map(([p1, p2], i) => (
+                <>
+                    <circle
+                        key={i + 'c'}
+                        fill="green"
+                        strokeWidth={0}
+                        r={2}
+                        cx={p1[0] + rendered.wmargin}
+                        cy={p1[1] + rendered.vmargin}
+                    />
+                    <line
+                        key={i}
+                        stroke="green"
+                        strokeWidth={1}
+                        x1={p1[0] + rendered.wmargin}
+                        y1={p1[1] + rendered.vmargin}
+                        x2={p2[0] + rendered.wmargin}
+                        y2={p2[1] + rendered.vmargin}
+                    />
+                </>
+            ))}
             {settings.showReference
                 ? rendered.reference.map((line, i) => (
                       <polyline

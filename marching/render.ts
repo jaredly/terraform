@@ -5,19 +5,18 @@ export const levelPoints = (
     threshhold: number,
     lines: Array<Array<number>>,
     scale: number,
-    clipPolygon?: Array<LineSlope>,
+    clipPolygon: Array<LineSlope>,
+    hits: Array<Point>,
 ): Array<Array<[number, number]>> => {
     const rendered = calculateLines(true, lines, threshhold, scale);
 
-    const p = polyfy(
-        clipPolygon ? clipToPolygon(rendered, clipPolygon) : rendered,
-    );
+    const p = polyfy(clipToPolygon(rendered, clipPolygon, hits));
     return p.map((points) => {
         return points.map(([x, y]) => [x + scale / 2, y + scale / 2]);
     });
 };
 
-export const EPSILON = 0.001;
+export const EPSILON = 0.1;
 export const closeEnough = (a: number, b: number) => Math.abs(a - b) < EPSILON;
 
 export type LineSlope = {
@@ -26,6 +25,7 @@ export type LineSlope = {
     t: number;
     // true if above/left is "inside"
     aboveLeft: boolean;
+    limit: [number, number];
 };
 
 export const lineToSlope = (p1: Point, p2: Point): LineSlope => {
@@ -33,11 +33,23 @@ export const lineToSlope = (p1: Point, p2: Point): LineSlope => {
     const dy = p2[1] - p1[1];
     const t = Math.atan2(dy, dx);
     if (closeEnough(p1[0], p2[0])) {
-        return { m: Infinity, b: p1[0], t, aboveLeft: p2[1] < p2[0] };
+        return {
+            m: Infinity,
+            b: p1[0],
+            t,
+            aboveLeft: p2[1] < p2[0],
+            limit: [Math.min(p1[1], p2[1]), Math.max(p1[1], p2[1])],
+        };
     }
     const m = dy / dx;
     const b = p1[1] - m * p1[0];
-    return { m, b, t, aboveLeft: p2[0] < p1[0] };
+    return {
+        m,
+        b,
+        t,
+        aboveLeft: p2[0] < p1[0],
+        limit: [Math.min(p1[0], p2[0]), Math.max(p1[0], p2[0])],
+    };
 };
 
 export const intersection = (
@@ -87,9 +99,20 @@ export const polyLines = (poly: Array<Point>) => {
     return res;
 };
 
+export const withinLimit = (v: number, [low, high]: [number, number]) =>
+    low - EPSILON < v && v < high + EPSILON;
+
+export const withinLine = (point: Point, line: LineSlope) => {
+    return line.m === Infinity
+        ? withinLimit(point[1], line.limit)
+        : withinLimit(point[0], line.limit);
+};
+
+// clip [p1, p2] to be on the clockwise side of the clip line
 export const clipToLine = (
     [p1, p2]: [Point, Point],
     clip: LineSlope,
+    hits: Array<Point>,
 ): null | [Point, Point] => {
     const p1i = isInside(p1, clip);
     const p2i = isInside(p2, clip);
@@ -99,30 +122,29 @@ export const clipToLine = (
     if (p1i && p2i) {
         return [p1, p2];
     }
-    if (true) {
-        const slope = lineToSlope(p1, p2);
-        const hit = intersection(clip, slope);
-        if (hit === false) {
-            return null;
-        }
-        if (hit === true) {
-            return [p1, p2];
-        }
-        return p1i ? [p1, hit] : [hit, p2];
+    const slope = lineToSlope(p1, p2);
+    const hit = intersection(clip, slope);
+    if (hit === false) {
+        return null;
     }
-    return [p1, p2];
-    // return null;
-    // c1 c2, clip to be on the clockwise side of c1 pointing at c2
+    if (hit === true) {
+        return [p1, p2];
+    }
+    if (withinLine(hit, clip)) {
+        hits.push(hit);
+    }
+    return p1i ? [p1, hit] : [hit, p2];
 };
 
 export const clipToPolygon = (
     lines: Array<[Point, Point]>,
     polygon: Array<LineSlope>,
+    hits: Array<Point>,
 ) => {
     const result: Array<[Point, Point]> = [];
     lines.forEach((line) => {
         for (let clip of polygon) {
-            const res = clipToLine(line, clip);
+            const res = clipToLine(line, clip, hits);
             if (!res) {
                 return;
             }
@@ -146,9 +168,10 @@ export const renderLevel = (
     threshhold: number,
     lines: Array<Array<number>>,
     scale: number,
-    clipPolygon?: Array<LineSlope>,
+    clipPolygon: Array<LineSlope>,
+    hits: Array<Point>,
 ) => {
-    levelPoints(threshhold, lines, scale, clipPolygon).forEach((line) => {
+    levelPoints(threshhold, lines, scale, clipPolygon, hits).forEach((line) => {
         ctx.beginPath();
         ctx.moveTo(line[0][0], line[0][1]);
         line.slice(1).forEach(([x, y]) => {
