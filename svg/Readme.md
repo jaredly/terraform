@@ -19,3 +19,6 @@ file:///Users/jared/clone/exploration/terraform/svg/index.html#{%22title%22:%22T
 http://127.0.0.1:4343/?{%22set%22:%22/Users/jared/Downloads/cec2.js%22,%22width%22:180,%22thickness%22:3,%22skip%22:4,%22scale%22:10,%22title%22:%22Centro%20de%20Educacion%20Creativa,%20Costa%20Rica%22,%22tweak%22:0,%22margin%22:5,%22blanks%22:2,%22hike%22:%22cec%22}
 
 http://127.0.0.1:4343/?{%22set%22:%22/Users/jared/Downloads/arenal-hex.js%22,%22width%22:180,%22thickness%22:3,%22skip%22:4,%22scale%22:10,%22title%22:%22Arenal%20Volcano,%20Costa%20Rica%22,%22tweak%22:0,%22margin%22:5,%22blanks%22:2,%22hike%22:%22arenal%22}
+
+
+http://127.0.0.1:4343/?{%22set%22:%22/Users/jared/clone/exploration/terraform/exports/generous.js%22,%22width%22:180,%22thickness%22:0.5,%22skip%22:1,%22scale%22:3,%22title%22:%22Arenal%20Volcano,%20Costa%20Rica%22,%22tweak%22:0,%22margin%22:5,%22blanks%22:6,%22rainbow%22:false,%22svg%22:true,%22hike%22:%22arenal%22}
