@@ -130,7 +130,7 @@ impl File {
         }
     }
 
-    fn get_terrain(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Terrain> {
+    pub fn get_terrain(&self, coords: &Coords, sample: usize, elevation_boost: f32) -> Option<Terrain> {
         if coords.validate(self) {
             let elevation_scale = if self.size.x >= self.size.y {
                 self.size.x as f32 / coords.w as f32 * 1.0 / self.longest_dim_in_meters

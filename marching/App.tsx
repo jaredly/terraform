@@ -310,7 +310,7 @@ function renderTopoMap(
     ctx.save();
     ctx.translate(wmargin, marginPX);
 
-    if (false) {
+    if (true) {
         ctx.globalAlpha = 0.1;
         dataset.rows.forEach((line, y) => {
             line.forEach((v, x) => {

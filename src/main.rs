@@ -227,11 +227,19 @@ fn render_scene_2_crop(
     sample: usize,
     reset_camera: bool,
 ) -> Option<(kiss3d::scene::SceneNode, kiss3d::scene::SceneNode)> {
-    if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
+    if let Some(terrain) = file.get_terrain(&coords, sample, 1.0) {
+        let max_height = terrain.points.iter().map(|p| p.z).max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).unwrap();
+        let mesh = terrain.into_mesh();
+
+
+    // }
+    // if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
         window.scene_mut().clear();
         if reset_camera {
             window.set_camera(make_camera());
         }
+
+        // let points = Terrain::from_raster
 
         let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
         mesh_node.set_color(0.0, 1.0, 0.0);
@@ -239,17 +247,19 @@ fn render_scene_2_crop(
 
         let mut pointer = window.add_cube(0.002, 0.002, 0.5);
         pointer.set_color(1.0, 0.0, 0.0);
-        // pointer.set_visible(false);
 
         let mut selection = window.add_trimesh(threed::make_hex(), Vector3::from_element(1.0));
-        selection.set_local_scale(0.0, 0.0, 0.15);
+        selection.set_local_scale(0.0, 0.0, max_height);
         selection.enable_backface_culling(false);
         selection.set_color(0.0, 0.0, 1.0);
         selection.set_alpha(0.5);
-        // println!("Coord {:?}", coords);
 
         match trail {
             Some(trail) => {
+
+                // let maxHeight = 0;
+                // file.raster
+
                 let w = file.size.x as f32;
                 let h = file.size.y as f32;
 
@@ -273,7 +283,7 @@ fn render_scene_2_crop(
                 }
                 let poly = threed::make_prism(&trailed, false);
                 let mut trail_poly = window.add_trimesh(poly, Vector3::from_element(1.0));
-                trail_poly.set_local_scale(1.0, 1.0, 0.15);
+                trail_poly.set_local_scale(1.0, 1.0, max_height);
                 trail_poly.enable_backface_culling(false);
                 trail_poly.set_color(1.0, 0.0, 1.0);
                 trail_poly.set_alpha(0.8);
@@ -1079,7 +1089,9 @@ impl Statusable for Option<Status> {
                                 && modifiers.is_empty()
                             {
                                 hselection.1 = (point - hselection.0).norm();
-                                selection_node.set_local_scale(hselection.1, hselection.1, 0.15);
+                                // 
+                                let z = selection_node.data().local_scale().z;
+                                selection_node.set_local_scale(hselection.1, hselection.1, z);
                                 selection_node.set_local_translation(Translation3::from(
                                     Vector3::new(hselection.0.x, hselection.0.y, 0.0),
                                 ));

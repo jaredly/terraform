@@ -21,6 +21,19 @@ Aaaand then it would be really nice to make the rust stuff into a wasm'd webapp,
 	- oooh ok margin is "hmargin", /not/ vmargin, so I'll need to mess with things a little.
 	- switch them.
 - [x] render a title
+
+
+BUGGGG the hex export is weeeeeirdly offset
+- rect export looks fine
+- but hex export, if I do it small, is very much off of where I wanted it. not sure what's happening.
+	looks like the dimensions are on target
+	but the coord is like shifted up 15 pixels
+- ooooh here's a clue. If the hex is well-centered in the cut rect, then it's correctly set up.
+- yeah that's the trick to circumvent the bug.
+	now to actually fix it...
+
+
+
 - [ ] remove little bits that won't be helpful? I mean sure, it's fine I guess.
 - [ ] figure out how to export svgs that make sense
 	- [ ] title

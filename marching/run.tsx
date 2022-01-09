@@ -1,4 +1,11 @@
 const data2 = require('../exports/timp_hex.js');
+import '../exports/just-trail.js';
+import '../exports/end-point.js';
+import '../exports/one-more.js';
+import '../exports/around-again.js';
+import '../exports/just-again.js';
+import '../exports/cec_trail.js';
+import '../exports/arenal-again.js';
 import '../exports/timp_hex.js';
 import '../exports/tn_rect.js';
 import '../exports/cec.js';
