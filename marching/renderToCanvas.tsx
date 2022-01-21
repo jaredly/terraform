@@ -1,6 +1,6 @@
 import { isValidHex } from './render';
 import { Dataset, Trail, Settings } from './App';
-import { prepareLines } from './prepareLines';
+import { getAllLines, prepareLines } from './prepareLines';
 
 export function renderToCanvas(
     canvas: HTMLCanvasElement,
@@ -8,7 +8,17 @@ export function renderToCanvas(
     settings: Settings,
     trail?: Trail,
 ) {
-    const rendered = prepareLines(dataset, settings, undefined, trail);
+    const allData = getAllLines(
+        dataset,
+        trail,
+        settings.tweak,
+        settings.width,
+        settings.thickness,
+        settings.skip,
+        settings.margin,
+        settings.scale,
+    );
+    const rendered = prepareLines(allData, settings, undefined);
     canvas.width = rendered.w;
     canvas.height = rendered.h;
     canvas.style.width = `${rendered.w / 2}px`;

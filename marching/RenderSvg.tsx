@@ -2,16 +2,41 @@ import * as React from 'react';
 import { Dataset, Settings, Trail } from './App';
 import { colsFirst, rowsFirst } from './placements';
 import { getAllLines, Lines, prepareLines } from './prepareLines';
+import * as shapefile from 'shapefile';
+import JSZip from 'jszip';
+
+const get = (url: string) => fetch(url).then((res) => res.arrayBuffer());
+
+// export async function getPlaces() {
+//     const shp = await
+
+// }
+
+export async function getShape(name: string) {
+    const shp = await get(
+        `https://cdn.rawgit.com/jaredly/naturalearth-mirror/master/${name}.shp`,
+    );
+    const dbf = await get(
+        `https://cdn.rawgit.com/jaredly/naturalearth-mirror/master/${name}.dbf`,
+    );
+    const geojson = shapefile.read(shp, dbf, { encoding: 'utf-8' });
+    return geojson;
+}
+
+type Names = any;
 
 export const RenderSvgContents = ({
     rendered,
     settings,
-    blank,
-}: {
+    names,
+}: // blank,
+{
     rendered: Lines;
     settings: Settings;
-    blank: number;
+    names: Names;
+    // blank: number;
 }) => {
+    const fontSize = rendered.vmargin * 0.7;
     return (
         <>
             {rendered.borders.map((border, i) =>
@@ -97,18 +122,89 @@ export const RenderSvgContents = ({
                       />
                   ))
                 : null}
+            <Scale
+                pixelsPerMM={rendered.pixelsPerMM}
+                scale={settings.scale}
+                x={rendered.w / 2}
+                sideLength={(rendered.w - rendered.wmargin * 2) / 2}
+                y={rendered.vmargin * 0.8}
+                fontSize={fontSize * 0.7}
+            />
             {settings.title.trim() ? (
-                <text
-                    x={rendered.w / 2}
-                    y={rendered.h - rendered.vmargin / 3}
-                    textAnchor={'middle'}
-                    fontSize={rendered.vmargin * 0.5}
-                    fontFamily="sans-serif"
-                >
-                    {settings.title}
-                </text>
+                <>
+                    <text
+                        x={rendered.w / 2}
+                        y={rendered.h - fontSize / 2}
+                        textAnchor={'middle'}
+                        fontSize={fontSize}
+                        fontFamily="sans-serif"
+                    >
+                        {settings.title}
+                    </text>
+                </>
             ) : null}
         </>
+    );
+};
+
+export const Scale = ({
+    pixelsPerMM,
+    x,
+    y,
+    fontSize,
+    scale,
+    sideLength,
+}: {
+    pixelsPerMM: number;
+    sideLength: number;
+    x: number;
+    y: number;
+    fontSize: number;
+    scale: number;
+}) => {
+    // How far is 1km?
+    // one ~pixel (scale) is 1 arc-second, so 30 meters.
+    // 1km would be 1000/30 = 33px
+    const kmPixels = (scale * 1000) / 30;
+    const kilometer = 1000000 / (kmPixels / pixelsPerMM);
+    let w;
+    let km = 1;
+    let kms = Math.max(1, Math.floor(sideLength / 2 / kmPixels));
+    // if (kmPixels < sideLength / )
+    // if (kmPixels < sideLength / 5) {
+    //     w = kmPixels * 3
+    //     km = 3
+    // } else {
+    //     w = kmPixels
+    //     km = 1
+    // }
+    km = kms;
+    w = kmPixels * km;
+    return (
+        <g>
+            <text
+                x={x - w / 2 - pixelsPerMM}
+                y={y}
+                fontSize={fontSize}
+                textAnchor="end"
+            >
+                {km}km
+            </text>
+            <polyline
+                points={`
+                ${x - w / 2},${y - fontSize / 2}
+                ${x - w / 2},${y}
+                ${x + w / 2},${y}
+                ${x + w / 2},${y - fontSize / 2}
+            `}
+                fill="none"
+                strokeWidth={1}
+                stroke="blue"
+            />
+            <text x={x + w / 2 + pixelsPerMM} y={y} fontSize={fontSize}>
+                1:{kilometer.toFixed(0)}
+            </text>
+        </g>
     );
 };
 
@@ -121,17 +217,27 @@ export const RenderSvgs = ({
     settings: Settings;
     trail?: Trail;
 }) => {
+    const [names, setNames] = React.useState(namesCache);
+    // React.useEffect(() => {
+    //     if (!namesCache) {
+    //         console.log('get is');
+    //         getShape('10m_cultural/ne_10m_populated_places_simple').then(
+    //             (names) => {
+    //                 namesCache = names;
+    //                 setNames(names);
+    //                 console.log(names);
+    //                 console.log(trail?.data.trackData[0][0]);
+    //                 window.thenames = names;
+    //             },
+    //             (err) => {
+    //                 console.log('nope', err);
+    //             },
+    //         );
+    //     }
+    // }, []);
+
     const allLines = React.useMemo(() => {
-        const allData = getAllLines(
-            dataset,
-            trail,
-            settings.tweak,
-            settings.width,
-            settings.thickness,
-            settings.skip,
-            settings.margin,
-            settings.scale,
-        );
+        const allData = getAllLines(dataset, trail, settings);
         const lines = [];
         for (let i = 0; i < settings.blanks; i++) {
             lines.push(prepareLines(allData, settings, i));
@@ -159,37 +265,11 @@ export const RenderSvgs = ({
         return <>{svgs}</>;
     }
 
-    // const fullRows = (settings.rows + 1) / 2
-    // const fullColums = (settings.blanks / fullRows)
-    // const columns = settings.columns;
-    // const columns = Math.round(settings.blanks / settings.rows);
-
-    // 1 -> blanks / 1
-    // 2 -> blanks + 1) / 2
-    // 3 -> (blanks + 2) / 3?
-
     const between = 1;
-
-    // const widthToHeight = Math.sqrt(3) / 2;
-
     const one = allLines[0];
-
-    // const mmToPx = allLines[0].w / (settings.width + settings.margin * widthToHeight * 2);
     const mmToPx = allLines[0].pixelsPerMM;
-
-    // const widthToHeight = allLines[0].w / allLines[0].h;
-
     const oneHeightMM = one.h / mmToPx;
     const oneWidthMM = one.w / mmToPx;
-    // const oneHeightMM =
-    //     settings.width / widthToHeight
-    // const oneWidthMM = settings.width
-
-    // const totalHeightMM =
-    //     (oneHeightMM + between) * Math.ceil((settings.rows * 2) / 3);
-    // const totalWidthMM = (oneWidthMM + between) * Math.ceil((columns * 3) / 4);
-    // const totalHeightMM = oneHeightMM * settings.rows;
-    // const totalWidthMM = oneWidthMM * columns * 2;
 
     const inners = [];
 
@@ -213,12 +293,7 @@ export const RenderSvgs = ({
         } else if (!settings.rowsFirst && settings.rows > settings.blanks * 2) {
             xa = 0;
             ya = i * (oneHeightMM + between);
-            // } else if (settings.rows === 1) {
-            //     xa = i * (oneWidthMM + between);
-            //     ya = 0;
         } else {
-            // const x = i % columns;
-            // const y = Math.floor(i / columns);
             xa =
                 ((oneWidthMM + between) *
                     (x + (y % 2 === 1 ? 0.5 : 0)) *
@@ -234,7 +309,7 @@ export const RenderSvgs = ({
                 <RenderSvgContents
                     rendered={allLines[i]}
                     settings={settings}
-                    blank={i}
+                    // blank={i}
                     key={i}
                 />
             </g>,
@@ -260,7 +335,9 @@ export const RenderSvgs = ({
                 });
                 const url = URL.createObjectURL(blob);
                 const node = document.createElement('a');
-                node.download = `full.svg`;
+                node.download = `${settings.title || 'full'}_${
+                    settings.width
+                }mm wide_${settings.thickness}mm thick.svg`;
                 node.href = url;
                 document.body.append(node);
                 node.click();
@@ -284,6 +361,8 @@ export const RenderSvgs = ({
     );
 };
 
+let namesCache: null | any = null;
+
 export const RenderSvg = ({
     dataset,
     settings,
@@ -303,10 +382,14 @@ export const RenderSvg = ({
     // );
     const ref = React.useRef(null as null | SVGElement);
 
+    const mmToPx = rendered.pixelsPerMM;
+    const oneHeightMM = rendered.h / mmToPx;
+    const oneWidthMM = rendered.w / mmToPx;
+
     return (
         <svg
-            width={settings.width + 'mm'}
-            height={(settings.width / rendered.w) * rendered.h + 'mm'}
+            width={oneWidthMM + 'mm'}
+            height={oneHeightMM + 'mm'}
             viewBox={`0 0 ${rendered.w} ${rendered.h}`}
             xmlns="http://www.w3.org/2000/svg"
             ref={(node) => (ref.current = node)}
@@ -330,7 +413,7 @@ export const RenderSvg = ({
             <RenderSvgContents
                 rendered={rendered}
                 settings={settings}
-                blank={blank}
+                // blank={blank}
             />
         </svg>
     );

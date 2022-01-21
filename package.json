@@ -10,14 +10,17 @@
     },
     "dependencies": {
         "esbuild": "^0.14.10",
+        "jszip": "^3.7.1",
         "react": "^17.0.2",
         "react-dom": "^17.0.2",
+        "shapefile": "^0.6.6",
         "simplify-js": "^1.2.4",
         "typescript": "^4.5.4"
     },
     "devDependencies": {
         "@types/node": "^17.0.8",
         "@types/react": "^17.0.38",
-        "@types/react-dom": "^17.0.11"
+        "@types/react-dom": "^17.0.11",
+        "@types/shapefile": "^0.6.1"
     }
 }

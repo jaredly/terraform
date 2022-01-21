@@ -115,6 +115,7 @@ export function prepareLines(
     } = allData;
 
     const w = scale * lines[0].length + wmargin * 2;
+    // w is going to be off I think???
     const h = scale * lines.length + vmargin * 2;
 
     const borders = borderHexes(lines[0].length, lines.length, scale, vmargin);
@@ -151,7 +152,14 @@ export function prepareLines(
         hits,
         lines,
         scale,
-        blank != null ? (v) => v >= each * (blank + 1) + min : (_) => true,
+        blank != null
+            ? // ugh do I just want  this to be tweakable?
+              // seems like there ought to be some analytical solution
+              blank === 0
+                ? (v) => v >= each * ((blank + 2) * skip + 1) + min
+                : (v) => v >= each * (blank * skip + 1) + min
+            : // fallback
+              (_) => true,
         // blank === 1
         //     ? (v) => v >= each * 2 + min // || v <= each + min
         //     : blank === 0
@@ -209,12 +217,14 @@ export type AllLines = {
 export function getAllLines(
     dataset: Dataset,
     trail: undefined | Trail,
-    tweak: number,
-    widthInMM: number,
-    thickness: number,
-    skip: number,
-    hmargin: number,
-    scale: number,
+    {
+        tweak,
+        width: widthInMM,
+        thickness,
+        skip,
+        margin: hmargin,
+        scale,
+    }: Settings,
 ): AllLines {
     const lines = dataset.rows;
     let max = -Infinity;
