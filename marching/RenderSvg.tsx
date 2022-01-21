@@ -70,7 +70,7 @@ export const RenderSvgContents = ({
                 <polyline
                     key={i}
                     points={cut.map(([x, y]) => `${x},${y}`).join(' ')}
-                    stroke={'blue'}
+                    stroke={'#aaf'}
                     fill="none"
                     strokeWidth={0.5}
                 />
@@ -161,7 +161,7 @@ export const RenderSvgs = ({
 
     // const fullRows = (settings.rows + 1) / 2
     // const fullColums = (settings.blanks / fullRows)
-    const columns = settings.columns;
+    // const columns = settings.columns;
     // const columns = Math.round(settings.blanks / settings.rows);
 
     // 1 -> blanks / 1
@@ -170,7 +170,7 @@ export const RenderSvgs = ({
 
     const between = 1;
 
-    const widthToHeight = Math.sqrt(3) / 2;
+    // const widthToHeight = Math.sqrt(3) / 2;
 
     const one = allLines[0];
 
@@ -244,11 +244,14 @@ export const RenderSvgs = ({
     const totalWidthMM = maxx;
     const totalHeightMM = maxy;
 
+    const rwidth = settings.rotate ? totalHeightMM : totalWidthMM;
+    const rheight = settings.rotate ? totalWidthMM : totalHeightMM;
+
     return (
         <svg
-            width={totalWidthMM + 'mm'}
-            height={totalHeightMM + 'mm'}
-            viewBox={`0 0 ${totalWidthMM * mmToPx} ${totalHeightMM * mmToPx}`}
+            width={rwidth + 'mm'}
+            height={rheight + 'mm'}
+            viewBox={`0 0 ${rwidth * mmToPx} ${rheight * mmToPx}`}
             xmlns="http://www.w3.org/2000/svg"
             ref={(node) => (ref.current = node)}
             onClick={(evt) => {
@@ -268,12 +271,15 @@ export const RenderSvgs = ({
                 backgroundColor: 'white',
             }}
         >
-            {inners}
-            {/* <RenderSvgContents
-                rendered={rendered}
-                settings={settings}
-                blank={blank}
-            /> */}
+            <g
+                transform={
+                    settings.rotate
+                        ? `translate(0 ${totalWidthMM * mmToPx}) rotate(${-90})`
+                        : ''
+                }
+            >
+                {inners}
+            </g>
         </svg>
     );
 };

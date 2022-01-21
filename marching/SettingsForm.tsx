@@ -153,35 +153,38 @@ export const SettingsForm = ({
                         </div>
                     )}
                     {settings.svg ? (
-                        <div>
-                            <select
-                                value={settings.rowsFirst ? 'columns' : 'rows'}
-                                onChange={(evt) => {
-                                    setSettings((s) => ({
-                                        ...s,
-                                        rowsFirst:
-                                            evt.target.value === 'columns',
-                                    }));
-                                }}
-                            >
-                                <option value="rows">Rows</option>
-                                <option value="columns">Columns</option>
-                            </select>
-                            <input
-                                type="range"
-                                min="0"
-                                max={settings.blanks * 2 - 1}
-                                step="1"
-                                value={settings.rows}
-                                onChange={(evt) => {
-                                    setSettings((s) => ({
-                                        ...s,
-                                        rows: +evt.target.value,
-                                    }));
-                                }}
-                            />{' '}
-                            {settings.rows}
-                            {/* Columns
+                        <>
+                            <div>
+                                <select
+                                    value={
+                                        settings.rowsFirst ? 'columns' : 'rows'
+                                    }
+                                    onChange={(evt) => {
+                                        setSettings((s) => ({
+                                            ...s,
+                                            rowsFirst:
+                                                evt.target.value === 'columns',
+                                        }));
+                                    }}
+                                >
+                                    <option value="rows">Rows</option>
+                                    <option value="columns">Columns</option>
+                                </select>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max={settings.blanks * 2 - 1}
+                                    step="1"
+                                    value={settings.rows}
+                                    onChange={(evt) => {
+                                        setSettings((s) => ({
+                                            ...s,
+                                            rows: +evt.target.value,
+                                        }));
+                                    }}
+                                />{' '}
+                                {settings.rows}
+                                {/* Columns
                             <input
                                 type="range"
                                 min="0"
@@ -196,7 +199,21 @@ export const SettingsForm = ({
                                 }}
                             />{' '}
                             {settings.columns} */}
-                        </div>
+                            </div>
+                            <div>
+                                Rotate?{' '}
+                                <input
+                                    type="checkbox"
+                                    checked={settings.rotate}
+                                    onChange={(evt) => {
+                                        setSettings((s) => ({
+                                            ...s,
+                                            rotate: evt.target.checked,
+                                        }));
+                                    }}
+                                />
+                            </div>
+                        </>
                     ) : null}
                 </div>
                 <div>

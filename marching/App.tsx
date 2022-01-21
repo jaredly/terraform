@@ -42,8 +42,9 @@ export type Settings = {
     blanks: number;
     rainbow: boolean;
     showReference: boolean;
+    rotate: boolean;
     rows: number;
-    columns: number;
+    // columns: number;
     rowsFirst: boolean;
     svg: boolean;
 };
@@ -51,6 +52,7 @@ export type Settings = {
 const defaultSettings: Settings = {
     set: Object.keys(data)[0],
     width: 200,
+    rotate: false,
     thickness: 3,
     skip: 4,
     scale: 5,
@@ -60,7 +62,7 @@ const defaultSettings: Settings = {
     blanks: 2,
     rows: 0,
     rowsFirst: true,
-    columns: 0,
+    // columns: 0,
     showReference: false,
     rainbow: false,
     svg: false,
