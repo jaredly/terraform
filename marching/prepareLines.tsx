@@ -95,69 +95,24 @@ export const arrangeCut = (
     return res;
 };
 
-// export const numKey = (n: number) => n.toFixed(3)
-// export const coordKey = ([x, y]: [number, number]) => `${numKey(x)},${numKey(y)}`
-
-// export const joinNeighbors = (segments: Array<[Point, Point]>): Array<Array<Point>> => {
-//     const map: {[key: string]: Array<number>} = {};
-//     segments.forEach(([p1, p2], i) => {
-//         const k1 = coordKey(p1)
-//         const k2 = coordKey(p2)
-//         if (map[k1]) {
-//             map[k1].push(i)
-//         } else {
-//             map[k1] = [i]
-//         }
-//         if (map[k2]) {
-//             map[k2].push(i)
-//         } else {
-//             map[k2] = [i]
-//         }
-//     })
-//     const res = [];
-//     segments.forEach(([p1, p2], i) => {
-//         const k1 = coordKey(p1)
-//         const k2 = coordKey(p2)
-//     })
-// }
-
 export function prepareLines(
-    dataset: Dataset,
-    {
-        width: widthInMM,
-        thickness,
-        skip,
-        scale,
-        tweak,
-        margin: hmargin,
-        blanks,
-    }: Settings,
+    allData: AllLines,
+    { skip, scale, blanks }: Settings,
     blank?: number,
-    trail?: Trail,
 ): Lines {
-    const lines = dataset.rows;
-
-    let max = -Infinity;
-    let min = Infinity;
-    lines.forEach((line) =>
-        line.forEach((v) => {
-            max = Math.max(v, max);
-            min = Math.min(v, min);
-        }),
-    );
-    min += tweak;
-
-    const heightInMM = max * widthInMM;
-    const materialLayers = Math.round(heightInMM / thickness);
-    const layers = (materialLayers + 1) * skip - 1;
-
-    const steps = layers;
-
-    const margin = (hmargin * Math.sqrt(3)) / 2;
-
-    const pixelsPerMM = (scale * lines[0].length) / widthInMM;
-    const vmargin = margin * pixelsPerMM;
-    const wmargin = (vmargin * 2) / Math.sqrt(3);
+    const {
+        steps,
+        allLines,
+        hits,
+        lines,
+        each,
+        min,
+        vmargin,
+        pixelsPerMM,
+        trailData,
+        wmargin,
+        max,
+    } = allData;
 
     const w = scale * lines[0].length + wmargin * 2;
     const h = scale * lines.length + vmargin * 2;
@@ -168,30 +123,8 @@ export function prepareLines(
     const alts = [];
     const skips = [];
     const reference = [];
-
-    let innerCut: Array<Array<Point>> = [];
-
-    const polyPoints =
-        dataset.shape === 'hex'
-            ? borderHexes(lines[0].length, lines.length, scale, 0)[0].map(
-                  ([x, y]): Point => [x - scale / 2, y - scale / 2],
-              )
-            : rectClip(lines, scale);
-
-    const clipPoly = polyLines(polyPoints);
-
-    const hits: Array<Point> = polyPoints.slice();
-    const each = (max - min) / steps;
     for (let at = 0; at < steps; at++) {
-        const th = each * (at + 1) + min;
-        const rendered: Array<Array<[number, number]>> = levelPoints(
-            th,
-            lines,
-            scale,
-            clipPoly,
-            hits,
-        ).map((line) => line.map(([x, y]) => [x + wmargin, y + vmargin]));
-
+        const rendered = allLines[at];
         if (at % skip === 0) {
             if (blank != null && (at / skip) % blanks === blank) {
                 cuts.push(...rendered);
@@ -211,8 +144,10 @@ export function prepareLines(
             }
         }
     }
+
     // if (at === 0) {
-    innerCut = arrangeCut(
+
+    const innerCut = arrangeCut(
         hits,
         lines,
         scale,
@@ -232,14 +167,7 @@ export function prepareLines(
         h,
         vmargin,
         pixelsPerMM,
-        trail: trail
-            ? trailPoints(trail, dataset, scale).map((line) =>
-                  line.map(({ x, y }) => ({
-                      x: x + wmargin,
-                      y: y + vmargin,
-                  })),
-              )
-            : null,
+        trail: trailData,
         cuts,
         alts,
         skips,
@@ -263,6 +191,101 @@ const trailPoints = (trail: Trail, dataset: Dataset, scale: number) => {
         });
     });
 };
+
+export type AllLines = {
+    steps: number;
+    allLines: Point[][][];
+    hits: Point[];
+    lines: number[][];
+    each: number;
+    min: number;
+    trailData: null | Array<Array<{ x: number; y: number }>>;
+    vmargin: number;
+    pixelsPerMM: number;
+    wmargin: number;
+    max: number;
+};
+
+export function getAllLines(
+    dataset: Dataset,
+    trail: undefined | Trail,
+    tweak: number,
+    widthInMM: number,
+    thickness: number,
+    skip: number,
+    hmargin: number,
+    scale: number,
+): AllLines {
+    const lines = dataset.rows;
+    let max = -Infinity;
+    let min = Infinity;
+    lines.forEach((line) =>
+        line.forEach((v) => {
+            max = Math.max(v, max);
+            min = Math.min(v, min);
+        }),
+    );
+    min += tweak;
+
+    const heightInMM = max * widthInMM;
+    const materialLayers = Math.round(heightInMM / thickness);
+    const layers = (materialLayers + 1) * skip - 1;
+
+    const steps = layers;
+
+    const margin = (hmargin * Math.sqrt(3)) / 2;
+
+    const pixelsPerMM = (scale * lines[0].length) / widthInMM;
+    const vmargin = margin * pixelsPerMM;
+    const wmargin = (vmargin * 2) / Math.sqrt(3);
+
+    const polyPoints =
+        dataset.shape === 'hex'
+            ? borderHexes(lines[0].length, lines.length, scale, 0)[0].map(
+                  ([x, y]): Point => [x - scale / 2, y - scale / 2],
+              )
+            : rectClip(lines, scale);
+    const clipPoly = polyLines(polyPoints);
+    const hits: Array<Point> = polyPoints.slice();
+    const each = (max - min) / steps;
+
+    const allLines = [];
+
+    for (let at = 0; at < steps; at++) {
+        const th = each * (at + 1) + min;
+        const rendered: Array<Array<[number, number]>> = levelPoints(
+            th,
+            lines,
+            scale,
+            clipPoly,
+            hits,
+        ).map((line) => line.map(([x, y]) => [x + wmargin, y + vmargin]));
+
+        allLines.push(rendered);
+    }
+    const trailData = trail
+        ? trailPoints(trail, dataset, scale).map((line) =>
+              line.map(({ x, y }) => ({
+                  x: x + wmargin,
+                  y: y + vmargin,
+              })),
+          )
+        : null;
+    return {
+        steps,
+        allLines,
+        hits,
+        lines,
+        each,
+        min,
+        vmargin,
+        pixelsPerMM,
+        trailData,
+        wmargin,
+        max,
+    };
+}
+
 function rectClip(
     lines: number[][],
     scale: number,

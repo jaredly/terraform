@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Dataset, Settings, Trail } from './App';
 import { colsFirst, rowsFirst } from './placements';
-import { Lines, prepareLines } from './prepareLines';
+import { getAllLines, Lines, prepareLines } from './prepareLines';
 
 export const RenderSvgContents = ({
     rendered,
@@ -122,9 +122,19 @@ export const RenderSvgs = ({
     trail?: Trail;
 }) => {
     const allLines = React.useMemo(() => {
+        const allData = getAllLines(
+            dataset,
+            trail,
+            settings.tweak,
+            settings.width,
+            settings.thickness,
+            settings.skip,
+            settings.margin,
+            settings.scale,
+        );
         const lines = [];
         for (let i = 0; i < settings.blanks; i++) {
-            lines.push(prepareLines(dataset, settings, i, trail));
+            lines.push(prepareLines(allData, settings, i));
         }
         return lines;
     }, [dataset, settings, trail]);
@@ -194,7 +204,10 @@ export const RenderSvgs = ({
     for (let i = 0; i < settings.blanks; i++) {
         let { x, y } = positions[i];
         let xa, ya;
-        if (settings.rowsFirst && settings.rows > settings.blanks) {
+        if (
+            (settings.rowsFirst && settings.rows > settings.blanks) ||
+            (!settings.rowsFirst && settings.rows === 1)
+        ) {
             xa = i * (oneWidthMM + between);
             ya = 0;
         } else if (!settings.rowsFirst && settings.rows > settings.blanks * 2) {
