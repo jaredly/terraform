@@ -1,4 +1,4 @@
-import { Point } from './calculateLines';
+import { Point } from './marchingSquares';
 
 export const segmentsToPolylines = (
     lines: Array<[Point, Point]>,

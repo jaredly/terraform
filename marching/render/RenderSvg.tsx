@@ -1,40 +1,35 @@
 import * as React from 'react';
 import { Dataset, Settings, Trail } from '../App';
 import { colsFirst, rowsFirst } from './placements';
-import { getAllLines, Lines, prepareLines } from './prepareLines';
-import * as shapefile from 'shapefile';
-import JSZip from 'jszip';
-
-const get = (url: string) => fetch(url).then((res) => res.arrayBuffer());
+import { LinesForBlank, assembleLinesForBlank } from './assembleLinesForBlank';
+import { calculateTopographicalLines } from './calculateTopographicalLines';
+// import * as shapefile from 'shapefile';
+// import JSZip from 'jszip';
+// const get = (url: string) => fetch(url).then((res) => res.arrayBuffer());
 
 // export async function getPlaces() {
 //     const shp = await
-
 // }
 
-export async function getShape(name: string) {
-    const shp = await get(
-        `https://cdn.rawgit.com/jaredly/naturalearth-mirror/master/${name}.shp`,
-    );
-    const dbf = await get(
-        `https://cdn.rawgit.com/jaredly/naturalearth-mirror/master/${name}.dbf`,
-    );
-    const geojson = shapefile.read(shp, dbf, { encoding: 'utf-8' });
-    return geojson;
-}
+// export async function getShape(name: string) {
+//     const shp = await get(
+//         `https://cdn.rawgit.com/jaredly/naturalearth-mirror/master/${name}.shp`,
+//     );
+//     const dbf = await get(
+//         `https://cdn.rawgit.com/jaredly/naturalearth-mirror/master/${name}.dbf`,
+//     );
+//     const geojson = shapefile.read(shp, dbf, { encoding: 'utf-8' });
+//     return geojson;
+// }
 
-type Names = any;
+// type Names = any;
 
 export const RenderSvgContents = ({
     rendered,
     settings,
-}: // names,
-// blank,
-{
-    rendered: Lines;
+}: {
+    rendered: LinesForBlank;
     settings: Settings;
-    // names: Names;
-    // blank: number;
 }) => {
     const fontSize = rendered.vmargin * 0.7;
     return (
@@ -163,19 +158,9 @@ export const Scale = ({
     // 1km would be 1000/30 = 33px
     const kmPixels = (scale * 1000) / 30;
     const kilometer = 1000000 / (kmPixels / pixelsPerMM);
-    let w;
-    let km = 1;
     let kms = Math.max(1, Math.floor(sideLength / 2 / kmPixels));
-    // if (kmPixels < sideLength / )
-    // if (kmPixels < sideLength / 5) {
-    //     w = kmPixels * 3
-    //     km = 3
-    // } else {
-    //     w = kmPixels
-    //     km = 1
-    // }
-    km = kms;
-    w = kmPixels * km;
+    const km = kms;
+    const w = kmPixels * km;
     return (
         <g>
             <text
@@ -213,30 +198,11 @@ export const RenderSvgs = ({
     settings: Settings;
     trail?: Trail;
 }) => {
-    const [names, setNames] = React.useState(namesCache);
-    // React.useEffect(() => {
-    //     if (!namesCache) {
-    //         console.log('get is');
-    //         getShape('10m_cultural/ne_10m_populated_places_simple').then(
-    //             (names) => {
-    //                 namesCache = names;
-    //                 setNames(names);
-    //                 console.log(names);
-    //                 console.log(trail?.data.trackData[0][0]);
-    //                 window.thenames = names;
-    //             },
-    //             (err) => {
-    //                 console.log('nope', err);
-    //             },
-    //         );
-    //     }
-    // }, []);
-
     const allLines = React.useMemo(() => {
-        const allData = getAllLines(dataset, trail, settings);
+        const allData = calculateTopographicalLines(dataset, trail, settings);
         const lines = [];
         for (let i = 0; i < settings.blanks; i++) {
-            lines.push(prepareLines(allData, settings, i));
+            lines.push(assembleLinesForBlank(allData, settings, i));
         }
         return lines;
     }, [dataset, settings, trail]);
@@ -369,7 +335,7 @@ export const RenderSvg = ({
     settings: Settings;
     trail?: Trail;
     blank: number;
-    rendered: Lines;
+    rendered: LinesForBlank;
 }) => {
     // const rendered = React.useMemo(
     //     () => prepareLines(dataset, settings, blank, trail),

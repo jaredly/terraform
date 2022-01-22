@@ -1,3 +1,6 @@
+// Utils for calculating where to put hexagons, on rows or columns.
+// every other row is shifted left 1/2 a width.
+
 const col = (x: number, y: number) => x * 2 + (y % 2 === 1 ? 1 : 0);
 
 export const rowsFirst = (cells: number, columns: number) => {
@@ -11,11 +14,6 @@ export const rowsFirst = (cells: number, columns: number) => {
             x = 0;
             y += 1;
         }
-        // let col = x * 2 + (y % 2 === 1 ? 1 : 0);
-        // if (col >= columns) {
-        //     x = 0;
-        //     y += 1;
-        // }
     }
     return positions;
 };

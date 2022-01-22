@@ -1,14 +1,14 @@
-import { calculateLines, Point } from './calculateLines';
+import { runMarchingSquares, Point } from './marchingSquares';
 import { segmentsToPolylines } from './segmentsToPolylines';
 
-export const levelPoints = (
+export const calculateTopographicalLine = (
     threshhold: number,
     lines: Array<Array<number>>,
     scale: number,
     clipPolygon: Array<LineSlope>,
     hits: Array<Point>,
 ): Array<Array<[number, number]>> => {
-    const rendered = calculateLines(true, lines, threshhold, scale);
+    const rendered = runMarchingSquares(lines, threshhold, scale);
 
     const p = segmentsToPolylines(clipToPolygon(rendered, clipPolygon, hits));
     return p.map((points) => {
@@ -170,24 +170,6 @@ export const clipToPolygon = (
     // rendered.forEach(([p1, p2]) => {
     //     clipped.push([p1, p2]);
     // });
-};
-
-export const renderLevel = (
-    ctx: CanvasRenderingContext2D,
-    threshhold: number,
-    lines: Array<Array<number>>,
-    scale: number,
-    clipPolygon: Array<LineSlope>,
-    hits: Array<Point>,
-) => {
-    levelPoints(threshhold, lines, scale, clipPolygon, hits).forEach((line) => {
-        ctx.beginPath();
-        ctx.moveTo(line[0][0], line[0][1]);
-        line.slice(1).forEach(([x, y]) => {
-            ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-    });
 };
 
 export const isValidHex = (

@@ -1,6 +1,7 @@
-import { isValidHex } from './render';
+import { isValidHex } from './calculateTopographicalLine';
 import { Dataset, Trail, Settings } from '../App';
-import { getAllLines, prepareLines } from './prepareLines';
+import { assembleLinesForBlank } from './assembleLinesForBlank';
+import { calculateTopographicalLines } from './calculateTopographicalLines';
 
 export function renderToCanvas(
     canvas: HTMLCanvasElement,
@@ -8,8 +9,8 @@ export function renderToCanvas(
     settings: Settings,
     trail?: Trail,
 ) {
-    const allData = getAllLines(dataset, trail, settings);
-    const rendered = prepareLines(allData, settings, undefined);
+    const allData = calculateTopographicalLines(dataset, trail, settings);
+    const rendered = assembleLinesForBlank(allData, settings, undefined);
     canvas.width = rendered.w;
     canvas.height = rendered.h;
     canvas.style.width = `${rendered.w / 2}px`;

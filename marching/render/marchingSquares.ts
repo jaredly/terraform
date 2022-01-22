@@ -1,11 +1,16 @@
 // The bones of marching squares
 
-export function calculateLines(
-    interpolation: boolean,
+export type Point = [number, number];
+
+// Gets line segments separating values above the threshhold from those below it.
+export function runMarchingSquares(
     inputValues: Array<Array<number>>,
     threshhold: number,
+    // BTW I could drop scale here and
+    // just modify everything after the fact ...
     scale: number,
-) {
+    interpolation: boolean = true,
+): Array<[Point, Point]> {
     const lines: Array<[Point, Point]> = [];
 
     const addLine = (p1: Point, p2: Point) => {
@@ -108,14 +113,9 @@ export function stateForGridPosition(
 
 export function binaryToType(nw: number, ne: number, se: number, sw: number) {
     let a = [nw, ne, se, sw];
-    // if (nw != 0 || ne != 0 || se != 0 || sw != 0) {
-    //     console.log(a);
-    // }
-    // fila;
     return a.reduce((res, x) => (res << 1) | x);
 }
 
-export type Point = [number, number];
 function lerp(x: number, x0: number, x1: number, y0 = 0, y1 = 1) {
     if (x0 === x1) {
         return x0;

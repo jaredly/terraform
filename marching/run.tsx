@@ -18,7 +18,6 @@ import '../exports/arenal-large.js';
 import '../exports/arenal-hex.js';
 import '../exports/arenal_hike.js';
 import '../exports/timp_trail.js';
-import { renderLevel } from './render/render';
 import { render } from 'react-dom';
 import React from 'react';
 import { App } from './App.js';

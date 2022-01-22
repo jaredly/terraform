@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { renderLevel } from './render/render';
-import { RenderSvg, RenderSvgs } from './render/RenderSvg';
+import { RenderSvgs } from './render/RenderSvg';
 import { renderToCanvas } from './render/renderToCanvas';
 import { SettingsForm } from './SettingsForm';
 

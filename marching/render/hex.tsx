@@ -1,18 +1,20 @@
 // Utility stuff probably
 
+// Functions for calculating haxagon polylines
+
 export const hex = (
     cx: number,
     cy: number,
-    r: number,
+    radius: number,
 ): Array<[number, number]> => {
-    const h = (r / 2) * Math.sqrt(3);
+    const halfHeight = (radius / 2) * Math.sqrt(3);
     return [
-        [cx - r, cy],
-        [cx - r / 2, cy - h],
-        [cx + r / 2, cy - h],
-        [cx + r, cy],
-        [cx + r / 2, cy + h],
-        [cx - r / 2, cy + h],
+        [cx - radius, cy],
+        [cx - radius / 2, cy - halfHeight],
+        [cx + radius / 2, cy - halfHeight],
+        [cx + radius, cy],
+        [cx + radius / 2, cy + halfHeight],
+        [cx - radius / 2, cy + halfHeight],
     ];
 };
 
@@ -22,10 +24,15 @@ export const borderHexes = (
     scale: number,
     vmargin: number,
 ): Array<Array<[number, number]>> => {
-    const hpx = h * scale + vmargin * 2;
-    const wpx = w * scale + (vmargin * 2 * 2) / Math.sqrt(3);
+    const heightPx = h * scale + vmargin * 2;
+    const widthMargin = (vmargin * 2) / Math.sqrt(3);
+    const widthPx = w * scale + widthMargin * 2;
     return [
-        hex(wpx / 2, hpx / 2, (((h - 1.0) * scale) / 2 / Math.sqrt(3)) * 2),
-        hex(wpx / 2, hpx / 2, (hpx / 2 / Math.sqrt(3)) * 2 - 1),
+        hex(
+            widthPx / 2,
+            heightPx / 2,
+            (((h - 1.0) * scale) / 2 / Math.sqrt(3)) * 2,
+        ),
+        hex(widthPx / 2, heightPx / 2, (heightPx / 2 / Math.sqrt(3)) * 2 - 1),
     ];
 };
