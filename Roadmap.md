@@ -1,4 +1,6 @@
 
+- [ ] whyyyy is my measurement off!!????
+
 
 - [ ] ok, so the javascript topo algorithm is all kinds of janky. I'd like to switch to https://www.npmjs.com/package/marchingsquares, although it doesn't look like it does the interpolation that https://jurasic-park.de/marching_squares/ does. Ok so honestly I should probably go with modifying https://github.com/missing-user/marching_squares/blob/master/scripts/script_instanced.js to fit my bill, because I'll need to do extra fancy stuff at the borders, in order to get the behavior I want.
 

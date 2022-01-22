@@ -1,5 +1,5 @@
 import { calculateLines, Point } from './calculateLines';
-import { polyfy } from './polyfy';
+import { segmentsToPolylines } from './segmentsToPolylines';
 
 export const levelPoints = (
     threshhold: number,
@@ -10,7 +10,7 @@ export const levelPoints = (
 ): Array<Array<[number, number]>> => {
     const rendered = calculateLines(true, lines, threshhold, scale);
 
-    const p = polyfy(clipToPolygon(rendered, clipPolygon, hits));
+    const p = segmentsToPolylines(clipToPolygon(rendered, clipPolygon, hits));
     return p.map((points) => {
         return points.map(([x, y]) => [x + scale / 2, y + scale / 2]);
     });

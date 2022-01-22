@@ -1,8 +1,8 @@
 import { closeEnough, closePos, levelPoints, polyLines } from './render';
-import { Dataset, Trail } from './App';
-import { Settings } from './App';
+import { Dataset, Trail } from '../App';
+import { Settings } from '../App';
 import { borderHexes, hex } from './hex';
-import { Point } from '/Users/jared/clone/exploration/terraform/marching/calculateLines';
+import { Point } from './calculateLines';
 
 export type Lines = {
     // in px, including margins
@@ -114,9 +114,9 @@ export function prepareLines(
         max,
     } = allData;
 
-    const w = scale * lines[0].length + wmargin * 2;
-    // w is going to be off I think???
     const h = scale * lines.length + vmargin * 2;
+    // const w = ((scale * lines.length) / Math.sqrt(3)) * 2 + wmargin * 2;
+    const w = scale * lines[0].length + wmargin * 2;
 
     const borders = borderHexes(lines[0].length, lines.length, scale, vmargin);
 
@@ -222,7 +222,7 @@ export function getAllLines(
         width: widthInMM,
         thickness,
         skip,
-        margin: hmargin,
+        horizontalMargin: hmargin,
         scale,
     }: Settings,
 ): AllLines {
@@ -243,11 +243,12 @@ export function getAllLines(
 
     const steps = layers;
 
-    const margin = (hmargin * Math.sqrt(3)) / 2;
+    const verticalMargin = (hmargin * Math.sqrt(3)) / 2;
 
-    const pixelsPerMM = (scale * lines[0].length) / widthInMM;
-    const vmargin = margin * pixelsPerMM;
-    const wmargin = (vmargin * 2) / Math.sqrt(3);
+    const horizontalPixels = ((scale * lines.length) / Math.sqrt(3)) * 2;
+    const pixelsPerMM = horizontalPixels / widthInMM;
+    const vmargin = verticalMargin * pixelsPerMM;
+    const wmargin = hmargin * pixelsPerMM;
 
     const polyPoints =
         dataset.shape === 'hex'
@@ -299,7 +300,7 @@ export function getAllLines(
 function rectClip(
     lines: number[][],
     scale: number,
-): import('/Users/jared/clone/exploration/terraform/marching/calculateLines').Point[] {
+): import('./calculateLines').Point[] {
     return [
         [0, 0],
         [0, lines.length * scale],

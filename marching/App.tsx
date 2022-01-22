@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { renderLevel } from './render';
-import { RenderSvg, RenderSvgs } from './RenderSvg';
-import { renderToCanvas } from './renderToCanvas';
+import { renderLevel } from './render/render';
+import { RenderSvg, RenderSvgs } from './render/RenderSvg';
+import { renderToCanvas } from './render/renderToCanvas';
 import { SettingsForm } from './SettingsForm';
 
 export type Dataset = {
@@ -38,7 +38,7 @@ export type Settings = {
     scale: number;
     title: string;
     tweak: number;
-    margin: number;
+    horizontalMargin: number;
     blanks: number;
     rainbow: boolean;
     showReference: boolean;
@@ -58,7 +58,7 @@ const defaultSettings: Settings = {
     scale: 5,
     title: '',
     tweak: 0,
-    margin: 5,
+    horizontalMargin: 3,
     blanks: 2,
     rows: 0,
     rowsFirst: true,

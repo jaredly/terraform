@@ -1,24 +1,8 @@
 import { Point } from './calculateLines';
 
-// if (dataset.shape === 'hex') {
-//     lines.forEach((line, y) => {
-//         line.forEach((_, x) => {
-//             if (!isValid(x, y)) {
-//                 line[x] = -1000;
-//             }
-//         });
-//     });
-// }
-// ctx.globalAlpha = 0.2;
-// lines.forEach((line, y) => {
-//     line.forEach((v, x) => {
-//         const to = (v - min) / (max - min);
-//         ctx.fillStyle = `hsl(${(to * 360 * 10) % 360}, 100%, 50%)`;
-//         ctx.fillRect(x * scale, y * scale, scale, scale);
-//     });
-// });
-// ctx.globalAlpha = 1;
-export const polyfy = (lines: Array<[Point, Point]>): Array<Array<Point>> => {
+export const segmentsToPolylines = (
+    lines: Array<[Point, Point]>,
+): Array<Array<Point>> => {
     const map: { [key: string]: Array<Point> } = {};
     const res: Array<Array<Point>> = [];
 

@@ -1,5 +1,5 @@
 import { isValidHex } from './render';
-import { Dataset, Trail, Settings } from './App';
+import { Dataset, Trail, Settings } from '../App';
 import { getAllLines, prepareLines } from './prepareLines';
 
 export function renderToCanvas(
@@ -8,16 +8,7 @@ export function renderToCanvas(
     settings: Settings,
     trail?: Trail,
 ) {
-    const allData = getAllLines(
-        dataset,
-        trail,
-        settings.tweak,
-        settings.width,
-        settings.thickness,
-        settings.skip,
-        settings.margin,
-        settings.scale,
-    );
+    const allData = getAllLines(dataset, trail, settings);
     const rendered = prepareLines(allData, settings, undefined);
     canvas.width = rendered.w;
     canvas.height = rendered.h;

@@ -184,21 +184,6 @@ export const SettingsForm = ({
                                     }}
                                 />{' '}
                                 {settings.rows}
-                                {/* Columns
-                            <input
-                                type="range"
-                                min="0"
-                                max={settings.blanks / (settings.rows + 1) + 5}
-                                step="1"
-                                value={settings.columns}
-                                onChange={(evt) => {
-                                    setSettings((s) => ({
-                                        ...s,
-                                        columns: +evt.target.value,
-                                    }));
-                                }}
-                            />{' '}
-                            {settings.columns} */}
                             </div>
                             <div>
                                 Rotate?{' '}
@@ -216,7 +201,7 @@ export const SettingsForm = ({
                         </>
                     ) : null}
                 </div>
-                <div>
+                <div style={{ marginLeft: 8 }}>
                     <div>
                         Width (mm):
                         <BlurNumber
@@ -240,13 +225,13 @@ export const SettingsForm = ({
                         />
                     </div>
                     <div>
-                        Margin (mm):
+                        Horizontal Margin (mm):
                         <BlurNumber
-                            value={settings.margin}
+                            value={settings.horizontalMargin}
                             onChange={(margin) =>
                                 setSettings((s) => ({
                                     ...s,
-                                    margin,
+                                    horizontalMargin: margin,
                                 }))
                             }
                         />

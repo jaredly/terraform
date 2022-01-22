@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Dataset, Settings, Trail } from './App';
+import { Dataset, Settings, Trail } from '../App';
 import { colsFirst, rowsFirst } from './placements';
 import { getAllLines, Lines, prepareLines } from './prepareLines';
 import * as shapefile from 'shapefile';
@@ -28,12 +28,12 @@ type Names = any;
 export const RenderSvgContents = ({
     rendered,
     settings,
-    names,
-}: // blank,
+}: // names,
+// blank,
 {
     rendered: Lines;
     settings: Settings;
-    names: Names;
+    // names: Names;
     // blank: number;
 }) => {
     const fontSize = rendered.vmargin * 0.7;
@@ -54,22 +54,20 @@ export const RenderSvgContents = ({
                 ) : null,
             )}
             {rendered.innerCut.map((points, i) => (
-                <>
-                    <polyline
-                        key={i}
-                        stroke="red"
-                        fill="none"
-                        strokeWidth={0.5}
-                        points={points
-                            .map(
-                                ([x, y]) =>
-                                    `${x + rendered.wmargin},${
-                                        y + rendered.vmargin
-                                    }`,
-                            )
-                            .join(' ')}
-                    />
-                </>
+                <polyline
+                    key={i}
+                    stroke="red"
+                    fill="none"
+                    strokeWidth={0.5}
+                    points={points
+                        .map(
+                            ([x, y]) =>
+                                `${x + rendered.wmargin},${
+                                    y + rendered.vmargin
+                                }`,
+                        )
+                        .join(' ')}
+                />
             ))}
             {settings.showReference
                 ? rendered.reference.map((line, i) => (
@@ -131,17 +129,15 @@ export const RenderSvgContents = ({
                 fontSize={fontSize * 0.7}
             />
             {settings.title.trim() ? (
-                <>
-                    <text
-                        x={rendered.w / 2}
-                        y={rendered.h - fontSize / 2}
-                        textAnchor={'middle'}
-                        fontSize={fontSize}
-                        fontFamily="sans-serif"
-                    >
-                        {settings.title}
-                    </text>
-                </>
+                <text
+                    x={rendered.w / 2}
+                    y={rendered.h - fontSize / 2}
+                    textAnchor={'middle'}
+                    fontSize={fontSize}
+                    fontFamily="sans-serif"
+                >
+                    {settings.title}
+                </text>
             ) : null}
         </>
     );
@@ -305,12 +301,11 @@ export const RenderSvgs = ({
         maxx = Math.max(maxx, xa + oneWidthMM);
         maxy = Math.max(maxy, ya + oneHeightMM);
         inners.push(
-            <g transform={`translate(${xa * mmToPx} ${ya * mmToPx})`}>
+            <g transform={`translate(${xa * mmToPx} ${ya * mmToPx})`} key={i}>
                 <RenderSvgContents
                     rendered={allLines[i]}
                     settings={settings}
                     // blank={i}
-                    key={i}
                 />
             </g>,
         );
