@@ -3,6 +3,10 @@
 
 ![splash screen](./assets/background.png)
 
+## Running:
+
+`topo.bin`
+
 ## Dependencies
 
 - GDAL, which is a C library that will need to be installed separately. On macos, try `brew install gdal2` or `brew install gdal`.

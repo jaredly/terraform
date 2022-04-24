@@ -53,6 +53,8 @@ export function calculateTopographicalLines(
 
     const verticalMargin = (hmargin * Math.sqrt(3)) / 2;
 
+    // Why minus 1? Because we're drawing these topo lines from the centers
+    // of pixels. so between 3 pixels, the topo lines only extend 2 units.
     const horizontalPixels = ((scale * (lines.length - 1)) / Math.sqrt(3)) * 2;
     // const pixelsPerMM = 3;
     const pixelsPerMM = horizontalPixels / widthInMM;
