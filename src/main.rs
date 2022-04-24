@@ -14,6 +14,8 @@ use kiss3d::resource::{IndexNum, Mesh};
 use kiss3d::window::Window;
 use na::{Point2, Point3, Rotation3, Translation3, UnitQuaternion, Vector2, Vector3};
 use ncollide3d::procedural::{IndexBuffer, TriMesh};
+use std::fs::File;
+use std::io::prelude::*;
 use std::time::SystemTime;
 
 mod hex;
@@ -63,49 +65,119 @@ struct Status {
     selection_node: kiss3d::scene::SceneNode,
     selection: Selection,
     zoom: Option<Zoom>,
+    trail: Option<Vec<(f32, f32)>>,
 }
 
 enum Transition {
     Open(String),
+    OpenTrail(String),
     Select(terrain::Coords, usize),
     Resolution(usize),
     Export,
+    ExportJSON,
     Reset,
     Cut(terrain::Hex),
 }
 
 use kiss3d::scene::SceneNode;
 
-fn large_nodes(file: &terrain::File, window: &mut Window) -> (SceneNode, SceneNode) {
+/*
+Ok, so there are fundamentally 3 scenes to render.
+
+Scene_0_Home - nothing is loaded, just show an "open file" button and a screenshot
+Scene_1_Tile - loaded a tile of GIS data
+Scene_2_Crop - cropped down to a smaller thing, loading full data, with resolution control
+Scene_3_Hex - cropped down to a hex
+
+*/
+
+fn load_trail_file(file_name: String) -> std::io::Result<Vec<(f32, f32)>> {
+    let mut file = File::open(file_name)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    let mut result: Vec<(f32, f32)> = vec![];
+    for line in contents.split('\n') .collect::<Vec<&str>>() .iter() .skip(1) {
+        if line.len() == 0 {
+            continue;
+        }
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() < 3 {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Too few items"))
+        }
+        if parts[0].eq("Latitude") {
+            continue;
+        }
+        let lat: f32 = parts[0].parse().unwrap();
+        let lon: f32 = parts[1].parse().unwrap();
+        let y = lat - lat.floor() - 0.5;
+        let x = lon - lon.floor() - 0.5;
+
+                    // for (x, y) in &mut trail {
+                    //     *x -= 0.5;
+                    //     *y -= 0.5;
+                    // }
+
+        result.push((x, y));
+    }
+    println!("Loaded trail success!");
+
+    return Ok(result);
+}
+
+fn render_scene_1_tile(file: &terrain::File, trail: &Option<Vec<(f32, f32)>>, window: &mut Window) -> (SceneNode, SceneNode) {
     window.scene_mut().clear();
     window.set_camera(make_camera());
 
-    let mesh = profile!("Make mesh", file.full_mesh(10, 2.0));
+    let terrain = file.get_terrain(
+        &terrain::Coords {
+            x: 0,
+            y: 0,
+            w: file.size.x,
+            h: file.size.y,
+        },
+        4,
+        2.0
+    ).unwrap();
+
+    let max_height = terrain.points.iter().map(|p| p.z).max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).unwrap();
+    let mesh = terrain.into_mesh();
+
     let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
     mesh_node.set_color(0.0, 1.0, 0.0);
     mesh_node.enable_backface_culling(false);
 
     let mut pointer = window.add_cube(0.002, 0.002, 0.5);
-    pointer.set_color(1.0, 0.0, 0.0);
-    // pointer.set_visible(false);
+    
 
     let mut selection = window.add_trimesh(threed::make_selection(), Vector3::from_element(1.0));
-    selection.set_local_scale(0.0, 0.0, 0.15);
+    selection.set_local_scale(0.0, 0.0, max_height);
     selection.enable_backface_culling(false);
     selection.set_color(0.0, 0.0, 1.0);
     selection.set_alpha(0.5);
 
+    match trail {
+        Some(trail) => {
+            let poly = threed::make_prism(trail, false);
+            let mut trail = window.add_trimesh(poly, Vector3::from_element(1.0));
+            trail.set_local_scale(1.0, 1.0, max_height);
+            trail.enable_backface_culling(false);
+            trail.set_color(1.0, 0.0, 1.0);
+            trail.set_alpha(0.8);
+        }
+        _ => {}
+    };
+
     (pointer, selection)
 }
 
-fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
+fn load_file_and_render(window: &mut Window, file_name: String) -> Option<Status> {
     if let Ok(dataset) = Dataset::open(Path::new(file_name.as_str())) {
         let file = profile!(
             "Load file",
             terrain::File::from_dataset(&dataset, file_name)
         );
 
-        let (pointer, selection) = large_nodes(&file, window);
+        let (pointer, selection) = render_scene_1_tile(&file, &None, window);
 
         Some(Status {
             file,
@@ -116,6 +188,7 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
                 size: Vector2::new(0.0, 0.0),
             },
             zoom: None,
+            trail: None,
         })
     } else {
         println!("Reset");
@@ -123,13 +196,14 @@ fn make_large(window: &mut Window, file_name: String) -> Option<Status> {
     }
 }
 
-fn setup_cut(
+fn render_scene_3_hex(
     window: &mut Window,
     file: &terrain::File,
     hex: &terrain::Hex,
     sample: usize,
     reset_camera: bool,
 ) -> bool {
+
     if let Some(mesh) = file.get_hex(&hex, sample) {
         window.scene_mut().clear();
         if reset_camera {
@@ -149,18 +223,27 @@ fn setup_cut(
     }
 }
 
-fn setup_small(
+fn render_scene_2_crop(
     window: &mut Window,
     file: &terrain::File,
+    trail: &Option<Vec<(f32, f32)>>,
     coords: &terrain::Coords,
     sample: usize,
     reset_camera: bool,
 ) -> Option<(kiss3d::scene::SceneNode, kiss3d::scene::SceneNode)> {
-    if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
+    if let Some(terrain) = file.get_terrain(&coords, sample, 1.0) {
+        let max_height = terrain.points.iter().map(|p| p.z).max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).unwrap();
+        let mesh = terrain.into_mesh();
+
+
+    // }
+    // if let Some(mesh) = file.get_mesh(&coords, sample, 1.0) {
         window.scene_mut().clear();
         if reset_camera {
             window.set_camera(make_camera());
         }
+
+        // let points = Terrain::from_raster
 
         let mut mesh_node = window.add_mesh(mesh, Vector3::new(1.0, 1.0, 1.0));
         mesh_node.set_color(0.0, 1.0, 0.0);
@@ -168,13 +251,50 @@ fn setup_small(
 
         let mut pointer = window.add_cube(0.002, 0.002, 0.5);
         pointer.set_color(1.0, 0.0, 0.0);
-        // pointer.set_visible(false);
 
         let mut selection = window.add_trimesh(threed::make_hex(), Vector3::from_element(1.0));
-        selection.set_local_scale(0.0, 0.0, 0.15);
+        selection.set_local_scale(0.0, 0.0, max_height);
         selection.enable_backface_culling(false);
         selection.set_color(0.0, 0.0, 1.0);
         selection.set_alpha(0.5);
+
+        match trail {
+            Some(trail) => {
+
+                // let maxHeight = 0;
+                // file.raster
+
+                let w = file.size.x as f32;
+                let h = file.size.y as f32;
+
+                let ocx = w / 2.0;
+                let ocy = h / 2.0;
+                let ncx = coords.x as f32 + coords.w as f32 / 2.0;
+                let ncy = coords.y as f32 + coords.h as f32 / 2.0;
+
+                // let xoff = (coords.x as f32 / w);
+                // let yoff = (coords.y as f32 / h);
+                let xoff = (ncx - ocx) / w;
+                let yoff = (ncy - ocy) / h;
+
+                println!("Ok {},{} vs {},{}", ocx, ocy, ncx, ncy);
+                println!("Coords {},{} {}x{}", coords.x, coords.y, coords.w, coords.h);
+
+                let scale = if coords.w > coords.h { coords.w as f32 / w } else { coords.h as f32 / h };
+                let mut trailed = vec![];
+                for (x, y) in trail {
+                    trailed.push(((*x - xoff) / scale , (*y + yoff) / scale ));
+                }
+                let poly = threed::make_prism(&trailed, false);
+                let mut trail_poly = window.add_trimesh(poly, Vector3::from_element(1.0));
+                trail_poly.set_local_scale(1.0, 1.0, max_height);
+                trail_poly.enable_backface_culling(false);
+                trail_poly.set_color(1.0, 0.0, 1.0);
+                trail_poly.set_alpha(0.8);
+            }
+            _ => {}
+        };
+
 
         Some((pointer, selection))
     } else {
@@ -189,42 +309,87 @@ fn handle_transition(
 ) -> Option<Status> {
     match current {
         None => match transition {
-            Transition::Open(file_name) => match make_large(window, file_name) {
+            Transition::Open(file_name) => match load_file_and_render(window, file_name) {
                 Some(status) => Some(status),
                 None => None,
             },
             _ => None,
         },
-        Some(status) => {
-            match transition {
-                Transition::Open(file_name) => match make_large(window, file_name) {
-                    Some(status) => Some(status),
-                    None => Some(status),
+        Some(mut status) => match transition {
+            Transition::Open(file_name) => match load_file_and_render(window, file_name) {
+                Some(status) => Some(status),
+                None => Some(status),
+            },
+            Transition::OpenTrail(file_name) => match load_trail_file(file_name) {
+                Ok(trail) => {
+                    let opt = Some(trail);
+                    let (pointer, selection_node) = render_scene_1_tile(&status.file, &opt, window);
+                    Some(Status {
+                        pointer,
+                        selection_node,
+                        selection: Selection {
+                            pos: Point2::new(0.0, 0.0),
+                            size: Vector2::new(0.0, 0.0),
+                        },
+                        trail: opt,
+                        ..status
+                    })
+
+                    // let poly = threed::make_prism(&trail, false);
+                    // let mut selection = window.add_trimesh(poly, Vector3::from_element(1.0));
+                    // selection.set_local_scale(1.0, 1.0, 0.15);
+                    // selection.enable_backface_culling(false);
+                    // selection.set_color(1.0, 0.0, 1.0);
+                    // selection.set_alpha(0.8);
+                    // let mut bounds = (trail[0].0, trail[0].0, trail[0].1, trail[0].1);
+                    // for (x, y) in &trail {
+                    //     bounds.0 = x.min(bounds.0);
+                    //     bounds.1 = x.max(bounds.1);
+                    //     bounds.2 = y.min(bounds.2);
+                    //     bounds.3 = y.max(bounds.3);
+                    // }
+                    // let w = (bounds.1 - bounds.0);
+                    // let h = (bounds.3 - bounds.2);
+                    // status.selection_node.set_local_scale(w / 2.0, h / 2.0, 0.15);
+                    // status.selection_node.set_local_translation(Translation3::from(
+                    //     Vector3::new(bounds.0 + w / 2.0, bounds.2 + h / 2.0, 0.0),
+                    // ));
+
+                    // Some(Status {
+                    //     trail: Some(trail),
+                    //     ..status
+                    // })
                 },
-                Transition::Select(coords, sample) => {
-                    if let Some((pointer, selection_node)) =
-                        setup_small(window, &status.file, &coords, sample, true)
-                    {
-                        Some(Status {
-                            pointer,
-                            selection_node,
-                            zoom: Some(Zoom {
-                                coords,
-                                sample,
-                                hselection: (Point2::new(0.0, 0.0), 0.0),
-                                cut: None,
-                            }),
-                            ..status
-                        })
-                    } else {
-                        Some(status)
-                    }
+                Err(err) => {
+                    println!("Failed! {}", err);
+                    Some(status)
+                },
+            },
+            Transition::Select(coords, sample) => {
+                if let Some((pointer, selection_node)) =
+                    render_scene_2_crop(window, &status.file, &status.trail, &coords, sample, true)
+                {
+                    Some(Status {
+                        pointer,
+                        selection_node,
+                        zoom: Some(Zoom {
+                            coords,
+                            sample,
+                            hselection: (Point2::new(0.0, 0.0), 0.0),
+                            cut: None,
+                        }),
+                        ..status
+                    })
+                } else {
+                    Some(status)
                 }
-                Transition::Cut(hex) => match status.zoom {
+            }
+            Transition::Cut(hex) => {
+                match status.zoom {
                     None => Some(status),
                     Some(zoom) => {
                         println!("To re-run at this setting: \n cargo run --release {} {} {} {} {} {} {} {}", status.file.name, zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h, hex.cx, hex.cy, hex.half_height);
-                        setup_cut(window, &status.file, &hex, zoom.sample, true);
+                        render_scene_3_hex(window, &status.file, &hex, zoom.sample, true);
                         Some(Status {
                             zoom: Some(Zoom {
                                 cut: Some(hex),
@@ -233,108 +398,173 @@ fn handle_transition(
                             ..status
                         })
                     }
-                },
-                Transition::Resolution(res) => match status.zoom {
-                    None => Some(status),
-                    Some(zoom) => match zoom.cut {
-                        Some(cut) => {
-                            setup_cut(window, &status.file, &cut, res, false);
-                            Some(Status {
-                                zoom: Some(Zoom {
-                                    sample: res,
-                                    cut: Some(cut),
-                                    ..zoom
-                                }),
-                                ..status
-                            })
-                        }
-                        None => Some(Status {
-                            zoom: if let Some((mut p_new, mut sel_new)) =
-                                setup_small(window, &status.file, &zoom.coords, res, false)
-                            {
-                                sel_new.unlink();
-                                window.add_child(&status.selection_node);
-                                p_new.unlink();
-                                window.add_child(&status.pointer);
-                                Some(Zoom {
-                                    sample: res,
-                                    ..zoom
-                                })
-                            } else {
-                                Some(zoom)
-                            },
-                            ..status
-                        }),
-                    },
-                },
-                Transition::Reset => match status.zoom {
-                    None => Some(status),
-                    Some(zoom) => match zoom.cut {
-                        None => {
-                            let (pointer, selection_node) = large_nodes(&status.file, window);
-                            Some(Status {
-                                pointer,
-                                selection_node,
-                                selection: Selection {
-                                    pos: Point2::new(0.0, 0.0),
-                                    size: Vector2::new(0.0, 0.0),
-                                },
-                                zoom: None,
-                                ..status
-                            })
-                        }
-                        Some(_cut) => {
-                            if let Some((pointer, selection_node)) =
-                                setup_small(window, &status.file, &zoom.coords, zoom.sample, true)
-                            {
-                                Some(Status {
-                                    zoom: Some(Zoom { cut: None, ..zoom }),
-                                    pointer,
-                                    selection_node,
-                                    ..status
-                                })
-                            } else {
-                                Some(Status {
-                                    zoom: Some(zoom),
-                                    ..status
-                                })
-                            }
-                        }
-                    },
-                },
-                Transition::Export => match status.zoom {
-                    None => Some(status),
-                    Some(zoom) => {
-                        let stl = match zoom.cut {
-                            Some(cut) => status.file.to_hex_stl(&cut, zoom.sample),
-                            None => status.file.to_stl(&zoom.coords, zoom.sample, 1.0),
-                        };
-
-                        match stl {
-                            None => println!("Failed to get stl"),
-                            Some(stl) => {
-                                if let Ok(nfd::Response::Okay(file_path)) =
-                                    nfd::open_save_dialog(Some("stl"), None)
-                                {
-                                    let mut outfile =
-                                        std::fs::File::create(file_path.as_str()).unwrap();
-                                    if profile!("Write file", stl::write_stl(&mut outfile, &stl)).is_err() {
-                                        println!("Failed to write :'(");
-                                    }
-                                } else {
-                                    println!("No file selected. Exiting");
-                                }
-                            }
-                        }
-
+                }
+            }
+            Transition::Resolution(res) => match status.zoom {
+                None => Some(status),
+                Some(zoom) => match zoom.cut {
+                    Some(cut) => {
+                        render_scene_3_hex(window, &status.file, &cut, res, false);
                         Some(Status {
-                            zoom: Some(zoom),
+                            zoom: Some(Zoom {
+                                sample: res,
+                                cut: Some(cut),
+                                ..zoom
+                            }),
                             ..status
                         })
                     }
+                    None => Some(Status {
+                        zoom: if let Some((mut p_new, mut sel_new)) =
+                            render_scene_2_crop(window, &status.file, &status.trail, &zoom.coords, res, false)
+                        {
+                            sel_new.unlink();
+                            window.add_child(&status.selection_node);
+                            p_new.unlink();
+                            window.add_child(&status.pointer);
+                            Some(Zoom {
+                                sample: res,
+                                ..zoom
+                            })
+                        } else {
+                            Some(zoom)
+                        },
+                        ..status
+                    }),
                 },
-            }
-        }
+            },
+            Transition::Reset => match status.zoom {
+                None => Some(status),
+                Some(zoom) => match zoom.cut {
+                    None => {
+                        let (pointer, selection_node) = render_scene_1_tile(&status.file, &status.trail, window);
+                        Some(Status {
+                            pointer,
+                            selection_node,
+                            selection: Selection {
+                                pos: Point2::new(0.0, 0.0),
+                                size: Vector2::new(0.0, 0.0),
+                            },
+                            zoom: None,
+                            ..status
+                        })
+                    }
+                    Some(_cut) => {
+                        if let Some((pointer, selection_node)) = render_scene_2_crop(
+                            window,
+                            &status.file,
+                            &status.trail,
+                            &zoom.coords,
+                            zoom.sample,
+                            true,
+                        ) {
+                            Some(Status {
+                                zoom: Some(Zoom { cut: None, ..zoom }),
+                                pointer,
+                                selection_node,
+                                ..status
+                            })
+                        } else {
+                            Some(Status {
+                                zoom: Some(zoom),
+                                ..status
+                            })
+                        }
+                    }
+                },
+            },
+            Transition::ExportJSON => match status.zoom {
+                None => Some(status),
+                Some(zoom) => {
+                    let json = match zoom.cut {
+                        Some(cut) => status.file.to_hex_json(&cut, zoom.sample),
+                        None => status.file.to_json(&zoom.coords, zoom.sample, 1.0),
+                    };
+                    let shape = match zoom.cut {
+                        Some(_) => "hex",
+                        None => "rect",
+                    };
+
+                    match json {
+                        None => println!("Failed to get json"),
+                        Some(json) => {
+                            if let Ok(nfd::Response::Okay(file_path)) =
+                                nfd::open_save_dialog(Some("js"), None)
+                            {
+                                let mut outfile =
+                                    std::fs::File::create(file_path.as_str()).unwrap();
+                                let (x, y, w, h) = match zoom.cut {
+                                    Some(hex) => hex.bbox(),
+                                    None => {
+                                        (zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h)
+                                    }
+                                };
+                                let data = format!(
+                                        "window.data[\"{}\"] = {{x: {:2}, y: {:2}, w: {:2}, h: {:2}, ow: {:2}, oh: {:2}, shape: \"{}\", rows: [{}]}}",
+                                        file_path,
+                                        x,y,w,h,
+                                        &status.file.size.x,
+                                        &status.file.size.y,
+                                        shape,
+                                        json.iter()
+                                        .map(|row|
+                                        format!("[{}]", row.iter().map(
+                                            |item| item.to_string()
+                                        ).collect::<Vec<String>>().join(",")
+                                    ))
+                                        .collect::<Vec<String>>().join(",\n")
+                                    );
+                                if profile!("Write file", outfile.write_all(data.as_bytes()))
+                                    .is_err()
+                                {
+                                    println!("Failed to write :'(");
+                                }
+                            } else {
+                                println!("No file selected. Exiting");
+                            }
+                        }
+                    }
+
+                    Some(Status {
+                        zoom: Some(zoom),
+                        ..status
+                    })
+                }
+            },
+            Transition::Export => match status.zoom {
+                None => Some(status),
+                Some(zoom) => {
+                    let stl = match zoom.cut {
+                        Some(cut) => status.file.to_hex_stl(&cut, zoom.sample),
+                        None => status.file.to_stl(&zoom.coords, zoom.sample, 1.0),
+                    };
+
+                    match stl {
+                        None => println!("Failed to get stl"),
+                        Some(stl) => {
+                            if let Ok(nfd::Response::Okay(file_path)) =
+                                nfd::open_save_dialog(Some("stl"), None)
+                            {
+                                let mut outfile =
+                                    std::fs::File::create(file_path.as_str()).unwrap();
+                                if profile!("Write file", stl::write_stl(&mut outfile, &stl))
+                                    .is_err()
+                                {
+                                    println!("Failed to write :'(");
+                                }
+                            } else {
+                                println!("No file selected. Exiting");
+                            }
+                        }
+                    }
+
+                    Some(Status {
+                        zoom: Some(zoom),
+                        ..status
+                    })
+                }
+            },
+        },
     }
 }
 
@@ -428,6 +658,7 @@ widget_ids! {
         hlist,
         status_text,
         open_file,
+        open_trail,
         help_text,
         selection_text,
         crop,
@@ -435,6 +666,7 @@ widget_ids! {
         sample_less,
         sample_greater,
         export,
+        export_json,
         reset,
         cut,
         image
@@ -537,9 +769,13 @@ impl Statusable for Option<Status> {
                     .align_middle_x()
                     .w(80.0 * 2.0)
                     .h(HEIGHT * 2.0)
-                    .set(ids.open_file, ui).next() {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
-                        return Some(Transition::Open(file_path))
+                    .set(ids.open_file, ui)
+                    .next()
+                {
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("adf,tif"), None)
+                    {
+                        return Some(Transition::Open(file_path));
                     }
                 }
 
@@ -558,8 +794,24 @@ impl Statusable for Option<Status> {
                     .h(HEIGHT)
                     .set(ids.open_file, ui)
                 {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
-                        return Some(Transition::Open(file_path))
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("adf,tif"), None)
+                    {
+                        return Some(Transition::Open(file_path));
+                    }
+                }
+
+                for _press in widget::Button::new()
+                    .label("Open Trail CSV")
+                    .right_from(ids.open_file, 10.0)
+                    .w(80.0)
+                    .h(HEIGHT)
+                    .set(ids.open_trail, ui)
+                {
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("csv"), None)
+                    {
+                        return Some(Transition::OpenTrail(file_path));
                     }
                 }
 
@@ -581,7 +833,7 @@ impl Statusable for Option<Status> {
 
                     if let Some(_press) = widget::Button::new()
                         .label("Crop")
-                        .right_from(ids.open_file, 10.0)
+                        .right_from(ids.open_trail, 10.0)
                         .h(HEIGHT)
                         .w(50.0)
                         .set(ids.crop, ui)
@@ -617,8 +869,10 @@ impl Statusable for Option<Status> {
                     .set(ids.open_file, ui)
                     .next()
                 {
-                    if let Ok(nfd::Response::Okay(file_path)) = nfd::open_file_dialog(Some("adf,tif"), None) {
-                        return Some(Transition::Open(file_path))
+                    if let Ok(nfd::Response::Okay(file_path)) =
+                        nfd::open_file_dialog(Some("adf,tif"), None)
+                    {
+                        return Some(Transition::Open(file_path));
                     }
                 }
 
@@ -650,13 +904,20 @@ impl Statusable for Option<Status> {
                         }
                     }
                 };
+
+                let selected_text = format!(
+                    " Zoom: {:.3}, {:.3} - {:.3} x {:.3}",
+                    zoom.coords.x, zoom.coords.y, zoom.coords.w, zoom.coords.h
+                );
+
                 widget::Text::new(
                     format!(
-                        "{} triangles, {}mb file size. Sample: {}",
+                        "{} triangles, {}mb file size. Sample: {}. {}",
                         points * 2,
                         // each "square" takes 100 bytes, 50 bytes per triangle
                         points * 100 / 1_048_576,
-                        zoom.sample
+                        zoom.sample,
+                        selected_text
                     )
                     .as_str(),
                 )
@@ -683,7 +944,8 @@ impl Statusable for Option<Status> {
                     .w(90.0)
                     .h(HEIGHT)
                     .enabled(zoom.sample < 100)
-                    .set(ids.sample_greater, ui).next()
+                    .set(ids.sample_greater, ui)
+                    .next()
                 {
                     if zoom.sample < 100 {
                         return Some(Transition::Resolution(zoom.sample + 1));
@@ -695,17 +957,30 @@ impl Statusable for Option<Status> {
                     .right_from(ids.sample_greater, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.export, ui).next()
+                    .set(ids.export, ui)
+                    .next()
                 {
                     return Some(Transition::Export);
                 }
 
                 if let Some(_press) = widget::Button::new()
-                    .label("Back")
+                    .label("Export json")
                     .right_from(ids.export, 10.0)
                     .w(60.0)
                     .h(HEIGHT)
-                    .set(ids.reset, ui).next()
+                    .set(ids.export_json, ui)
+                    .next()
+                {
+                    return Some(Transition::ExportJSON);
+                }
+
+                if let Some(_press) = widget::Button::new()
+                    .label("Back")
+                    .right_from(ids.export_json, 10.0)
+                    .w(60.0)
+                    .h(HEIGHT)
+                    .set(ids.reset, ui)
+                    .next()
                 {
                     return Some(Transition::Reset);
                 }
@@ -716,7 +991,8 @@ impl Statusable for Option<Status> {
                         .right_from(ids.reset, 10.0)
                         .w(30.0)
                         .h(HEIGHT)
-                        .set(ids.cut, ui).next()
+                        .set(ids.cut, ui)
+                        .next()
                     {
                         return Some(Transition::Cut(hselection_to_hex(
                             &zoom.coords,
@@ -824,7 +1100,9 @@ impl Statusable for Option<Status> {
                                 && modifiers.is_empty()
                             {
                                 hselection.1 = (point - hselection.0).norm();
-                                selection_node.set_local_scale(hselection.1, hselection.1, 0.15);
+                                // 
+                                let z = selection_node.data().local_scale().z;
+                                selection_node.set_local_scale(hselection.1, hselection.1, z);
                                 selection_node.set_local_translation(Translation3::from(
                                     Vector3::new(hselection.0.x, hselection.0.y, 0.0),
                                 ));
@@ -838,6 +1116,7 @@ impl Statusable for Option<Status> {
                         pointer,
                         selection,
                         selection_node,
+                        trail: _,
                     }) => {
                         let (w, h) = window.canvas().size();
                         if let Some(point) = threed::get_unprojected_coords(
@@ -858,10 +1137,11 @@ impl Statusable for Option<Status> {
                             {
                                 // selection.pos = point;
                                 selection.size = point - selection.pos;
+                                let z = selection_node.data().local_scale().z;
                                 selection_node.set_local_scale(
                                     selection.size.x / 2.0,
                                     selection.size.y / 2.0,
-                                    0.15,
+                                    z,
                                 );
                                 selection_node.set_local_translation(Translation3::from(
                                     Vector3::new(

@@ -3,6 +3,10 @@
 
 ![splash screen](./assets/background.png)
 
+## Running:
+
+`topo.bin`
+
 ## Dependencies
 
 - GDAL, which is a C library that will need to be installed separately. On macos, try `brew install gdal2` or `brew install gdal`.
@@ -10,7 +14,7 @@
 
 ## Building
 
-`cargo run --release` should do the trick.
+`env GDAL_LIB_DIR=/usr/local/opt/gdal/lib/ cargo run --release` should do the trick.
 
 Note that because of the intensive numerical processing involved, doing a debug build will only result in sadness.
 

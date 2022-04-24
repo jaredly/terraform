@@ -1,3 +1,4 @@
+node_modules
 .venv
 raw_data
 outputs
@@ -5,3 +6,7 @@ target
 *.stl
 *.xml
 docs
+*.csv
+Users
+exports
+datasets

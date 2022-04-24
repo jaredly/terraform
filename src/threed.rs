@@ -29,11 +29,14 @@ pub fn get_unprojected_coords(
     }
 }
 
-fn make_prism(positions: &[(f32, f32)]) -> TriMesh<f32> {
+pub fn make_prism(positions: &[(f32, f32)], closed: bool) -> TriMesh<f32> {
     let mut points = vec![];
     let mut faces = vec![];
 
     for (i, (x, y)) in positions.iter().enumerate() {
+        // if !closed && i == positions.len() - 1 {
+        //     continue;
+        // }
         let x = *x;
         let y = *y;
         let i2 = if i == positions.len() - 1 {
@@ -66,11 +69,11 @@ pub fn make_hex() -> TriMesh<f32> {
         (-1.0, 0.0),
     ];
 
-    make_prism(&positions)
+    make_prism(&positions, true)
 }
 
 pub fn make_selection() -> TriMesh<f32> {
     let positions = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)];
 
-    make_prism(&positions)
+    make_prism(&positions, true)
 }
